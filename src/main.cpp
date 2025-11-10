@@ -31,7 +31,7 @@
 
 // 自訂頭檔
 #include "config.h"
-#include "TFlite.h"
+#include "../Engine/TFlite/TFlite.h"
 #include "write_video.h"
 #include "debug.h"
 
@@ -64,7 +64,7 @@ int main(int argc, char **argv)
     const char* lanepose_model_path = argv[1];
     char* classify_model_path = argv[2];
 
-    classifydetector__.classify_init(classify_model_path);
+    classifydetector.classify_init(classify_model_path);
 
 // ==============================================================
 #ifdef _openCVcap
