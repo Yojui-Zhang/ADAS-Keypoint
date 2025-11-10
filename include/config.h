@@ -41,7 +41,7 @@ int classify_model_height = 60;
 
 // ================ Tensorflow Set ==========
 #define NUM_CLASS 7
-#define PROB_THRESHOLD 0.5
+#define PROB_THRESHOLD 0.3
 #define NMS_THRESHOLD_BBOX 0.4
 #define NMS_THRESHOLD_LANE 0.8
 #define Keypoint_NUM 15

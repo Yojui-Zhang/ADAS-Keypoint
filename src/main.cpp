@@ -71,6 +71,7 @@ int main(int argc, char **argv)
     // 初始化影片路徑
     const char *inputVideoPath = "../video/vecow-demo.mp4";
     // const char *inputVideoPath = "../video/s3_yuntech_01_0047.jpg";
+    // const char *inputVideoPath = "../video/test1.jpg";
     // const char *outputVideoPath = "output.mp4";
 
     // 打開輸入影片
@@ -116,6 +117,10 @@ int main(int argc, char **argv)
     clock_t start, end, start_invok, end_invok;
     double TF_invoke_time_used;
 
+    if ( IconManager::Load_Picture("../icon") != true){
+        std::cerr << "\nLoad Icon Picture Failed !" << std:: endl;
+        return 1;
+    }
 
     while (1) {
 
