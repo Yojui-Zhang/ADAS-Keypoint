@@ -1,6 +1,3 @@
-//
-// Created by ubuntu on 1/20/23.
-//
 #ifndef DETECT_NORMAL_YOLOV8_HPP
 #define DETECT_NORMAL_YOLOV8_HPP
 #include "NvInferPlugin.h"
@@ -20,15 +17,9 @@ using namespace cv::dnn;
 
 class classifyDetector{
 public:
-    // inline static constexpr const char* class_name_classify[classify_NUM_CLASS] = {"100km", "110km", "30km", "40km", "50km", 
-    //                                                                         "60km", "70km", "80km", "90km", "car_left", 
-    //                                                                         "car_normal", "car_right", "car_warning", "light_green", "light_other", 
-    //                                                                         "light_red", "light_yellow", "sign_other"};
-
     void classify_init(char* classify_model_path);
     cv::Mat cropObjects(const Mat& frame, const TrackingBox &obj, int classify_model_width, int classify_model_height);
 };
-
 
 class YOLOv8 {
 public:
@@ -99,11 +90,11 @@ private:
     Logger                       gLogger{nvinfer1::ILogger::Severity::kERROR};
 };
 // ========================================================
+
 Net net;
 SORTTRACKING sorttracking;
 classifyDetector classifydetector;
 Config config;
-
 
 void classifyDetector::classify_init(char* classify_model_path)
 {
@@ -553,7 +544,7 @@ void YOLOv8::postprocess_pose(std::vector<Object>& objs, float score_thres, floa
     std::vector<float>              scores;
     std::vector<int>                labels;
     std::vector<int>                indices;
-    std::vector<std::vector<float>> kpss;
+    std::vector<std::vector<cv::Point3f>> kpss;
 
     cv::Mat output = cv::Mat(num_channels, num_anchors, CV_32F, static_cast<float*>(this->host_ptrs[0]));
     output         = output.t();
@@ -583,16 +574,17 @@ void YOLOv8::postprocess_pose(std::vector<Object>& objs, float score_thres, floa
             bbox.y      = y0;
             bbox.width  = x1 - x0;
             bbox.height = y1 - y0;
-            std::vector<float> kps;
+            std::vector<cv::Point3f> kps;
             for (int k = 0; k < 17; k++) {
                 float kps_x = (*(kps_ptr + 3 * k) - dw) * ratio;
                 float kps_y = (*(kps_ptr + 3 * k + 1) - dh) * ratio;
                 float kps_s = *(kps_ptr + 3 * k + 2);
-                kps_x       = clamp(kps_x, 0.f, width);
-                kps_y       = clamp(kps_y, 0.f, height);
-                kps.push_back(kps_x);
-                kps.push_back(kps_y);
-                kps.push_back(kps_s);
+
+                kps_x = clamp(kps_x, 0.f, width);
+                kps_y = clamp(kps_y, 0.f, height);
+
+                // x, y, score -> 用 Point3f 的 (x, y, z)
+                kps.emplace_back(kps_x, kps_y, kps_s);
             }
 
             bboxes.push_back(bbox);
@@ -617,7 +609,7 @@ void YOLOv8::postprocess_pose(std::vector<Object>& objs, float score_thres, floa
         obj.box  = bboxes[i];
         obj.score  = scores[i];
         obj.class_id = labels[i];
-        obj.kps   = kpss[i];
+        obj.kpts   = kpss[i];
         objs.push_back(obj);
         cnt += 1;
     }
@@ -648,12 +640,8 @@ void YOLOv8::draw_pose(const cv::Mat&                                image,
 
         if(obj.class_id == 1 && obj.box.x >= 400 && obj.box.x <= 880 && obj.box.y >= 250){
 
-            cout << "=-==-=-=-=-=-=-=" << endl;
-
             Mat crop_image;
             crop_image = classifydetector.cropObjects(image, obj, Classify_Model_Width, Classify_Model_Height);  //to crop_image
-
-            cout << "==================" << endl;
 
             // 調整輸入大小 (根據 ONNX 模型需求)
             Mat blob;
@@ -663,11 +651,7 @@ void YOLOv8::draw_pose(const cv::Mat&                                image,
             // 設定模型輸入
             net.setInput(blob);
 
-            cout << "==========1=======" << endl;
-
             Mat classify_output = net.forward();
-
-            cout << "=========2=========" << endl;
 
             // 解析結果
             Point classId;
@@ -713,13 +697,19 @@ void YOLOv8::draw_pose(const cv::Mat&                                image,
             }
 
         }
-
-
         
-        if(obj.class_id > 2){
+        if(obj.class_id >= 2){
             cv::rectangle(res, obj.box, {255, 0, 0}, 2);
             char text[256];
             sprintf(text, "%s %.1f%%", config.class_names[obj.class_id], obj.score * 100);
+
+            // Draw class label
+            if(classify_light__ == false){
+                sprintf(text, "%s %.1f%%", config.class_names[obj.class_id], obj.score * 100);
+            }
+            else if(classify_light__ == true){
+                sprintf(text, "%s %.1f%%", config.class_name_classify[traffic_class_num], obj.score * 100);
+            }
 
             int      baseLine   = 0;
             cv::Size label_size = cv::getTextSize(text, cv::FONT_HERSHEY_SIMPLEX, 0.4, 1, &baseLine);
@@ -735,35 +725,39 @@ void YOLOv8::draw_pose(const cv::Mat&                                image,
             cv::putText(res, text, cv::Point(x, y + label_size.height), cv::FONT_HERSHEY_SIMPLEX, 0.4, {255, 255, 255}, 1);
         }
 
-        // if(obj.class_id <= 2){
+        if(obj.class_id < 2){
 
-        //     auto& kps = obj.kps;
-        //     for (int k = 0; k < num_point + 2; k++) {
-        //         if (k < num_point) {
-        //             int   kps_x = std::round(kps[k * 3]);
-        //             int   kps_y = std::round(kps[k * 3 + 1]);
-        //             float kps_s = kps[k * 3 + 2];
-        //             if (kps_s > 0.5f && obj.class_id == 0) {
-        //                 cv::Scalar kps_color = cv::Scalar(0, 255, 0);
-        //                 cv::circle(res, {kps_x, kps_y}, 4, kps_color, -1);
-        //             }
-        //         }
-        //         auto& ske    = SKELETON[k];
-        //         int   pos1_x = std::round(kps[(ske[0] - 1) * 3]);
-        //         int   pos1_y = std::round(kps[(ske[0] - 1) * 3 + 1]);
+            auto& kps = obj.kpts;  // std::vector<cv::Point3f>
+            for (int k = 0; k < num_point + 2; k++) {
+                if (k < num_point) {
+                    const cv::Point3f& pt = kps[k];
+                    int   kps_x = std::round(pt.x);
+                    int   kps_y = std::round(pt.y);
+                    float kps_s = pt.z;          // score
 
-        //         int pos2_x = std::round(kps[(ske[1] - 1) * 3]);
-        //         int pos2_y = std::round(kps[(ske[1] - 1) * 3 + 1]);
+                    if (kps_s > 0.5f && obj.class_id == 0) {
+                        cv::Scalar kps_color = cv::Scalar(0, 255, 0);
+                        cv::circle(res, {kps_x, kps_y}, 4, kps_color, -1);
+                    }
+                }
 
-        //         float pos1_s = kps[(ske[0] - 1) * 3 + 2];
-        //         float pos2_s = kps[(ske[1] - 1) * 3 + 2];
+                const auto& ske = SKELETON[k];
+                const cv::Point3f& p1 = kps[ske[0] - 1];
+                const cv::Point3f& p2 = kps[ske[1] - 1];
 
-        //         if (pos1_s > 0.5f && pos2_s > 0.5f && obj.class_id == 1) {
-        //             cv::Scalar limb_color = cv::Scalar(255, 0, 0);
-        //             cv::line(res, {pos1_x, pos1_y}, {pos2_x, pos2_y}, limb_color, 2);
-        //         }
-        //     }
-        // }
+                int   pos1_x = std::round(p1.x);
+                int   pos1_y = std::round(p1.y);
+                int   pos2_x = std::round(p2.x);
+                int   pos2_y = std::round(p2.y);
+                float pos1_s = p1.z;
+                float pos2_s = p2.z;
+
+                if (pos1_s > 0.5f && pos2_s > 0.5f && obj.class_id == 1) {
+                    cv::Scalar limb_color = cv::Scalar(255, 0, 0);
+                    cv::line(res, {pos1_x, pos1_y}, {pos2_x, pos2_y}, limb_color, 2);
+                }
+            }
+        }
     }
 }
 

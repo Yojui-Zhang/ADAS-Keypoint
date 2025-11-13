@@ -2,7 +2,6 @@
 
 #ifdef USE_TFLITE
 
-// 你原本在 main.cpp 的 TFLite 相關 include 全搬過來
 #include "config.h"
 #include "debug.h"
 #include "../include/TFlite.h"
@@ -22,7 +21,6 @@
 #include <vector>
 #include <iostream>
 
-// 原本在 main.cpp 的全域物件搬來這裡，避免 ODR 多重定義
 static PoseDetector pose;
 
 // ======================= Classify and icon init =======================
@@ -58,7 +56,7 @@ bool tflite_run_frame(const cv::Mat& frame,
 {
     if (frame.empty()) return false;
 
-    // === preprocess ===
+    // preprocess
     pose.get_input_data_fp32(frame,
                              pose.input_data,
                              INPUT_HEIGHT, INPUT_WIDTH,
@@ -66,19 +64,19 @@ bool tflite_run_frame(const cv::Mat& frame,
                              pose.new_width, pose.new_height,
                              pose.top, pose.bottom, pose.left, pose.right);
 
-    // === invoke ===
+    // invoke
     if (pose.interpreter->Invoke() != kTfLiteOk) {
         std::cerr << "[TFLite] Invoke failed!\n";
         return false;
     }
 
-    // === (可選) dump output ===
+    // dump output
 #ifdef Save_infer_raw_data__
     (void)SaveOutputTensorToTxt(pose.interpreter.get(), /*output_index=*/0,
                                 "yolov8_output.txt");
 #endif
 
-    // === 後處理 + 繪製 ===
+    // proposals and draw result
     std::vector<Object> objs;
     pose.generate_proposals(pose.yolov8_output,
                             PROB_THRESHOLD,
@@ -93,10 +91,10 @@ bool tflite_run_frame(const cv::Mat& frame,
     return true;
 }
 
-#else // 未定義 USE_TFLITE 提供空實作，避免連結問題
+#else
 
 bool Classify_and_icon_init(const char* classify_model_path, const char* Icon_path) {return false; }
 bool tflite_init(const char*, const cv::Mat&) { return false; }
 bool tflite_run_frame(const cv::Mat&, cv::Mat&, int, int) { return false; }
 
-#endif // USE_TFLITE
+#endif
