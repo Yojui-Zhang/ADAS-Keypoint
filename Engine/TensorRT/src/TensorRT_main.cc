@@ -36,13 +36,15 @@ bool trt_init(const char* lanepose_model_path,
     return true;
 }
 
-void trt_process_frame(const cv::Mat& frame,
+std::vector<TrackingBox>  trt_process_frame(const cv::Mat& frame,
                        cv::Mat&       output_frame,
                        Config&        config)
 {
+
+    std::vector<TrackingBox> TrackingResult;
+
     if (!yolov8) {
         std::cerr << "TensorRT not initialized! Call trt_init() first.\n";
-        return;
     }
 
     // preprocess
@@ -60,7 +62,7 @@ void trt_process_frame(const cv::Mat& frame,
         config.num_labels
     );
 
-    yolov8->draw_pose(
+    TrackingResult = yolov8->draw_pose(
         frame,
         output_frame,
         objs,
@@ -69,6 +71,8 @@ void trt_process_frame(const cv::Mat& frame,
         LIMB_COLORS,
         config.num_keypoint
     );
+
+    return TrackingResult;
 }
 
 #else

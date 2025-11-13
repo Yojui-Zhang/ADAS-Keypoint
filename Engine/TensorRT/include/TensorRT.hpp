@@ -51,13 +51,13 @@ public:
 // =====================================================================================================
     void postprocess_pose(std::vector<Object>& objs, float score_thres = 0.25f, float iou_thres = 0.65f, int topk = 100, int num_labels  = 80);
  
-    static void draw_pose(const cv::Mat&                                image,
-                             cv::Mat&                                      res,
-                             const std::vector<Object>&                    objs,
-                             const std::vector<std::vector<unsigned int>>& SKELETON,
-                             const std::vector<std::vector<unsigned int>>& KPS_COLORS,
-                             const std::vector<std::vector<unsigned int>>& LIMB_COLORS,
-                             const int num_keypoint);
+    static std::vector<TrackingBox>  draw_pose(const cv::Mat&                                image,
+                                                     cv::Mat&                                res,
+                                               const std::vector<Object>&                    objs,
+                                               const std::vector<std::vector<unsigned int>>& SKELETON,
+                                               const std::vector<std::vector<unsigned int>>& KPS_COLORS,
+                                               const std::vector<std::vector<unsigned int>>& LIMB_COLORS,
+                                               const int num_keypoint);
 // =====================================================================================================
     void                 postprocess_seg(std::vector<Object>& objs,
                                      float                score_thres  = 0.25f,
@@ -616,13 +616,13 @@ void YOLOv8::postprocess_pose(std::vector<Object>& objs, float score_thres, floa
 }
 
 
-void YOLOv8::draw_pose(const cv::Mat&                                image,
-                               cv::Mat&                                      res,
-                               const std::vector<Object>&                    objs,
-                               const std::vector<std::vector<unsigned int>>& SKELETON,
-                               const std::vector<std::vector<unsigned int>>& KPS_COLORS,
-                               const std::vector<std::vector<unsigned int>>& LIMB_COLORS,
-                               const int num_keypoint)
+std::vector<TrackingBox>  YOLOv8::draw_pose(const cv::Mat&                                image,
+                                                  cv::Mat&                                res,
+                                            const std::vector<Object>&                    objs,
+                                            const std::vector<std::vector<unsigned int>>& SKELETON,
+                                            const std::vector<std::vector<unsigned int>>& KPS_COLORS,
+                                            const std::vector<std::vector<unsigned int>>& LIMB_COLORS,
+                                            const int num_keypoint)
 {
 
     int icon_light_num = 3;
@@ -698,33 +698,6 @@ void YOLOv8::draw_pose(const cv::Mat&                                image,
 
         }
         
-        if(obj.class_id >= 2){
-            cv::rectangle(res, obj.box, {255, 0, 0}, 2);
-            char text[256];
-            sprintf(text, "%s %.1f%%", config.class_names[obj.class_id], obj.score * 100);
-
-            // Draw class label
-            if(classify_light__ == false){
-                sprintf(text, "%s %.1f%%", config.class_names[obj.class_id], obj.score * 100);
-            }
-            else if(classify_light__ == true){
-                sprintf(text, "%s %.1f%%", config.class_name_classify[traffic_class_num], obj.score * 100);
-            }
-
-            int      baseLine   = 0;
-            cv::Size label_size = cv::getTextSize(text, cv::FONT_HERSHEY_SIMPLEX, 0.4, 1, &baseLine);
-
-            int x = (int)obj.box.x;
-            int y = (int)obj.box.y + 1;
-
-            if (y > res.rows)
-                y = res.rows;
-
-            cv::rectangle(res, cv::Rect(x, y, label_size.width, label_size.height + baseLine), {0, 0, 255}, -1);
-
-            cv::putText(res, text, cv::Point(x, y + label_size.height), cv::FONT_HERSHEY_SIMPLEX, 0.4, {255, 255, 255}, 1);
-        }
-
         if(obj.class_id < 2){
 
             auto& kps = obj.kpts;  // std::vector<cv::Point3f>
@@ -758,7 +731,42 @@ void YOLOv8::draw_pose(const cv::Mat&                                image,
                 }
             }
         }
+
+        if(obj.class_id >= 2){
+            cv::rectangle(res, obj.box, {255, 0, 0}, 2);
+        }
+
+        if(obj.class_id != 0){
+            // Draw class label
+            char text[256];
+            if(classify_light__ == false){
+                sprintf(text, "%s %.1f%%", config.class_names[obj.class_id], obj.score * 100);
+            }
+            else if(classify_light__ == true){
+                sprintf(text, "%s %.1f%%", config.class_name_classify[traffic_class_num], obj.score * 100);
+            }
+
+            int      baseLine   = 0;
+            cv::Size label_size = cv::getTextSize(text, cv::FONT_HERSHEY_SIMPLEX, 0.4, 1, &baseLine);
+
+            int x = (int)obj.box.x;
+            int y = (int)obj.box.y + 1;
+
+            if (y > res.rows)
+                y = res.rows;
+
+            // cv::rectangle(res, cv::Rect(x, y, label_size.width, label_size.height + baseLine), {255, 255, 255}, -1);
+            cv::putText(res, text, cv::Point(x, y + label_size.height), cv::FONT_HERSHEY_SIMPLEX, 0.4, {0, 0, 0}, 3);
+            cv::putText(res, text, cv::Point(x, y + label_size.height), cv::FONT_HERSHEY_SIMPLEX, 0.4, {255, 255, 255}, 1);
+        }
     }
+    // draw icon light
+    res = IconManager::Draw_Icon_Light(res, icon_light_num);
+
+    // draw icon sign
+    res = IconManager::Draw_Icon_Sign(res, icon_sign_num);
+
+    return TrackingResult;
 }
 
 // ============================================ seg ============================================

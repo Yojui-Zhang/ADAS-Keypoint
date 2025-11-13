@@ -49,12 +49,11 @@ bool tflite_init(const char* lanepose_model_path, const cv::Mat& first_frame)
     return true;
 }
 
-bool tflite_run_frame(const cv::Mat& frame,
-                      cv::Mat& out_bgr,
-                      int classify_model_width,
-                      int classify_model_height)
+std::vector<TrackingBox> tflite_run_frame(const cv::Mat& frame,
+                                                cv::Mat& out_bgr,
+                                          int classify_model_width,
+                                          int classify_model_height)
 {
-    if (frame.empty()) return false;
 
     // preprocess
     pose.get_input_data_fp32(frame,
@@ -67,7 +66,6 @@ bool tflite_run_frame(const cv::Mat& frame,
     // invoke
     if (pose.interpreter->Invoke() != kTfLiteOk) {
         std::cerr << "[TFLite] Invoke failed!\n";
-        return false;
     }
 
     // dump output
@@ -78,6 +76,8 @@ bool tflite_run_frame(const cv::Mat& frame,
 
     // proposals and draw result
     std::vector<Object> objs;
+    std::vector<TrackingBox> TrackingResult;
+
     pose.generate_proposals(pose.yolov8_output,
                             PROB_THRESHOLD,
                             objs,
@@ -86,9 +86,9 @@ bool tflite_run_frame(const cv::Mat& frame,
 
     pose.nms(objs, NMS_THRESHOLD_BBOX, NMS_THRESHOLD_LANE);
 
-    out_bgr = pose.draw_objects(frame, objs,
+    TrackingResult = pose.draw_objects(frame, objs, out_bgr,
                                 classify_model_width, classify_model_height);
-    return true;
+    return TrackingResult;
 }
 
 #else

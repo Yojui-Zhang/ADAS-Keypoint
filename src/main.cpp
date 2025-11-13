@@ -120,7 +120,7 @@ int main(int argc, char** argv) {
 #endif
 
 // ========================================================================
-
+  std::vector<TrackingBox> TrackingResult;
   clock_t start, end;
   double system_time_used;
 
@@ -134,27 +134,30 @@ int main(int argc, char** argv) {
 #endif
 #ifdef _v4l2cap
     frame = v4l2Cam();
-    // rgbImg = rgbImg1(rect);
 #endif
 
     // ============================== Inference ===========================
+    // SORT Tracking / Draw icon / Draw object
 
 #ifdef USE_TFLITE
 
     int classify_model_width = Classify_Model_Width;
     int classify_model_height = Classify_Model_Height;
 
-    if (!tflite_run_frame(frame, Output_frame, classify_model_width,
-                          classify_model_height))
-      return -1;
+    TrackingResult = tflite_run_frame(frame, Output_frame, classify_model_width,
+                                        classify_model_height);
+
 #endif
 
 #ifdef USE_TENSORRT
 
-    trt_process_frame(frame, Output_frame, config);
+    TrackingResult = trt_process_frame(frame, Output_frame, config);
 #endif
 
-    // ========================= Experiment =========================
+    // ============================== Inference ===========================
+    // Algorithm for LKA / ACC / AEB / Behavior Detection
+
+    // ============================= Experiment =============================
 
 #ifdef Save_infer_raw_data__
     if (!SaveOutputTensorToTxt(pose.interpreter.get(), /*output_index=*/0,
@@ -172,8 +175,8 @@ int main(int argc, char** argv) {
     // ==============================================================
 
     end = clock();
-    system_time_used = ((double)(end - start)) / CLOCKS_PER_SEC;
-    cout << "Time taken: " << system_time_used << "seconds" << "\n\n" << endl;
+    system_time_used = ((double)(end - start)) / CLOCKS_PER_SEC * 1000;
+    cout << "Time taken: " << system_time_used << " ms" << endl;
 
     // ==============================================================
 

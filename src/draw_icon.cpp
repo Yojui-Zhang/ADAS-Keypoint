@@ -35,15 +35,15 @@ bool IconManager::Load_Picture(const std::string& dir)
     icons_[Icon_ID::Light_background]   = Load_Icon(dir + "/light/light_background.png",   {200,   112});
 
     // sign
-    icons_[Icon_ID::sign_30km]  = Load_Icon(dir + "/sign/30km.png",     {75, 75});
-    icons_[Icon_ID::sign_40km]  = Load_Icon(dir + "/sign/40km.png",     {75, 75});
-    icons_[Icon_ID::sign_50km]  = Load_Icon(dir + "/sign/50km.png",     {75, 75});
-    icons_[Icon_ID::sign_60km]  = Load_Icon(dir + "/sign/60km.png",     {75, 75});
-    icons_[Icon_ID::sign_70km]  = Load_Icon(dir + "/sign/70km.png",     {75, 75});
-    icons_[Icon_ID::sign_80km]  = Load_Icon(dir + "/sign/80km.png",     {75, 75});
-    icons_[Icon_ID::sign_90km]  = Load_Icon(dir + "/sign/90km.png",     {75, 75});
-    icons_[Icon_ID::sign_100km] = Load_Icon(dir + "/sign/100km.png",    {75, 75});
-    icons_[Icon_ID::sign_110km] = Load_Icon(dir + "/sign/110km.png",    {75, 75});
+    icons_[Icon_ID::sign_30km]  = Load_Icon(dir + "/sign/30km.png",     {100, 100});
+    icons_[Icon_ID::sign_40km]  = Load_Icon(dir + "/sign/40km.png",     {100, 100});
+    icons_[Icon_ID::sign_50km]  = Load_Icon(dir + "/sign/50km.png",     {100, 100});
+    icons_[Icon_ID::sign_60km]  = Load_Icon(dir + "/sign/60km.png",     {100, 100});
+    icons_[Icon_ID::sign_70km]  = Load_Icon(dir + "/sign/70km.png",     {100, 100});
+    icons_[Icon_ID::sign_80km]  = Load_Icon(dir + "/sign/80km.png",     {100, 100});
+    icons_[Icon_ID::sign_90km]  = Load_Icon(dir + "/sign/90km.png",     {100, 100});
+    icons_[Icon_ID::sign_100km] = Load_Icon(dir + "/sign/100km.png",    {100, 100});
+    icons_[Icon_ID::sign_110km] = Load_Icon(dir + "/sign/110km.png",    {100, 100});
 
     return true;
 }
@@ -112,31 +112,31 @@ cv::Mat IconManager::Draw_Icon_Sign(cv::Mat& bgr, int sign_Set){
 */
 
     if (sign_Set == 0){
-        IconManager::Draw_Icon(bgr, Icon_ID::sign_100km,  cv::Point(210,40));
+        IconManager::Draw_Icon(bgr, Icon_ID::sign_100km,  cv::Point(210,20));
     }
     else if(sign_Set == 1){
-        IconManager::Draw_Icon(bgr, Icon_ID::sign_110km,  cv::Point(210,40));
+        IconManager::Draw_Icon(bgr, Icon_ID::sign_110km,  cv::Point(210,20));
     }
     else if(sign_Set == 2){
-        IconManager::Draw_Icon(bgr, Icon_ID::sign_30km,  cv::Point(210,40));
+        IconManager::Draw_Icon(bgr, Icon_ID::sign_30km,  cv::Point(210,20));
     }
     else if(sign_Set == 3){
-        IconManager::Draw_Icon(bgr, Icon_ID::sign_40km,  cv::Point(210,40));
+        IconManager::Draw_Icon(bgr, Icon_ID::sign_40km,  cv::Point(210,20));
     }
     else if(sign_Set == 4){
-        IconManager::Draw_Icon(bgr, Icon_ID::sign_50km,  cv::Point(210,40));
+        IconManager::Draw_Icon(bgr, Icon_ID::sign_50km,  cv::Point(210,20));
     }
     else if(sign_Set == 5){
-        IconManager::Draw_Icon(bgr, Icon_ID::sign_60km,  cv::Point(210,40));
+        IconManager::Draw_Icon(bgr, Icon_ID::sign_60km,  cv::Point(210,20));
     }
     else if(sign_Set == 6){
-        IconManager::Draw_Icon(bgr, Icon_ID::sign_70km,  cv::Point(210,40));
+        IconManager::Draw_Icon(bgr, Icon_ID::sign_70km,  cv::Point(210,20));
     }
     else if(sign_Set == 7){
-        IconManager::Draw_Icon(bgr, Icon_ID::sign_80km,  cv::Point(210,40));
+        IconManager::Draw_Icon(bgr, Icon_ID::sign_80km,  cv::Point(210,20));
     }
     else if(sign_Set == 8){
-        IconManager::Draw_Icon(bgr, Icon_ID::sign_90km,  cv::Point(210,40));
+        IconManager::Draw_Icon(bgr, Icon_ID::sign_90km,  cv::Point(210,20));
     }
 
     return bgr;

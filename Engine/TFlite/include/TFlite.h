@@ -15,7 +15,7 @@
 
 #include "SortTracking.h"
 #include "draw_icon.h"
-
+#include "config.h" 
 
 using namespace std;
 using namespace cv;
@@ -67,7 +67,7 @@ public:
                              int            left, 
                              int            right);
 
-    cv::Mat draw_objects(const cv::Mat &img, const std::vector<Object> &objects, int classify_model_width, int classify_model_height);
+    std::vector<TrackingBox> draw_objects(const cv::Mat &img, const std::vector<Object> &objects, cv::Mat& out_bgr, int classify_model_width, int classify_model_height);
 
     bool Set_TFlite(const char* model_path);
     void Calculate_Scale(const cv::Mat& frame, int input_width, int input_height);
@@ -381,41 +381,26 @@ void draw_edge_arrow(cv::Mat& img,
 
 void draw_car_cuboid(cv::Mat& image, const std::vector<cv::Point>& P, const std::vector<int>& V)
 {
-    // 索引（依你的資料集調整）
-    const int ROOF_FL=9, ROOF_FR=10, ROOF_RL=11, ROOF_RR=12;
-    const int BTM_FL=0,  BTM_FR=1,  BTM_RL=2,  BTM_RR=3  ; // 用頭/尾燈近似底部四角
 
-    // 上方面（roof）
-    draw_edge(image, P, V, ROOF_FL, ROOF_FR, GREEN);
-    draw_edge(image, P, V, ROOF_FR, ROOF_RR, GREEN);
-    draw_edge(image, P, V, ROOF_RR, ROOF_RL, GREEN);
-    draw_edge(image, P, V, ROOF_RL, ROOF_FL, GREEN);
-
-    // 下方面（bumper line，以前燈/尾燈近似）
-    draw_edge(image, P, V, BTM_FL, BTM_FR, CYAN);
-    draw_edge(image, P, V, BTM_FR, BTM_RR, CYAN);
-    draw_edge(image, P, V, BTM_RR, BTM_RL, CYAN);
-    draw_edge(image, P, V, BTM_RL, BTM_FL, CYAN);
-
-    // 立柱（pillar）
-    draw_edge(image, P, V, ROOF_FL, BTM_FL, RED);
-    draw_edge(image, P, V, ROOF_FR, BTM_FR, RED);
-    draw_edge(image, P, V, ROOF_RR, BTM_RR, RED);
-    draw_edge(image, P, V, ROOF_RL, BTM_RL, RED);
+    for (const auto& edge : SKELETON) {
+        int i = edge[0] - 3;
+        int j = edge[1] - 3;
+        draw_edge(image, P, V, i, j, BLUE);  // 使用自定義顏色 GREEN
+    }
 
     // 行進方向
     // draw_edge_arrow(image, P, V, BTM_FL, BTM_FR, BTM_RL, BTM_RR, ARROW_COLOR);
 }
 
 // ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
-cv::Mat PoseDetector::draw_objects(const cv::Mat &img, const std::vector<Object> &objects, int classify_model_width, int classify_model_height)
+std::vector<TrackingBox> PoseDetector::draw_objects(const cv::Mat &img, const std::vector<Object> &objects, cv::Mat& out_bgr, int classify_model_width, int classify_model_height)
 {
 
     int icon_light_num = 3;
     int icon_sign_num = 9;
 
 
-    cv::Mat image = img.clone();
+    out_bgr = img.clone();
 
     std::vector<TrackingBox> TrackingResult = sorttracking.TrackingResult(objects);
 
@@ -425,102 +410,69 @@ cv::Mat PoseDetector::draw_objects(const cv::Mat &img, const std::vector<Object>
         bool classify_light__ = false;
         int traffic_class_num;
 
+        // cv::line(out_bgr, cv::Point(0, 200), cv::Point(1280, 200), BLUE, 5);
 
-        // cv::line(image, cv::Point(0, 200), cv::Point(1280, 200), BLUE, 5);
+        if(obj.class_id == 1 && obj.box.x >= 400 && obj.box.x <= 880 && obj.box.y >= 250){
 
-        if(obj.class_id != 0 ){
+            Mat crop_image;
+            crop_image = classifydetector.cropObjects(out_bgr, obj, classify_model_width, classify_model_height);  //to crop_image
 
-            if(obj.class_id == 1 && obj.box.x >= 400 && obj.box.x <= 880 && obj.box.y >= 250){
+            // 調整輸入大小 (根據 ONNX 模型需求)
+            Mat blob;
+            Size inputSize(classify_model_width, classify_model_height);  // 根據模型需求調整
+            blobFromImage(crop_image, blob, 1.0 / 255, inputSize, Scalar(), true, false);
 
-                Mat crop_image;
-                crop_image = classifydetector.cropObjects(image, obj, classify_model_width, classify_model_height);  //to crop_image
+            // 設定模型輸入
+            net.setInput(blob);
 
-                // 調整輸入大小 (根據 ONNX 模型需求)
-                Mat blob;
-                Size inputSize(classify_model_width, classify_model_height);  // 根據模型需求調整
-                blobFromImage(crop_image, blob, 1.0 / 255, inputSize, Scalar(), true, false);
+            Mat classify_output = net.forward();
 
-                // 設定模型輸入
-                net.setInput(blob);
+            // 解析結果
+            Point classId;
+            double confidence;
+            minMaxLoc(classify_output, nullptr, &confidence, nullptr, &classId);
 
-                Mat classify_output = net.forward();
+            // cout << "Predicted Class: " << classifydetector.class_name_classify[classId.x] << ", Confidence: " << confidence << endl;
 
-                // 解析結果
-                Point classId;
-                double confidence;
-                minMaxLoc(classify_output, nullptr, &confidence, nullptr, &classId);
+            classify_light__ = true;
+            traffic_class_num = classId.x;
 
-                // cout << "Predicted Class: " << classifydetector.class_name_classify[classId.x] << ", Confidence: " << confidence << endl;
-
-                classify_light__ = true;
-                traffic_class_num = classId.x;
-
-            }
-            else if( ( obj.class_id == 4 || obj.class_id == 5 || obj.class_id == 6) && obj.box.y <= 250 ){
-
-                Mat crop_image;
-                crop_image = classifydetector.cropObjects(image, obj, classify_model_width, classify_model_height);  //to crop_image
-
-                // 調整輸入大小 (根據 ONNX 模型需求)
-                Mat blob;
-                Size inputSize(classify_model_width, classify_model_height);  // 根據模型需求調整
-                blobFromImage(crop_image, blob, 1.0 / 255, inputSize, Scalar(), true, false);
-
-                // 設定模型輸入
-                net.setInput(blob);
-
-                Mat classify_output = net.forward();
-
-                // 解析結果
-                Point classId;
-                double confidence;
-                minMaxLoc(classify_output, nullptr, &confidence, nullptr, &classId);
-
-                // cout << "Predicted Class: " << classifydetector.class_name_classify[classId.x] << ", Confidence: " << confidence << endl;
-
-                classify_light__ = true;
-                traffic_class_num = classId.x;
-
-                if((traffic_class_num == 13 || traffic_class_num == 15 || traffic_class_num == 16)){
-                    icon_light_num = traffic_class_num;
-                }
-                if(traffic_class_num >= 0 && traffic_class_num <= 8 ){
-                    icon_sign_num = traffic_class_num;
-                }
-
-            }
-
-            // Draw bbox
-            cv::rectangle(image, obj.box, GREEN, 2);
-
-            // Draw class label
-            if(classify_light__ == false){
-                label_txt = cv::format("%s", config.class_names[obj.class_id]);
-            }
-            else if(classify_light__ == true){
-                label_txt = cv::format("%s", config.class_name_classify[traffic_class_num]);
-            }
-
-
-            int baseline = 0;
-            cv::Size textSize = cv::getTextSize(label_txt, cv::FONT_HERSHEY_SIMPLEX, 0.5, 1, &baseline);
-            cv::Point textOrg(obj.box.x, obj.box.y - 5);
-            cv::putText(image, label_txt, textOrg, cv::FONT_HERSHEY_SIMPLEX, 0.5, WHITE, 1);
         }
-        else{
-            // Draw keypoints (if any)
-            for (const auto& kpt : obj.kpts)
-            {
-                int x = static_cast<int>(kpt.x);
-                int y = static_cast<int>(kpt.y);
-                int v = static_cast<int>(kpt.z);  // visibility
+        else if( ( obj.class_id == 4 || obj.class_id == 5 || obj.class_id == 6) && obj.box.y <= 250 ){
 
-                cv::circle(image, cv::Point(x, y), 3, RED, -1);   
+            Mat crop_image;
+            crop_image = classifydetector.cropObjects(out_bgr, obj, classify_model_width, classify_model_height);  //to crop_image
+
+            // 調整輸入大小 (根據 ONNX 模型需求)
+            Mat blob;
+            Size inputSize(classify_model_width, classify_model_height);  // 根據模型需求調整
+            blobFromImage(crop_image, blob, 1.0 / 255, inputSize, Scalar(), true, false);
+
+            // 設定模型輸入
+            net.setInput(blob);
+
+            Mat classify_output = net.forward();
+
+            // 解析結果
+            Point classId;
+            double confidence;
+            minMaxLoc(classify_output, nullptr, &confidence, nullptr, &classId);
+
+            // cout << "Predicted Class: " << classifydetector.class_name_classify[classId.x] << ", Confidence: " << confidence << endl;
+
+            classify_light__ = true;
+            traffic_class_num = classId.x;
+
+            if((traffic_class_num == 13 || traffic_class_num == 15 || traffic_class_num == 16)){
+                icon_light_num = traffic_class_num;
             }
+            if(traffic_class_num >= 0 && traffic_class_num <= 8 ){
+                icon_sign_num = traffic_class_num;
+            }
+
         }
 
-        // draw car structure
-        if(obj.class_id == 1){
+        if(obj.class_id <= 1){
 
             std::vector<cv::Point> P;
             std::vector<int> V;
@@ -535,19 +487,44 @@ cv::Mat PoseDetector::draw_objects(const cv::Mat &img, const std::vector<Object>
                 P.emplace_back(x, y);
                 V.emplace_back(v);
 
-                // 原本的點可繼續畫
-                // cv::circle(image, cv::Point(x, y), 3, RED, -1);
+                if(obj.class_id == 0){
+                    cv::circle(out_bgr, cv::Point(x, y), 3, GREEN, -1);
+                }
             }
-
-            draw_car_cuboid(image, P, V);
+            if(obj.class_id == 1){
+                draw_car_cuboid(out_bgr, P, V);
+            }
         }
+
+        if(obj.class_id != 0 ){
+            
+            if(obj.class_id != 1){
+                // Draw bbox
+                cv::rectangle(out_bgr, obj.box, GREEN, 2);
+            }
+        
+            // Draw class label
+            if(classify_light__ == false){
+                label_txt = cv::format("%s", config.class_names[obj.class_id]);
+            }
+            else if(classify_light__ == true){
+                label_txt = cv::format("%s", config.class_name_classify[traffic_class_num]);
+            }
+            
+            int baseline = 0;
+            cv::Size textSize = cv::getTextSize(label_txt, cv::FONT_HERSHEY_SIMPLEX, 0.5, 1, &baseline);
+            cv::Point textOrg(obj.box.x, obj.box.y - 5);
+            cv::putText(out_bgr, label_txt, textOrg, cv::FONT_HERSHEY_SIMPLEX, 0.5, BLACK, 3);
+            cv::putText(out_bgr, label_txt, textOrg, cv::FONT_HERSHEY_SIMPLEX, 0.5, WHITE, 1);
+        }
+
     }
 
     // draw icon light
-    image = IconManager::Draw_Icon_Light(image, icon_light_num);
+    out_bgr = IconManager::Draw_Icon_Light(out_bgr, icon_light_num);
 
     // draw icon sign
-    image = IconManager::Draw_Icon_Sign(image, icon_sign_num);
+    out_bgr = IconManager::Draw_Icon_Sign(out_bgr, icon_sign_num);
 
-    return image;
+    return TrackingResult;
 }
