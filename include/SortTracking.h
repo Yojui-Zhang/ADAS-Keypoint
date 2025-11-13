@@ -17,8 +17,13 @@ struct Object {
     int class_id;
     float score;
     cv::Rect box;
-    std::vector<cv::Point3f> kpts;  // x, y, visibility
+
+    std::vector<cv::Point3f> kpts;  // x, y, visibility     (TFlite)
+    std::vector<float> kps;         //                      (TensorRT)
+
+    cv::Mat          boxMask;
 };
+
 
 typedef struct TrackingBox
 {
@@ -29,6 +34,7 @@ typedef struct TrackingBox
 
     cv::Rect box;
     std::vector<cv::Point3f> kpts;
+    std::vector<float> kps;         //                      (TensorRT)
 
 } TrackingBox;
 

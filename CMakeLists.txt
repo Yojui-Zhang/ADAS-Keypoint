@@ -1,3 +1,6 @@
+#pragma once
+#include <opencv2/core.hpp>  // 包含 cv::Scalar 和其他基本類型
+
 cmake_minimum_required(VERSION 3.14)
 
 # ==================== Choose Engine（TENSORRT/TFLITE）====================
@@ -94,27 +97,44 @@ find_package(OpenCL REQUIRED)
 # ========================= Threads =========================
 find_package(Threads REQUIRED)
 
-# ========================= VDK or GLFW =========================
+# ========================= Build VDK/GLFW =========================
 if(ENGINE STREQUAL "TFLITE")
-  set(PLATFORM_LIBS VDK)
+
+    set(PLATFORM_LIBS VDK)
+
+    target_link_libraries(${PROJECT_NAME}
+        ${OpenCV_LIBS}
+        OpenCL
+        tensorflow-lite
+        dl
+        pthread
+        drm
+        GLESv2
+        EGL
+    
+        glfw   
+    #    ${PLATFORM_LIBS}
+
+    )
 
 elseif(ENGINE STREQUAL "TENSORRT")
-  set(PLATFORM_LIBS glfw)
 
+    set(PLATFORM_LIBS glfw)
+
+    target_link_libraries(${PROJECT_NAME}
+        ${OpenCV_LIBS}
+        OpenCL
+        dl
+        pthread
+        drm
+        GLESv2
+        EGL
+    
+        ${PLATFORM_LIBS}
+        ${CUDA_LIBRARIES}   # Ensure CUDA libraries are linked
+        ${TensorRT_LIBRARIES}  # Link TensorRT libraries
+    )
 endif()
 
 # ========================= Build =========================
-target_link_libraries(${PROJECT_NAME}
-    ${OpenCV_LIBS}
-    OpenCL
-    tensorflow-lite
-    dl
-    pthread
-    drm
-    GLESv2
-    EGL
- 
-    glfw   
-#    ${PLATFORM_LIBS}
 
-)

@@ -23,10 +23,10 @@ using namespace cv::dnn;
 
 class classifyDetector{
 public:
-    inline static constexpr const char* class_name_classify[classify_NUM_CLASS] = {"100km", "110km", "30km", "40km", "50km", 
-                                                                            "60km", "70km", "80km", "90km", "car_left", 
-                                                                            "car_normal", "car_right", "car_warning", "light_green", "light_other", 
-                                                                            "light_red", "light_yellow", "sign_other"};
+    // inline static constexpr const char* class_name_classify[classify_NUM_CLASS] = {"100km", "110km", "30km", "40km", "50km", 
+    //                                                                         "60km", "70km", "80km", "90km", "car_left", 
+    //                                                                         "car_normal", "car_right", "car_warning", "light_green", "light_other", 
+    //                                                                         "light_red", "light_yellow", "sign_other"};
 
     void classify_init(const char* classify_model_path);
     cv::Mat cropObjects(const Mat& frame, const TrackingBox &obj, int classify_model_width, int classify_model_height);
@@ -34,7 +34,7 @@ public:
 
 class PoseDetector {
 public:
-    inline static constexpr const char* class_names[NUM_CLASS] = {"roadlane", "car", "rider", "person", "light", "signC", "signT"};
+    // inline static constexpr const char* class_names[NUM_CLASS] = {"roadlane", "car", "rider", "person", "light", "signC", "signT"};
 
     // 模型與資料
     std::unique_ptr<tflite::FlatBufferModel> model;
@@ -76,6 +76,8 @@ public:
 Net net;
 SORTTRACKING sorttracking;
 classifyDetector classifydetector;
+Config config;
+
 
 void classifyDetector::classify_init(const char* classify_model_path)
 {
@@ -493,10 +495,10 @@ cv::Mat PoseDetector::draw_objects(const cv::Mat &img, const std::vector<Object>
 
             // Draw class label
             if(classify_light__ == false){
-                label_txt = cv::format("%s", class_names[obj.class_id]);
+                label_txt = cv::format("%s", config.class_names[obj.class_id]);
             }
             else if(classify_light__ == true){
-                label_txt = cv::format("%s", classifydetector.class_name_classify[traffic_class_num]);
+                label_txt = cv::format("%s", config.class_name_classify[traffic_class_num]);
             }
 
 

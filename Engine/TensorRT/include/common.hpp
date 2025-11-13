@@ -96,13 +96,7 @@ struct Binding {
     std::string    name;
 };
 
-struct Object {
-    cv::Rect_<float> rect;
-    int              label = 0;
-    float            prob  = 0.0;
-    std::vector<float> kps;
-    cv::Mat          boxMask;
-};
+
 
 struct PreParam {
     float ratio  = 1.0f;

@@ -20,10 +20,10 @@ using namespace cv::dnn;
 
 class classifyDetector{
 public:
-    inline static constexpr const char* class_name_classify[classify_NUM_CLASS] = {"100km", "110km", "30km", "40km", "50km", 
-                                                                            "60km", "70km", "80km", "90km", "car_left", 
-                                                                            "car_normal", "car_right", "car_warning", "light_green", "light_other", 
-                                                                            "light_red", "light_yellow", "sign_other"};
+    // inline static constexpr const char* class_name_classify[classify_NUM_CLASS] = {"100km", "110km", "30km", "40km", "50km", 
+    //                                                                         "60km", "70km", "80km", "90km", "car_left", 
+    //                                                                         "car_normal", "car_right", "car_warning", "light_green", "light_other", 
+    //                                                                         "light_red", "light_yellow", "sign_other"};
 
     void classify_init(char* classify_model_path);
     cv::Mat cropObjects(const Mat& frame, const TrackingBox &obj, int classify_model_width, int classify_model_height);
@@ -41,14 +41,13 @@ public:
     void                 letterbox(const cv::Mat& image, cv::Mat& out, cv::Size& size);
     void                 infer();
 
-// // =====================================================================================================
+// =====================================================================================================
     void postprocess_classify(std::vector<Object>& objs);
 
     static void draw_classify(const cv::Mat&                  image,
                              cv::Mat&                        res,
-                             const std::vector<Object>&      objs,
-                             const std::vector<std::string>& CLASS_NAMES);
-// // =====================================================================================================
+                             const std::vector<Object>&      objs);
+// =====================================================================================================
     void                 postprocess_detect(std::vector<Object>& objs,
                                      float                score_thres = 0.25f,
                                      float                iou_thres   = 0.65f,
@@ -57,9 +56,8 @@ public:
     static void          draw_objects(const cv::Mat&                                image,
                                       cv::Mat&                                      res,
                                       const std::vector<Object>&                    objs,
-                                      const std::vector<std::string>&               CLASS_NAMES,
                                       const std::vector<std::vector<unsigned int>>& COLORS);
-// // =====================================================================================================
+// =====================================================================================================
     void postprocess_pose(std::vector<Object>& objs, float score_thres = 0.25f, float iou_thres = 0.65f, int topk = 100, int num_labels  = 80);
  
     static void draw_pose(const cv::Mat&                                image,
@@ -68,7 +66,6 @@ public:
                              const std::vector<std::vector<unsigned int>>& SKELETON,
                              const std::vector<std::vector<unsigned int>>& KPS_COLORS,
                              const std::vector<std::vector<unsigned int>>& LIMB_COLORS,
-                             const std::vector<std::string>&               CLASS_NAMES,
                              const int num_keypoint);
 // =====================================================================================================
     void                 postprocess_seg(std::vector<Object>& objs,
@@ -81,7 +78,6 @@ public:
     static void          draw_seg(const cv::Mat&                                image,
                                       cv::Mat&                                      res,
                                       const std::vector<Object>&                    objs,
-                                      const std::vector<std::string>&               CLASS_NAMES,
                                       const std::vector<std::vector<unsigned int>>& COLORS,
                                       const std::vector<std::vector<unsigned int>>& MASK_COLORS);
 // =====================================================================================================
@@ -106,7 +102,7 @@ private:
 Net net;
 SORTTRACKING sorttracking;
 classifyDetector classifydetector;
-
+Config config;
 
 
 void classifyDetector::classify_init(char* classify_model_path)
@@ -411,20 +407,19 @@ void YOLOv8::postprocess_classify(std::vector<Object>& objs)
     float* max_ptr =
         std::max_element(static_cast<float*>(this->host_ptrs[0]), static_cast<float*>(this->host_ptrs[0]) + num_cls);
     Object obj;
-    obj.label = std::distance(static_cast<float*>(this->host_ptrs[0]), max_ptr);
-    obj.prob  = *max_ptr;
+    obj.class_id = std::distance(static_cast<float*>(this->host_ptrs[0]), max_ptr);
+    obj.score  = *max_ptr;
     objs.push_back(obj);
 }
 
 void YOLOv8::draw_classify(const cv::Mat&                  image,
                               cv::Mat&                        res,
-                              const std::vector<Object>&      objs,
-                              const std::vector<std::string>& CLASS_NAMES)
+                              const std::vector<Object>&      objs)
 {
     res = image.clone();
     char   text[256];
     Object obj = objs[0];
-    sprintf(text, "%s %.1f%%", CLASS_NAMES[obj.label].c_str(), obj.prob * 100);
+    sprintf(text, "%s %.1f%%", config.class_names[obj.class_id], obj.score * 100);
 
     int      baseLine   = 0;
     cv::Size label_size = cv::getTextSize(text, cv::FONT_HERSHEY_SIMPLEX, 0.4, 1, &baseLine);
@@ -503,9 +498,9 @@ void YOLOv8::postprocess_detect(std::vector<Object>& objs, float score_thres, fl
             break;
         }
         Object obj;
-        obj.rect  = bboxes[i];
-        obj.prob  = scores[i];
-        obj.label = labels[i];
+        obj.box  = bboxes[i];
+        obj.score  = scores[i];
+        obj.class_id = labels[i];
         objs.push_back(obj);
         cnt += 1;
     }
@@ -515,22 +510,21 @@ void YOLOv8::postprocess_detect(std::vector<Object>& objs, float score_thres, fl
 void YOLOv8::draw_objects(const cv::Mat&                                image,
                           cv::Mat&                                      res,
                           const std::vector<Object>&                    objs,
-                          const std::vector<std::string>&               CLASS_NAMES,
                           const std::vector<std::vector<unsigned int>>& COLORS)
 {
     res = image.clone();
     for (auto& obj : objs) {
-        cv::Scalar color = cv::Scalar(COLORS[obj.label][0], COLORS[obj.label][1], COLORS[obj.label][2]);
-        cv::rectangle(res, obj.rect, color, 2);
+        cv::Scalar color = cv::Scalar(COLORS[obj.class_id][0], COLORS[obj.class_id][1], COLORS[obj.class_id][2]);
+        cv::rectangle(res, obj.box, color, 2);
 
         char text[256];
-        sprintf(text, "%s %.1f%%", CLASS_NAMES[obj.label].c_str(), obj.prob * 100);
+        sprintf(text, "%s %.1f%%", config.class_names[obj.class_id], obj.score * 100);
 
         int      baseLine   = 0;
         cv::Size label_size = cv::getTextSize(text, cv::FONT_HERSHEY_SIMPLEX, 0.4, 1, &baseLine);
 
-        int x = (int)obj.rect.x;
-        int y = (int)obj.rect.y + 1;
+        int x = (int)obj.box.x;
+        int y = (int)obj.box.y + 1;
 
         if (y > res.rows) {
             y = res.rows;
@@ -620,9 +614,9 @@ void YOLOv8::postprocess_pose(std::vector<Object>& objs, float score_thres, floa
             break;
         }
         Object obj;
-        obj.rect  = bboxes[i];
-        obj.prob  = scores[i];
-        obj.label = labels[i];
+        obj.box  = bboxes[i];
+        obj.score  = scores[i];
+        obj.class_id = labels[i];
         obj.kps   = kpss[i];
         objs.push_back(obj);
         cnt += 1;
@@ -636,56 +630,140 @@ void YOLOv8::draw_pose(const cv::Mat&                                image,
                                const std::vector<std::vector<unsigned int>>& SKELETON,
                                const std::vector<std::vector<unsigned int>>& KPS_COLORS,
                                const std::vector<std::vector<unsigned int>>& LIMB_COLORS,
-                               const std::vector<std::string>&               CLASS_NAMES,
                                const int num_keypoint)
 {
+
+    int icon_light_num = 3;
+    int icon_sign_num = 9;
+
     res                 = image.clone();
     const int num_point = num_keypoint;
-    for (auto& obj : objs) {
-        cv::rectangle(res, obj.rect, {0, 0, 255}, 2);
 
-        char text[256];
-        sprintf(text, "%s %.1f%%", CLASS_NAMES[obj.label].c_str(), obj.prob * 100);
+    std::vector<TrackingBox> TrackingResult = sorttracking.TrackingResult(objs);
 
-        int      baseLine   = 0;
-        cv::Size label_size = cv::getTextSize(text, cv::FONT_HERSHEY_SIMPLEX, 0.4, 1, &baseLine);
+    for (auto& obj : TrackingResult) {
 
-        int x = (int)obj.rect.x;
-        int y = (int)obj.rect.y + 1;
+        bool classify_light__ = false;
+        int traffic_class_num;
 
-        if (y > res.rows)
-            y = res.rows;
+        if(obj.class_id == 1 && obj.box.x >= 400 && obj.box.x <= 880 && obj.box.y >= 250){
 
-        cv::rectangle(res, cv::Rect(x, y, label_size.width, label_size.height + baseLine), {0, 0, 255}, -1);
+            cout << "=-==-=-=-=-=-=-=" << endl;
 
-        cv::putText(res, text, cv::Point(x, y + label_size.height), cv::FONT_HERSHEY_SIMPLEX, 0.4, {255, 255, 255}, 1);
+            Mat crop_image;
+            crop_image = classifydetector.cropObjects(image, obj, Classify_Model_Width, Classify_Model_Height);  //to crop_image
 
-        auto& kps = obj.kps;
-        for (int k = 0; k < num_point + 2; k++) {
-            if (k < num_point) {
-                int   kps_x = std::round(kps[k * 3]);
-                int   kps_y = std::round(kps[k * 3 + 1]);
-                float kps_s = kps[k * 3 + 2];
-                if (kps_s > 0.5f) {
-                    cv::Scalar kps_color = cv::Scalar(KPS_COLORS[k][0], KPS_COLORS[k][1], KPS_COLORS[k][2]);
-                    cv::circle(res, {kps_x, kps_y}, 5, kps_color, -1);
-                }
-            }
-            auto& ske    = SKELETON[k];
-            int   pos1_x = std::round(kps[(ske[0] - 1) * 3]);
-            int   pos1_y = std::round(kps[(ske[0] - 1) * 3 + 1]);
+            cout << "==================" << endl;
 
-            int pos2_x = std::round(kps[(ske[1] - 1) * 3]);
-            int pos2_y = std::round(kps[(ske[1] - 1) * 3 + 1]);
+            // 調整輸入大小 (根據 ONNX 模型需求)
+            Mat blob;
+            Size inputSize(Classify_Model_Width, Classify_Model_Height);  // 根據模型需求調整
+            blobFromImage(crop_image, blob, 1.0 / 255, inputSize, Scalar(), true, false);
 
-            float pos1_s = kps[(ske[0] - 1) * 3 + 2];
-            float pos2_s = kps[(ske[1] - 1) * 3 + 2];
+            // 設定模型輸入
+            net.setInput(blob);
 
-            if (pos1_s > 0.5f && pos2_s > 0.5f) {
-                cv::Scalar limb_color = cv::Scalar(LIMB_COLORS[k][0], LIMB_COLORS[k][1], LIMB_COLORS[k][2]);
-                cv::line(res, {pos1_x, pos1_y}, {pos2_x, pos2_y}, limb_color, 2);
-            }
+            cout << "==========1=======" << endl;
+
+            Mat classify_output = net.forward();
+
+            cout << "=========2=========" << endl;
+
+            // 解析結果
+            Point classId;
+            double confidence;
+            minMaxLoc(classify_output, nullptr, &confidence, nullptr, &classId);
+
+            // cout << "Predicted Class: " << classifydetector.class_name_classify[classId.x] << ", Confidence: " << confidence << endl;
+
+            classify_light__ = true;
+            traffic_class_num = classId.x;
+
         }
+        else if( ( obj.class_id == 4 || obj.class_id == 5 || obj.class_id == 6) && obj.box.y <= 250 ){
+
+            Mat crop_image;
+            crop_image = classifydetector.cropObjects(image, obj, Classify_Model_Width, Classify_Model_Height);  //to crop_image
+
+            // 調整輸入大小 (根據 ONNX 模型需求)
+            Mat blob;
+            Size inputSize(Classify_Model_Width, Classify_Model_Height);  // 根據模型需求調整
+            blobFromImage(crop_image, blob, 1.0 / 255, inputSize, Scalar(), true, false);
+
+            // 設定模型輸入
+            net.setInput(blob);
+
+            Mat classify_output = net.forward();
+
+            // 解析結果
+            Point classId;
+            double confidence;
+            minMaxLoc(classify_output, nullptr, &confidence, nullptr, &classId);
+
+            // cout << "Predicted Class: " << classifydetector.class_name_classify[classId.x] << ", Confidence: " << confidence << endl;
+
+            classify_light__ = true;
+            traffic_class_num = classId.x;
+
+            if((traffic_class_num == 13 || traffic_class_num == 15 || traffic_class_num == 16)){
+                icon_light_num = traffic_class_num;
+            }
+            if(traffic_class_num >= 0 && traffic_class_num <= 8 ){
+                icon_sign_num = traffic_class_num;
+            }
+
+        }
+
+
+        
+        if(obj.class_id > 2){
+            cv::rectangle(res, obj.box, {255, 0, 0}, 2);
+            char text[256];
+            sprintf(text, "%s %.1f%%", config.class_names[obj.class_id], obj.score * 100);
+
+            int      baseLine   = 0;
+            cv::Size label_size = cv::getTextSize(text, cv::FONT_HERSHEY_SIMPLEX, 0.4, 1, &baseLine);
+
+            int x = (int)obj.box.x;
+            int y = (int)obj.box.y + 1;
+
+            if (y > res.rows)
+                y = res.rows;
+
+            cv::rectangle(res, cv::Rect(x, y, label_size.width, label_size.height + baseLine), {0, 0, 255}, -1);
+
+            cv::putText(res, text, cv::Point(x, y + label_size.height), cv::FONT_HERSHEY_SIMPLEX, 0.4, {255, 255, 255}, 1);
+        }
+
+        // if(obj.class_id <= 2){
+
+        //     auto& kps = obj.kps;
+        //     for (int k = 0; k < num_point + 2; k++) {
+        //         if (k < num_point) {
+        //             int   kps_x = std::round(kps[k * 3]);
+        //             int   kps_y = std::round(kps[k * 3 + 1]);
+        //             float kps_s = kps[k * 3 + 2];
+        //             if (kps_s > 0.5f && obj.class_id == 0) {
+        //                 cv::Scalar kps_color = cv::Scalar(0, 255, 0);
+        //                 cv::circle(res, {kps_x, kps_y}, 4, kps_color, -1);
+        //             }
+        //         }
+        //         auto& ske    = SKELETON[k];
+        //         int   pos1_x = std::round(kps[(ske[0] - 1) * 3]);
+        //         int   pos1_y = std::round(kps[(ske[0] - 1) * 3 + 1]);
+
+        //         int pos2_x = std::round(kps[(ske[1] - 1) * 3]);
+        //         int pos2_y = std::round(kps[(ske[1] - 1) * 3 + 1]);
+
+        //         float pos1_s = kps[(ske[0] - 1) * 3 + 2];
+        //         float pos2_s = kps[(ske[1] - 1) * 3 + 2];
+
+        //         if (pos1_s > 0.5f && pos2_s > 0.5f && obj.class_id == 1) {
+        //             cv::Scalar limb_color = cv::Scalar(255, 0, 0);
+        //             cv::line(res, {pos1_x, pos1_y}, {pos2_x, pos2_y}, limb_color, 2);
+        //         }
+        //     }
+        // }
     }
 }
 
@@ -778,9 +856,9 @@ void YOLOv8::postprocess_seg(
         }
         cv::Rect tmp = bboxes[i];
         Object   obj;
-        obj.label = labels[i];
-        obj.rect  = tmp;
-        obj.prob  = scores[i];
+        obj.class_id = labels[i];
+        obj.box  = tmp;
+        obj.score  = scores[i];
         masks.push_back(mask_confs[i]);
         objs.push_back(obj);
         cnt += 1;
@@ -806,7 +884,7 @@ void YOLOv8::postprocess_seg(
             dest = 1.0 / (1.0 + dest);
             dest = dest(roi);
             cv::resize(dest, mask, cv::Size((int)width, (int)height), cv::INTER_LINEAR);
-            objs[i].boxMask = mask(objs[i].rect) > 0.5f;
+            objs[i].boxMask = mask(objs[i].box) > 0.5f;
         }
     }
 }
@@ -814,28 +892,27 @@ void YOLOv8::postprocess_seg(
 void YOLOv8::draw_seg(const cv::Mat&                                    image,
                             cv::Mat&                                      res,
                             const std::vector<Object>&                    objs,
-                            const std::vector<std::string>&               CLASS_NAMES,
                             const std::vector<std::vector<unsigned int>>& COLORS,
                             const std::vector<std::vector<unsigned int>>& MASK_COLORS)
 {
     res          = image.clone();
     cv::Mat mask = image.clone();
     for (auto& obj : objs) {
-        int        idx   = obj.label;
+        int        idx   = obj.class_id;
         cv::Scalar color = cv::Scalar(COLORS[idx][0], COLORS[idx][1], COLORS[idx][2]);
         cv::Scalar mask_color =
             cv::Scalar(MASK_COLORS[idx % 20][0], MASK_COLORS[idx % 20][1], MASK_COLORS[idx % 20][2]);
-        cv::rectangle(res, obj.rect, color, 2);
+        cv::rectangle(res, obj.box, color, 2);
 
         char text[256];
-        sprintf(text, "%s %.1f%%", CLASS_NAMES[idx].c_str(), obj.prob * 100);
-        mask(obj.rect).setTo(mask_color, obj.boxMask);
+        sprintf(text, "%s %.1f%%", config.class_names[idx], obj.score * 100);
+        mask(obj.box).setTo(mask_color, obj.boxMask);
 
         int      baseLine   = 0;
         cv::Size label_size = cv::getTextSize(text, cv::FONT_HERSHEY_SIMPLEX, 0.4, 1, &baseLine);
 
-        int x = (int)obj.rect.x;
-        int y = (int)obj.rect.y + 1;
+        int x = (int)obj.box.x;
+        int y = (int)obj.box.y + 1;
 
         if (y > res.rows)
             y = res.rows;

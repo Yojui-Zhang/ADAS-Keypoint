@@ -1,3 +1,6 @@
+#pragma once
+#include <opencv2/core.hpp>  // 包含 cv::Scalar 和其他基本類型
+
 // ============= GPU Accelerate =============
 // #define _GPU_delegate
 
@@ -48,6 +51,7 @@
     #define INPUT_WIDTH 640
     #define INPUT_HEIGHT 640
     #define NUM_BOXES 8400
+    
 #endif
 
 #ifdef _640384
@@ -69,6 +73,33 @@
 #endif
 
 
+struct Config {
+
+    cv::Size            size = cv::Size{INPUT_WIDTH, INPUT_HEIGHT};
+
+    int num_labels = NUM_CLASS;          // 類別數
+    int topk = 100;               // 最大數量
+    float score_thres = PROB_THRESHOLD;    // 分數閾值
+    float iou_thres = NMS_THRESHOLD_LANE;      // IOU 閾值
+
+    // Pose
+    const int num_keypoint = Keypoint_NUM;  // 關鍵點數量
+
+    // Segmentation
+    int seg_h = 160;              // 分割圖像的高度
+    int seg_w = 160;              // 分割圖像的寬度
+    int seg_channels = 32;        // 分割圖像的通道數
+
+    const char* class_names[NUM_CLASS] = {"roadlane", "car", "rider", "person", "light", "signC", "signT"};
+
+    const char* class_name_classify[classify_NUM_CLASS] = {"100km", "110km", "30km", "40km", "50km", 
+                                                                            "60km", "70km", "80km", "90km", "car_left", 
+                                                                            "car_normal", "car_right", "car_warning", "light_green", "light_other", 
+                                                                            "light_red", "light_yellow", "sign_other"};
+
+};
+
+
 // ================ System Set ================
 // OpenCV uses BGR order
 const cv::Scalar RED     (  0,   0, 255);
@@ -87,12 +118,7 @@ const cv::Scalar BROWN   ( 42,  42, 165);
 const cv::Scalar ARROW_COLOR(0, 255, 255); // 黃色
 
 
-
-
 // ============================================
-
-
-
 
 
 const std::vector<std::vector<unsigned int>> COLORS = {
@@ -130,25 +156,26 @@ const std::vector<std::vector<unsigned int>> KPS_COLORS = {{0, 255, 0},
                                                            {51, 153, 255}};
 
 
-const std::vector<std::vector<unsigned int>> SKELETON = {{1, 2},
-                                                         {2, 3},
-                                                         {3, 4},
-                                                         {4, 5},
+const std::vector<std::vector<unsigned int>> SKELETON = {{3, 4},
                                                          {5, 6},
-                                                         {6, 7},
-                                                         {7, 8},
-                                                         {8, 9},
-                                                         {9, 10},
-                                                         {10, 11},
-                                                         {11, 12},
+                                                         {4, 6},
+                                                         {3, 5},
                                                          {12, 13},
-                                                         {13, 14},
                                                          {14, 15},
-                                                         {15, 14},
-                                                         {14, 13},
-                                                         {13, 12},
-                                                         {12, 11},
-                                                         {11, 10}};
+                                                         {12, 14},
+                                                         {13, 15},
+                                                         {3, 7},
+                                                         {4, 8},
+                                                         {5, 9},
+                                                         {6, 10},
+                                                         {12, 7},
+                                                         {13, 8},
+                                                         {14, 9},
+                                                         {15, 10},
+                                                         {7, 8},
+                                                         {9, 10},
+                                                         {7, 9},
+                                                         {8, 10}};
 
 const std::vector<std::vector<unsigned int>> LIMB_COLORS = {{51, 153, 255},
                                                             {51, 153, 255},

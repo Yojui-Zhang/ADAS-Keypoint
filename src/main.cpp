@@ -61,6 +61,8 @@ int main(int argc, char **argv)
     char* classify_model_path = argv[2];
     char* Icon_path = "../cion";
 
+    Config config;
+
 // ============================== Input View ==============================
 #ifdef _openCVcap
     // 初始化影片路徑
@@ -152,7 +154,7 @@ int main(int argc, char **argv)
 
 
 #ifdef USE_TENSORRT
-        yolov8->copy_from_Mat(image, size);
+        yolov8->copy_from_Mat(frame, config.size);
 #endif
         start_invok = clock();
 
@@ -171,8 +173,8 @@ int main(int argc, char **argv)
 #endif
 
 #ifdef USE_TENSORRT
-        yolov8->postprocess_pose(objs, score_thres, iou_thres, topk, num_labels);
-        yolov8->draw_pose(image, Output_frame, objs, SKELETON, KPS_COLORS, LIMB_COLORS, CLASS_NAMES, num_keypoint);
+        yolov8->postprocess_pose(objs, config.score_thres, config.iou_thres, config.topk, config.num_labels);
+        yolov8->draw_pose(frame, Output_frame, objs, SKELETON, KPS_COLORS, LIMB_COLORS, config.num_keypoint);
 #endif
         end = clock();
         invoke_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
