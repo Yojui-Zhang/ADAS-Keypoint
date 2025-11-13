@@ -11,18 +11,6 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
-// TensorFlow Lite 核心
-#include "tensorflow/lite/interpreter.h"
-#include "tensorflow/lite/kernels/register.h"
-#include "tensorflow/lite/model.h"
-#include "tensorflow/lite/delegates/external/external_delegate.h"
-#include "tensorflow/lite/c/common.h"
-
-#ifdef _GPU_delegate
-    #include "tensorflow/lite/delegates/gpu/delegate.h"
-    #include "tensorflow/lite/delegates/gpu/gl_delegate.h"
-#endif
-
 // 時間函式
 #include <ctime>
 
@@ -31,10 +19,16 @@
 
 // 自訂頭檔
 #include "config.h"
-#include "../Engine/TFlite/TFlite.h"
 #include "write_video.h"
-#include "debug.h"
 
+#ifdef USE_TFLITE
+    #include "../Engine/TFlite/include/TFlite_main.h"
+#endif
+
+
+#ifdef USE_TENSORRT
+    #include "../Engine/TensorRT/include/TensorRT.hpp"
+#endif
 
 #ifdef _v4l2cap
     #include "V4L2_define.h"        
@@ -51,7 +45,9 @@
 using namespace std;
 using namespace cv;
 
-PoseDetector pose;
+cv::Mat frame(input_video_height, input_video_width, CV_8UC3); 
+cv::Mat Output_frame(input_video_height, input_video_width, CV_8UC3); 
+
 
 int main(int argc, char **argv)
 {
@@ -63,10 +59,9 @@ int main(int argc, char **argv)
 
     const char* lanepose_model_path = argv[1];
     char* classify_model_path = argv[2];
+    char* Icon_path = "../cion";
 
-    classifydetector.classify_init(classify_model_path);
-
-// ==============================================================
+// ============================== Input View ==============================
 #ifdef _openCVcap
     // 初始化影片路徑
     const char *inputVideoPath = "../video/vecow-demo.mp4";
@@ -109,18 +104,28 @@ int main(int argc, char **argv)
     write_video(output_video_width, output_video_height, output_video_fps, "Output_video.mp4");
 #endif
 
-    if (!pose.Set_TFlite(lanepose_model_path))
+// ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝ Engine Set ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
+#ifdef USE_TFLITE
+    if (!tflite_init(lanepose_model_path, frame))
         return -1;
 
-    pose.Calculate_Scale(frame, INPUT_WIDTH, INPUT_HEIGHT);
+    if (!Classify_and_icon_init(classify_model_path, Icon_path))
+        return -1;
+#endif
+
+#ifdef USE_TENSORRT
+    cudaSetDevice(0);
+
+    auto yolov8 = new YOLOv8(lanepose_model_path);
+    yolov8->make_pipe(true);
+
+    std::vector<Object> objs;
+
+#endif
+// ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
 
     clock_t start, end, start_invok, end_invok;
-    double TF_invoke_time_used;
-
-    if ( IconManager::Load_Picture("../icon") != true){
-        std::cerr << "\nLoad Icon Picture Failed !" << std:: endl;
-        return 1;
-    }
+    double invoke_time_used;
 
     while (1) {
 
@@ -133,24 +138,31 @@ int main(int argc, char **argv)
         frame = v4l2Cam();
         // rgbImg = rgbImg1(rect);
 #endif
+// ==================================================
 
-        pose.get_input_data_fp32(frame,
-                         pose.input_data,
-                         INPUT_HEIGHT, INPUT_WIDTH,
-                         pose.mean, pose.scale,
-                         pose.new_width, pose.new_height,
-                         pose.top, pose.bottom, pose.left, pose.right);
+#ifdef USE_TFLITE
 
+    int classify_model_width = Classify_Model_Width;
+    int classify_model_height = Classify_Model_Height;
+
+    if (!tflite_run_frame(frame, Output_frame,
+                          classify_model_width, classify_model_height))
+        return -1;
+#endif
+
+
+#ifdef USE_TENSORRT
+        yolov8->copy_from_Mat(image, size);
+#endif
         start_invok = clock();
 
-        if (pose.interpreter->Invoke() != kTfLiteOk) {
-            std::cerr << "Invoke failed!" << std::endl;
-            return -1;
-        }
 
+#ifdef USE_TENSORRT
+        yolov8->infer();
+#endif
         end_invok = clock();
         std::cout << "After invoke: " << ((double) (end_invok - start_invok)) / CLOCKS_PER_SEC << std::endl;
-
+// ==================================================
 #ifdef Save_infer_raw_data__
         if (!SaveOutputTensorToTxt(pose.interpreter.get(), /*output_index=*/0,
                                 "yolov8_output.txt")) {
@@ -158,25 +170,19 @@ int main(int argc, char **argv)
         }
 #endif
 
-        std::vector<Object> yolov8_objects;
-        pose.generate_proposals(pose.yolov8_output,
-                        PROB_THRESHOLD,
-                        yolov8_objects,
-                        pose.scale_factor,
-                        pose.top, pose.left);
-
-        pose.nms(yolov8_objects, NMS_THRESHOLD_BBOX, NMS_THRESHOLD_LANE);
-
-        Output_frame = pose.draw_objects(frame, yolov8_objects, classify_model_width, classify_model_height);
-
+#ifdef USE_TENSORRT
+        yolov8->postprocess_pose(objs, score_thres, iou_thres, topk, num_labels);
+        yolov8->draw_pose(image, Output_frame, objs, SKELETON, KPS_COLORS, LIMB_COLORS, CLASS_NAMES, num_keypoint);
+#endif
         end = clock();
-        TF_invoke_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
-        cout << "Time taken: " << TF_invoke_time_used << "seconds"  << "\n\n" << endl;
-
+        invoke_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
+        cout << "Time taken: " << invoke_time_used << "seconds"  << "\n\n" << endl;
+// ==================================================
 #ifdef Write_Video__
-        cv::resize(Output_frame,Output_frame,cv::Size(output_video_width, output_video_height));
+        cv::resize(Output_frame, Output_frame,cv::Size(output_video_width, output_video_height));
         video_writer.write(Output_frame);
 #endif
+// ==================================================
 #ifdef _opengl
         outputRgbaMem = Output_frame.data;        
         imageShow(1280, 720, outputRgbaMem);
@@ -188,7 +194,7 @@ int main(int argc, char **argv)
 
 	    int key = cv::waitKey(30);              // 等待 30 毫秒
         if (key == 32) {                        // 空格鍵的 ASCII 代碼為 32
-            std::cout << "jump out" << std::endl;
+            std::cout << "Jump Out !" << std::endl;
             break;
         }
     }

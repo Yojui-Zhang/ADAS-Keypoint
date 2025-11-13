@@ -28,7 +28,7 @@ public:
                                                                             "car_normal", "car_right", "car_warning", "light_green", "light_other", 
                                                                             "light_red", "light_yellow", "sign_other"};
 
-    void classify_init(char* classify_model_path);
+    void classify_init(const char* classify_model_path);
     cv::Mat cropObjects(const Mat& frame, const TrackingBox &obj, int classify_model_width, int classify_model_height);
 };
 
@@ -77,7 +77,7 @@ Net net;
 SORTTRACKING sorttracking;
 classifyDetector classifydetector;
 
-void classifyDetector::classify_init(char* classify_model_path)
+void classifyDetector::classify_init(const char* classify_model_path)
 {
 #ifdef _GPU_delegate
     if (cv::ocl::haveOpenCL()) {
