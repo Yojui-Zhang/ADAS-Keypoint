@@ -498,7 +498,7 @@ std::vector<TrackingBox> PoseDetector::draw_objects(const cv::Mat &img, const st
 
         if(obj.class_id != 0 ){
             
-            if(obj.class_id != 1){
+            if(obj.class_id != 0){
                 // Draw bbox
                 cv::rectangle(out_bgr, obj.box, GREEN, 2);
             }

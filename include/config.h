@@ -5,7 +5,7 @@
 // #define _GPU_delegate
 
 // ============= write Data ================
-// #define Write_Video__
+#define Write_Video__
 // #define Save_infer_raw_data__
 
 // ============= Camera Choose ==============
@@ -63,7 +63,7 @@
 #ifdef _512288
     #define INPUT_WIDTH 512
     #define INPUT_HEIGHT 288
-    #define NUM_BOXES 3024
+    #define NUM_BOXES 3456
 #endif
 
 #ifdef _480480
@@ -201,3 +201,29 @@ const std::vector<std::vector<unsigned int>> MASK_COLORS = {
     {255, 56, 56},  {255, 157, 151}, {255, 112, 31}, {255, 178, 29}, {207, 210, 49},  {72, 249, 10}, {146, 204, 23},
     {61, 219, 134}, {26, 147, 52},   {0, 212, 187},  {44, 153, 168}, {0, 194, 255},   {52, 69, 147}, {100, 115, 255},
     {0, 24, 236},   {132, 56, 255},  {82, 0, 133},   {203, 56, 255}, {255, 149, 200}, {255, 55, 199}};
+
+
+struct Object {
+    int class_id;
+    float score;
+    cv::Rect box;
+
+    std::vector<cv::Point3f> kpts;  // x, y, visibility     (TFlite)
+    // std::vector<float> kps;         //                      (TensorRT)
+
+    cv::Mat          boxMask;
+};
+
+
+typedef struct TrackingBox
+{
+    int frame;
+    int id;
+    int class_id;
+    float score;
+
+    cv::Rect box;
+    std::vector<cv::Point3f> kpts;
+    // std::vector<float> kps;         //                      (TensorRT)
+
+} TrackingBox;

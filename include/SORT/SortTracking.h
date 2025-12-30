@@ -3,6 +3,7 @@
 #define SORTTRACKING_H_
 #include "Hungarian.h"
 #include "kalman.h"
+#include "config.h"
 #include "opencv2/opencv.hpp"
 #include "opencv2/video/tracking.hpp"
 #include "opencv2/highgui/highgui.hpp"
@@ -13,30 +14,6 @@
 #include <unistd.h>
 #include <set>
 
-struct Object {
-    int class_id;
-    float score;
-    cv::Rect box;
-
-    std::vector<cv::Point3f> kpts;  // x, y, visibility     (TFlite)
-    // std::vector<float> kps;         //                      (TensorRT)
-
-    cv::Mat          boxMask;
-};
-
-
-typedef struct TrackingBox
-{
-    int frame;
-    int id;
-    int class_id;
-    float score;
-
-    cv::Rect box;
-    std::vector<cv::Point3f> kpts;
-    // std::vector<float> kps;         //                      (TensorRT)
-
-} TrackingBox;
 
 class SORTTRACKING {
 

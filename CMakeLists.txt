@@ -60,6 +60,8 @@ endif()
 
 # =========================== Src ===========================
 aux_source_directory(./src/ SRC_LIST)
+aux_source_directory(./src/SORT/ SORT_SRC_LIST)
+aux_source_directory(./src/LKA/ LKA_SRC_LIST)
 
 if(ENGINE STREQUAL "TFLITE")
     aux_source_directory(./Engine/TFlite/src/ Engine_SRC_LIST)
@@ -69,13 +71,19 @@ endif()
 
 add_executable(${PROJECT_NAME} 
 ${SRC_LIST}
+${SORT_SRC_LIST}
+${LKA_SRC_LIST}
 ${Engine_SRC_LIST}
+
 )
 
 # ========================= Include =========================
 include_directories(
     ${CMAKE_CURRENT_LIST_DIR}
     ${CMAKE_CURRENT_LIST_DIR}/include
+    ${CMAKE_CURRENT_LIST_DIR}/include/SORT
+    ${CMAKE_CURRENT_LIST_DIR}/include/LKA
+    
 )
 
 if(ENGINE STREQUAL "TFLITE")
