@@ -2,6 +2,8 @@
 
 #include <algorithm>
 
+#include "KeypointFilterUtils.h"
+
 namespace kpt_ema {
 
 KeypointEMAFilter::KeypointEMAFilter() : KeypointEMAFilter(Params()) {}
@@ -37,9 +39,12 @@ void KeypointEMAFilter::Update(int track_id, const std::vector<cv::Point3f>* mea
             const float my = (*meas)[i].y;
             const float mc = (*meas)[i].z; // keypoint confidence
 
+            // Support both [0,1] and [0,100] confidence conventions.
+            const float conf = kpt_utils::normalize_conf(mc);
+
             // Update only for valid measurements.
-            if (mc > 0.f && mx > 0.f && my > 0.f) {
-                const float alpha = ConfToAlpha(mc);
+            if (conf > 0.f && mx > 0.f && my > 0.f) {
+                const float alpha = ConfToAlpha(conf);
                 if (!st.kpts[i].initialized) {
                     st.kpts[i].pt = cv::Point2f(mx, my);
                     st.kpts[i].initialized = true;

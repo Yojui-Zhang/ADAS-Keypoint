@@ -1,9 +1,9 @@
 #include "KeypointKF.h"
 #include <cmath>
 
-namespace kpt_kf {
+#include "KeypointFilterUtils.h"
 
-static inline float sqr_(float x) { return x * x; }
+namespace kpt_kf {
 
 Kpt2DKF::Kpt2DKF()
     : kf_(4, 2, 0, CV_32F),
@@ -143,41 +143,44 @@ void KeypointKFFilter::Update(int track_id, const std::vector<cv::Point3f>* kpts
             const float mx = (*kpts)[i].x;
             const float my = (*kpts)[i].y;
             const float v_raw = (*kpts)[i].z; // confidence/visibility (may be 0-1 or 0-100)
-            float v = v_raw;
-            if (v > 1.0f) v *= 0.01f;        // normalize 0-100 -> 0-1
-            if (v < 0.f) v = 0.f;
-            if (v > 1.f) v = 1.f;
+            const float v = kpt_utils::normalize_conf(v_raw);
 
-            // Always predict if initialized; otherwise keep zeros until first valid measurement
-            cv::Point2f pred_xy = st.kfs[i].isInitialized() ? st.kfs[i].predict()
-                                                            : cv::Point2f(mx, my);
+            const bool meas_valid = (v >= params_.conf_thr) && kpt_utils::meas_xy_valid(mx, my);
 
-            // Decide if we trust this measurement
-            if (v > 0.f && v >= params_.conf_thr) {
-                if (!st.kfs[i].isInitialized()) {
+            // If not initialized, only initialize on a valid measurement.
+            if (!st.kfs[i].isInitialized()) {
+                if (meas_valid) {
                     st.kfs[i].init(mx, my, params_.init_pos_var, params_.init_vel_var, params_.process_var);
                     st.last_out[i] = cv::Point3f(mx, my, v_raw);
-                    continue;
-                }
-
-                // Gating: reject outliers far away from prediction
-                const float dx = mx - pred_xy.x;
-                const float dy = my - pred_xy.y;
-                const float dist = std::sqrt(dx * dx + dy * dy);
-
-                if (dist <= params_.gate_dist_px) {
-                    const float eps = 0.05f;
-                    const float vv = (v > eps) ? v : eps;
-                    const float meas_var = params_.meas_var_base / vv;
-
-                    cv::Point2f est_xy = st.kfs[i].correct(mx, my, meas_var);
-                    st.last_out[i] = cv::Point3f(est_xy.x, est_xy.y, v_raw);
                 } else {
-                    // Outlier -> predict-only output, mark as missing this frame
-                    st.last_out[i] = cv::Point3f(pred_xy.x, pred_xy.y, 0.f);
+                    st.last_out[i] = cv::Point3f(0.f, 0.f, 0.f);
                 }
-            } else {
+                continue;
+            }
+
+            // Predict every frame once initialized.
+            const cv::Point2f pred_xy = st.kfs[i].predict();
+
+            if (!meas_valid) {
                 // Low confidence / missing -> predict-only output
+                st.last_out[i] = cv::Point3f(pred_xy.x, pred_xy.y, 0.f);
+                continue;
+            }
+
+            // Gating: reject outliers far away from prediction
+            const float dx = mx - pred_xy.x;
+            const float dy = my - pred_xy.y;
+            const float dist = std::sqrt(dx * dx + dy * dy);
+
+            if (dist <= params_.gate_dist_px) {
+                const float eps = 0.05f;
+                const float vv = (v > eps) ? v : eps;
+                const float meas_var = params_.meas_var_base / vv;
+
+                cv::Point2f est_xy = st.kfs[i].correct(mx, my, meas_var);
+                st.last_out[i] = cv::Point3f(est_xy.x, est_xy.y, v_raw);
+            } else {
+                // Outlier -> predict-only output, mark as missing this frame
                 st.last_out[i] = cv::Point3f(pred_xy.x, pred_xy.y, 0.f);
             }
         }

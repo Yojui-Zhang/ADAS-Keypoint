@@ -51,7 +51,7 @@ public:
 // =====================================================================================================
     void postprocess_pose(std::vector<Object>& objs, float score_thres = 0.25f, float iou_thres = 0.65f, int topk = 100, int num_labels  = 80);
  
-    static std::vector<TrackingBox>  draw_pose(const cv::Mat&                                image,
+    static void          draw_pose(const cv::Mat&                                image,
                                                      cv::Mat&                                res,
                                                const std::vector<Object>&                    objs,
                                                const std::vector<std::vector<unsigned int>>& SKELETON,
@@ -92,7 +92,6 @@ private:
 // ========================================================
 
 Net net;
-SORTTRACKING sorttracking;
 classifyDetector classifydetector;
 Config config;
 
@@ -616,9 +615,9 @@ void YOLOv8::postprocess_pose(std::vector<Object>& objs, float score_thres, floa
 }
 
 
-std::vector<TrackingBox>  YOLOv8::draw_pose(const cv::Mat&                                image,
+void                     YOLOv8::draw_pose( const cv::Mat&                                image,
                                                   cv::Mat&                                res,
-                                            const std::vector<Object>&                    objs,
+                                            const std::vector<TrackingBox>&               objs,
                                             const std::vector<std::vector<unsigned int>>& SKELETON,
                                             const std::vector<std::vector<unsigned int>>& KPS_COLORS,
                                             const std::vector<std::vector<unsigned int>>& LIMB_COLORS,
@@ -631,9 +630,8 @@ std::vector<TrackingBox>  YOLOv8::draw_pose(const cv::Mat&                      
     res                 = image.clone();
     const int num_point = num_keypoint;
 
-    std::vector<TrackingBox> TrackingResult = sorttracking.TrackingResult(objs);
 
-    for (auto& obj : TrackingResult) {
+    for (auto& obj : objs) {
 
         bool classify_light__ = false;
         int traffic_class_num;
@@ -766,7 +764,7 @@ std::vector<TrackingBox>  YOLOv8::draw_pose(const cv::Mat&                      
     // draw icon sign
     res = IconManager::Draw_Icon_Sign(res, icon_sign_num);
 
-    return TrackingResult;
+    // return TrackingResult;
 }
 
 // ============================================ seg ============================================

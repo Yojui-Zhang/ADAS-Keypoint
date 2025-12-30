@@ -67,14 +67,13 @@ public:
                              int            left, 
                              int            right);
 
-    std::vector<TrackingBox> draw_objects(const cv::Mat &img, const std::vector<Object> &objects, cv::Mat& out_bgr, int classify_model_width, int classify_model_height);
+    void draw_objects(const cv::Mat &img, const std::vector<TrackingBox> &objects, cv::Mat& out_bgr, int classify_model_width, int classify_model_height);
 
     bool Set_TFlite(const char* model_path);
     void Calculate_Scale(const cv::Mat& frame, int input_width, int input_height);
 };
 
 Net net;
-SORTTRACKING sorttracking;
 classifyDetector classifydetector;
 Config config;
 
@@ -393,8 +392,10 @@ void draw_car_cuboid(cv::Mat& image, const std::vector<cv::Point>& P, const std:
 }
 
 // ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
-std::vector<TrackingBox> PoseDetector::draw_objects(const cv::Mat &img, const std::vector<Object> &objects, cv::Mat& out_bgr, int classify_model_width, int classify_model_height)
+void PoseDetector::draw_objects(const cv::Mat &img, const std::vector<TrackingBox> &objects, cv::Mat& out_bgr, int classify_model_width, int classify_model_height)
 {
+
+    
 
     int icon_light_num = 3;
     int icon_sign_num = 9;
@@ -402,9 +403,9 @@ std::vector<TrackingBox> PoseDetector::draw_objects(const cv::Mat &img, const st
 
     out_bgr = img.clone();
 
-    std::vector<TrackingBox> TrackingResult = sorttracking.TrackingResult(objects);
+    
 
-    for (const auto &obj : TrackingResult)
+    for (const auto &obj : objects)
     {
         std::string label_txt;
         bool classify_light__ = false;
@@ -526,5 +527,5 @@ std::vector<TrackingBox> PoseDetector::draw_objects(const cv::Mat &img, const st
     // draw icon sign
     out_bgr = IconManager::Draw_Icon_Sign(out_bgr, icon_sign_num);
 
-    return TrackingResult;
+    // return objects;
 }

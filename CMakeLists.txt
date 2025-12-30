@@ -80,6 +80,8 @@ ${Engine_SRC_LIST}
 # ========================= Include =========================
 include_directories(
     ${CMAKE_CURRENT_LIST_DIR}
+    ${CMAKE_CURRENT_LIST_DIR}/Engine/TFlite/include/
+    ${CMAKE_CURRENT_LIST_DIR}/Engine/TensorRT/include/
     ${CMAKE_CURRENT_LIST_DIR}/include
     ${CMAKE_CURRENT_LIST_DIR}/include/SORT
     ${CMAKE_CURRENT_LIST_DIR}/include/LKA

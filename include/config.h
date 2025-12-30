@@ -5,7 +5,7 @@
 // #define _GPU_delegate
 
 // ============= write Data ================
-#define Write_Video__
+// #define Write_Video__
 // #define Save_infer_raw_data__
 
 // ============= Camera Choose ==============

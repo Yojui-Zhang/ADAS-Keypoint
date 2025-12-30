@@ -1,4 +1,5 @@
-#include "../include/TFlite_main.h"
+#include "TFlite_main.h"
+#include "SortTracking.h"
 
 #ifdef USE_TFLITE
 
@@ -22,6 +23,7 @@
 #include <iostream>
 
 static PoseDetector pose;
+static SORTTRACKING sorttracking;
 
 // ======================= Classify and icon init =======================
 bool Classify_and_icon_init(const char* classify_model_path, const char* Icon_path){
@@ -86,7 +88,9 @@ std::vector<TrackingBox> tflite_run_frame(const cv::Mat& frame,
 
     pose.nms(objs, NMS_THRESHOLD_BBOX, NMS_THRESHOLD_LANE);
 
-    TrackingResult = pose.draw_objects(frame, objs, out_bgr,
+    TrackingResult = sorttracking.TrackingResult(objs);
+
+    pose.draw_objects(frame, TrackingResult, out_bgr,
                                 classify_model_width, classify_model_height);
     return TrackingResult;
 }

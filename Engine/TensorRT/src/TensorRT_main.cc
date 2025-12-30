@@ -1,10 +1,12 @@
-#include "../Engine/TensorRT/include/TensorRT_main.hpp"
+#include "TensorRT_main.hpp"
+#include "SortTracking.h"
 
 #ifdef USE_TENSORRT
 
 #include "../include/TensorRT.hpp"
 #include <cuda_runtime.h>                   // cudaSetDevice
 
+static SORTTRACKING sorttracking;
 static YOLOv8* yolov8 = nullptr;
 static std::vector<Object> objs;
 
@@ -61,6 +63,8 @@ std::vector<TrackingBox>  trt_process_frame(const cv::Mat& frame,
         config.topk,
         config.num_labels
     );
+
+    std::vector<TrackingBox> TrackingResult = sorttracking.TrackingResult(objs);
 
     TrackingResult = yolov8->draw_pose(
         frame,
