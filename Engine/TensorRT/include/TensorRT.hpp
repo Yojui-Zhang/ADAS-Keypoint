@@ -53,7 +53,7 @@ public:
  
     static void          draw_pose(const cv::Mat&                                image,
                                                      cv::Mat&                                res,
-                                               const std::vector<Object>&                    objs,
+                                               const std::vector<TrackingBox>&                    objs,
                                                const std::vector<std::vector<unsigned int>>& SKELETON,
                                                const std::vector<std::vector<unsigned int>>& KPS_COLORS,
                                                const std::vector<std::vector<unsigned int>>& LIMB_COLORS,

@@ -63,13 +63,13 @@ std::vector<TrackingBox>  trt_process_frame(const cv::Mat& frame,
         config.topk,
         config.num_labels
     );
+    
+    TrackingResult = sorttracking.TrackingResult(objs);
 
-    std::vector<TrackingBox> TrackingResult = sorttracking.TrackingResult(objs);
-
-    TrackingResult = yolov8->draw_pose(
+    yolov8->draw_pose(
         frame,
         output_frame,
-        objs,
+        TrackingResult,
         SKELETON,
         KPS_COLORS,
         LIMB_COLORS,
