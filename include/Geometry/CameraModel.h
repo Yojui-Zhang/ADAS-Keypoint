@@ -25,6 +25,8 @@ public:
     // dir_c is normalized (unit length)
     cv::Vec3f pixelToUnitRayCamera(const cv::Point2f& undist_px) const;
 
+    cv::Point2f project3dToPixel(const cv::Point3f& pt_w) const;
+
 private:
     cv::Mat K_;    // 3x3, CV_32F
     cv::Mat D_;    // 1xN, CV_32F

@@ -21,6 +21,7 @@
 #include "config.h"
 #include "write_video.h"
 #include "GeometryFunction.h"
+#include "lane_keeping.h"
 
 #ifdef USE_TFLITE
 #include "../Engine/TFlite/include/TFlite_main.h"
@@ -61,6 +62,12 @@ int main(int argc, char** argv) {
   char* Icon_path = "../icon";
 
   Config config;
+
+  CameraModel cam;
+  if (!cam.loadFromYaml("../Camera-Config/Sensing-3M.yaml")) {
+      std::cerr << "Main: Failed to load camera config." << std::endl;
+      return -1;
+  }
 
 // ============================== Input View ==============================
 #ifdef _openCVcap
@@ -156,10 +163,19 @@ int main(int argc, char** argv) {
     TrackingResult = trt_process_frame(frame, Output_frame, config);
 #endif
 
-    WorldResult = GeometryFunction(Output_frame, Output_frame, TrackingResult);
+    WorldResult = GeometryFunction(Output_frame, Output_frame, TrackingResult, &cam);
 
     // ============================== Inference ===========================
     // Algorithm for LKA / ACC / AEB / Behavior Detection
+
+    // ---------------------------------------------------
+    std::string dbg;
+    float v = 35.0f;
+    float steer_deg = lane_steering_step(WorldResult, v, &dbg, Output_frame, Output_frame, &cam);
+
+    cout << "Steer: " << steer_deg << endl;
+    // ---------------------------------------------------
+
 
 
 

@@ -3,8 +3,10 @@
 #include <vector>
 #include <string>
 #include <opencv2/core.hpp>
+#include <opencv2/opencv.hpp> // 為了 cv::Mat
 
 #include "SortTracking.h"
+#include "CameraModel.h" // 確保能看得到 CameraModel 定義
 
 // 控制器設定
 struct ControlConfig {
@@ -81,3 +83,10 @@ struct ControlState {
 float calculate_lane_steering(const TrackingBox& input,
                               const ControlConfig& cfg,
                               ControlState* state);
+
+float lane_steering_step(const std::vector<TrackingBox>& world_result,
+                         float velocity_mps,
+                         std::string* out_debug = nullptr,
+                         cv::Mat input_img = cv::Mat(),
+                         cv::Mat output_img = cv::Mat(),
+                         const CameraModel* cam = nullptr);

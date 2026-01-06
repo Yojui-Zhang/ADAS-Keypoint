@@ -9,8 +9,8 @@
 #include <iomanip>
 #include <sstream>
 
-bool Draw_KPT_World = false;
-bool Draw_Box_World = false;
+bool Draw_KPT_World = true;     //  true,   false
+bool Draw_Box_World = true;
 
 static void drawCoordinates(cv::Mat& img, const cv::Point2f& px_pos, const cv::Point3f& w_pos, const cv::Scalar& color)
 {
@@ -33,7 +33,7 @@ static void drawCoordinates(cv::Mat& img, const cv::Point2f& px_pos, const cv::P
     cv::putText(img, text, px_pos, fontFace, fontScale, color, thickness);
 }
 
-std::vector<TrackingBox> GeometryFunction(const cv::Mat& Src_frame, cv::Mat& Output_frame, const std::vector<TrackingBox>& TrackingResult)
+std::vector<TrackingBox> GeometryFunction(const cv::Mat& Src_frame, cv::Mat& Output_frame, const std::vector<TrackingBox>& TrackingResult, const CameraModel* cam)
 {
     // 1. 複製原始影像到輸出影像
     if (Src_frame.empty()) {
@@ -43,16 +43,16 @@ std::vector<TrackingBox> GeometryFunction(const cv::Mat& Src_frame, cv::Mat& Out
         Output_frame = Src_frame.clone();
     }
 
-    // 2. 初始化相機與幾何模組
-    CameraModel cam;
-    // 建議：若效能敏感，應避免每次呼叫都讀檔，可改為傳入靜態 reference 或 singleton
-    if (!cam.loadFromYaml("../Camera-Config/Sensing-3M.yaml")) {
-        fprintf(stderr, "Error: Failed to load camera config.\n");
-        return {};
-    }
+    // // 2. 初始化相機與幾何模組
+    // CameraModel cam;
+    // // 建議：若效能敏感，應避免每次呼叫都讀檔，可改為傳入靜態 reference 或 singleton
+    // if (!cam.loadFromYaml("../Camera-Config/Sensing-3M.yaml")) {
+    //     fprintf(stderr, "Error: Failed to load camera config.\n");
+    //     return {};
+    // }
 
     GroundPlane plane = GroundPlane::Z0();
-    WorldProjector projector(cam, plane);
+    WorldProjector projector(*cam, plane);
     TrackingBoxWorldTransformer tf(projector);
 
     std::vector<TrackingBox> WorldResult;
@@ -69,7 +69,27 @@ std::vector<TrackingBox> GeometryFunction(const cv::Mat& Src_frame, cv::Mat& Out
         std::vector<cv::Point3f> result_points = tf.toWorldPoints(tb);
         
         // 將計算結果存回輸出結構
-        world_tb.kpts = result_points;
+        // world_tb.kpts = result_points;
+
+
+        // centimeters to meters
+        std::vector<cv::Point3f> converted_points;
+        converted_points.reserve(result_points.size());
+
+        for (const auto& p : result_points) {
+            // 轉換公式
+            float x_forward_m = p.y / 100.0f;      // 原 y(前,cm) -> 新 x(前,m)
+            float y_left_m    = -(p.x / 100.0f);   // 原 x(右,cm) -> 新 y(左,m)
+            // float z_height_m  = p.z / 100.0f;      // 假設 z 也是 cm，轉為 m (非必要，看用途)
+
+            float confidence  = 1.0f;
+
+            // 存入新點
+            converted_points.emplace_back(x_forward_m, y_left_m, confidence);
+        }
+
+        // 將轉換後的點存回 world_tb
+        world_tb.kpts = converted_points;
         WorldResult.push_back(world_tb);
 
         // --- B. 繪圖 ---

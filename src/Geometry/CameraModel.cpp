@@ -70,3 +70,21 @@ cv::Vec3f CameraModel::pixelToUnitRayCamera(const cv::Point2f& undist_px) const
     if (n <= 1e-8f) return cv::Vec3f(0,0,1);
     return d * (1.0f / n);
 }
+
+cv::Point2f CameraModel::project3dToPixel(const cv::Point3f& pt_w) const
+{
+    if (!ready_) return cv::Point2f(-1, -1);
+
+    std::vector<cv::Point3f> objectPoints = {pt_w};
+    std::vector<cv::Point2f> imagePoints;
+
+    // Rcw_ 是 3x3 旋轉矩陣，projectPoints 需要旋轉向量 (Rotation Vector)
+    cv::Mat rvec;
+    cv::Rodrigues(Rcw_, rvec);
+
+    // 使用 OpenCV 內建投影 (包含 K 矩陣與 D 失真係數)
+    cv::projectPoints(objectPoints, rvec, tcw_, K_, D_, imagePoints);
+
+    if (imagePoints.empty()) return cv::Point2f(-1, -1);
+    return imagePoints[0];
+}

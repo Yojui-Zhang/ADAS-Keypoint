@@ -1,7 +1,7 @@
 %YAML:1.0
 ---
-image_width: 1920
-image_height: 1536
+image_width: 1280
+image_height: 720
 rms: 0.81149053125744708
 global_rmse: 0.81149073093443591
 
