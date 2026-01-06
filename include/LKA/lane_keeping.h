@@ -6,16 +6,6 @@
 
 #include "SortTracking.h"
 
-// 你的輸入結構（若你專案已有定義，可改成 include 你的 header）
-// typedef struct TrackingBox {
-//     int frame;
-//     int id;
-//     int class_id;
-//     float score;
-//     cv::Rect box;
-//     std::vector<cv::Point3f> kpts; // (x, y, conf) 或 (x,y,z). 本版預設 z=conf（可關閉）
-// } TrackingBox;
-
 // 控制器設定
 struct ControlConfig {
     // --- 車輛/控制基本參數 ---

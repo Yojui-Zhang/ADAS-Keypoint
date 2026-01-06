@@ -20,6 +20,7 @@
 // 自訂頭檔
 #include "config.h"
 #include "write_video.h"
+#include "GeometryFunction.h"
 
 #ifdef USE_TFLITE
 #include "../Engine/TFlite/include/TFlite_main.h"
@@ -121,6 +122,7 @@ int main(int argc, char** argv) {
 
 // ========================================================================
   std::vector<TrackingBox> TrackingResult;
+  std::vector<TrackingBox> WorldResult;
   clock_t start, end;
   double system_time_used;
 
@@ -154,8 +156,14 @@ int main(int argc, char** argv) {
     TrackingResult = trt_process_frame(frame, Output_frame, config);
 #endif
 
+    WorldResult = GeometryFunction(Output_frame, Output_frame, TrackingResult);
+
     // ============================== Inference ===========================
     // Algorithm for LKA / ACC / AEB / Behavior Detection
+
+
+
+
 
     // ============================= Experiment =============================
 

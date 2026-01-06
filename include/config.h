@@ -72,6 +72,7 @@
     #define NUM_BOXES 4725
 #endif
 
+// ================ TensorRT Set ==========
 
 struct Config {
 
@@ -80,7 +81,7 @@ struct Config {
     int num_labels = NUM_CLASS;          // 類別數
     int topk = 100;               // 最大數量
     float score_thres = PROB_THRESHOLD;    // 分數閾值
-    float iou_thres = NMS_THRESHOLD_LANE;      // IOU 閾值
+    float iou_thres = NMS_THRESHOLD_BBOX;      // IOU 閾值
 
     // Pose
     const int num_keypoint = Keypoint_NUM;  // 關鍵點數量
