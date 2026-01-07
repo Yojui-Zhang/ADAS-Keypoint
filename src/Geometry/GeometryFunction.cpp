@@ -9,8 +9,8 @@
 #include <iomanip>
 #include <sstream>
 
-bool Draw_KPT_World = true;     //  true,   false
-bool Draw_Box_World = true;
+bool Draw_KPT_World = false;     //  true,   false
+bool Draw_Box_World = false;
 
 static void drawCoordinates(cv::Mat& img, const cv::Point2f& px_pos, const cv::Point3f& w_pos, const cv::Scalar& color)
 {
