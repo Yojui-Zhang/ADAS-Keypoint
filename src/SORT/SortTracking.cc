@@ -20,6 +20,67 @@ double SORTTRACKING::GetIOU(Rect_<float> bb_test, Rect_<float> bb_gt)
     return static_cast<double>(inter / uni);
 }
 
+void SORTTRACKING::UpdateTrajectory(std::vector<TrackingBox>& results, int history_len)
+{
+    // 1. 建立當前活躍的 ID 集合 (用於清理死掉的 Track)
+    std::vector<int> active_ids;
+    for (const auto& res : results) {
+        active_ids.push_back(res.id);
+    }
+
+    // 2. 清理已經消失的 ID 歷史紀錄 (Garbage Collection)
+    for (auto it = trajectory_registry.begin(); it != trajectory_registry.end(); ) {
+        bool is_active = false;
+        for (int id : active_ids) {
+            if (id == it->first) {
+                is_active = true;
+                break;
+            }
+        }
+        
+        if (!is_active) {
+            it = trajectory_registry.erase(it); // 移除已消失物件的歷史
+        } else {
+            ++it;
+        }
+    }
+
+    // 3. 更新現存物件的軌跡
+    for (auto& res : results)
+    {
+        // 取得該 ID 對應的歷史佇列 (若無則自動建立)
+        std::deque<TrackingBox>& history = trajectory_registry[res.id];
+
+        // 加入當前狀態 (最新的一幀)
+        history.push_back(res);
+
+        // 維持固定長度 (若超過 history_len 則移除最舊的)
+        if (static_cast<int>(history.size()) > history_len) {
+            history.pop_front();
+        }
+
+        // 4.1 紀錄「最遠(最前一幀)」的 box 與 kpts
+        // history: [oldest ... newest]
+        if (!history.empty()) {
+            res.last_track_box  = history.front().box;
+            res.last_track_kpts = history.front().kpts;
+        } else {
+            // 理論上不會發生(因為上面已 push_back)，保底避免未初始化
+            res.last_track_box  = res.box;
+            res.last_track_kpts = res.kpts;
+        }
+
+        // 4.2 將歷史紀錄寫入當前的 result (供外部繪圖或分析用)
+        res.track_box_history.clear();
+        res.track_kpt_history.clear();
+
+        for (const auto& h : history) {
+            res.track_box_history.push_back(h.box);
+            res.track_kpt_history.push_back(h.kpts);
+        }
+    }
+}
+
 std::vector<TrackingBox> SORTTRACKING::TrackingResult(const std::vector<Object>& bboxes)
 {
     // Safety: detData is a member; ensure per-frame cleanliness.
@@ -77,6 +138,9 @@ std::vector<TrackingBox> SORTTRACKING::TrackingResult(const std::vector<Object>&
 
             frameTrackingResult.push_back(res);
         }
+
+        // 紀錄追蹤(含第一幀)，避免 history 缺第一筆
+        UpdateTrajectory(frameTrackingResult, 10);
 
         return frameTrackingResult;
     }
@@ -225,6 +289,9 @@ std::vector<TrackingBox> SORTTRACKING::TrackingResult(const std::vector<Object>&
             ++it;
         }
     }
+
+    // 紀錄追蹤
+    UpdateTrajectory(frameTrackingResult, 10);
 
     return frameTrackingResult;
 }

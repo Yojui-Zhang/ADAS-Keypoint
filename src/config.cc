@@ -5,7 +5,6 @@ cv::Mat rgbImg1(input_video_height, input_video_width, CV_8UC3);
 cv::Mat rgbImg(output_video_height, output_video_width, CV_8UC3); 
 cv::Rect rect(0, 0, output_video_width, output_video_height);
 
-
 // ============================ Classify ============================
 
 

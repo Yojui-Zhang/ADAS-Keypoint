@@ -51,7 +51,7 @@ public:
 // =====================================================================================================
     void postprocess_pose(std::vector<Object>& objs, float score_thres = 0.25f, float iou_thres = 0.65f, int topk = 100, int num_labels  = 80);
  
-    static void          draw_pose(const cv::Mat&                                image,
+    void          draw_pose(const cv::Mat&                                image,
                                                      cv::Mat&                                res,
                                                const std::vector<TrackingBox>&                    objs,
                                                const std::vector<std::vector<unsigned int>>& SKELETON,
@@ -88,6 +88,18 @@ private:
     nvinfer1::IExecutionContext* context = nullptr;
     cudaStream_t                 stream  = nullptr;
     Logger                       gLogger{nvinfer1::ILogger::Severity::kERROR};
+
+    // 回傳：是否有做分類（true = 已分類，traffic_class_num 有效）
+    bool run_traffic_classification(
+        const cv::Mat& frame_bgr,
+        const TrackingBox& obj,
+        int classify_model_width,
+        int classify_model_height,
+        int& traffic_class_num,
+        int& icon_light_num,
+        int& icon_sign_num
+    );
+    
 };
 // ========================================================
 
@@ -614,6 +626,65 @@ void YOLOv8::postprocess_pose(std::vector<Object>& objs, float score_thres, floa
     }
 }
 
+// ---------------------------------------------------------------------------------------------------
+
+bool YOLOv8::run_traffic_classification(
+    const cv::Mat& frame_bgr,
+    const TrackingBox& obj,
+    int classify_model_width,
+    int classify_model_height,
+    int& traffic_class_num,
+    int& icon_light_num,
+    int& icon_sign_num
+) {
+
+    // 先判斷是否需要做分類（符合你的兩段 if / else if 條件）
+    const bool need_car_cls =
+        (obj.class_id == 1 &&
+         obj.box.x >= 400 && obj.box.x <= 880 &&
+         obj.box.y >= 250);
+
+    const bool need_light_sign_cls =
+        ((obj.class_id == 4 || obj.class_id == 5 || obj.class_id == 6) &&
+         obj.box.y <= 250);
+
+    if (!need_car_cls && !need_light_sign_cls) {
+        return false;
+    }
+
+    // 共同的分類推論流程（把重複碼集中）
+    // -----------------------------------------------------------------------------------------
+    cv::Mat crop_image = classifydetector.cropObjects(
+        frame_bgr, obj, classify_model_width, classify_model_height);
+
+    cv::Mat blob;
+    const cv::Size inputSize(classify_model_width, classify_model_height);
+    cv::dnn::blobFromImage(crop_image, blob, 1.0 / 255, inputSize, cv::Scalar(), true, false);
+
+    net.setInput(blob);
+    cv::Mat classify_output = net.forward();
+
+    cv::Point classId;
+    double confidence = 0.0;
+    cv::minMaxLoc(classify_output, nullptr, &confidence, nullptr, &classId);
+
+    traffic_class_num = classId.x;
+
+    // -----------------------------------------------------------------------------------------
+
+    // 只有「light/sign」那條分支才需要更新 icon_*（依照你原始邏輯）
+    if (need_light_sign_cls) {
+        if (traffic_class_num == 13 || traffic_class_num == 15 || traffic_class_num == 16) {
+            icon_light_num = traffic_class_num;
+        }
+        if (traffic_class_num >= 0 && traffic_class_num <= 8) {
+            icon_sign_num = traffic_class_num;
+        }
+    }
+
+    return true;
+}
+// ---------------------------------------------------------------------------------------------------
 
 void                     YOLOv8::draw_pose( const cv::Mat&                                image,
                                                   cv::Mat&                                res,
@@ -623,6 +694,10 @@ void                     YOLOv8::draw_pose( const cv::Mat&                      
                                             const std::vector<std::vector<unsigned int>>& LIMB_COLORS,
                                             const int num_keypoint)
 {
+
+    bool Draw_track_box = false;         // except lane box
+    bool Draw_track_lane_kpt = false;    // except only lane
+    bool Draw_track_car_kpt = false;    // except only car
 
     int icon_light_num = 3;
     int icon_sign_num = 9;
@@ -636,68 +711,15 @@ void                     YOLOv8::draw_pose( const cv::Mat&                      
         bool classify_light__ = false;
         int traffic_class_num;
 
-        if(obj.class_id == 1 && obj.box.x >= 400 && obj.box.x <= 880 && obj.box.y >= 250){
-
-            Mat crop_image;
-            crop_image = classifydetector.cropObjects(image, obj, Classify_Model_Width, Classify_Model_Height);  //to crop_image
-
-            // 調整輸入大小 (根據 ONNX 模型需求)
-            Mat blob;
-            Size inputSize(Classify_Model_Width, Classify_Model_Height);  // 根據模型需求調整
-            blobFromImage(crop_image, blob, 1.0 / 255, inputSize, Scalar(), true, false);
-
-            // 設定模型輸入
-            net.setInput(blob);
-
-            Mat classify_output = net.forward();
-
-            // 解析結果
-            Point classId;
-            double confidence;
-            minMaxLoc(classify_output, nullptr, &confidence, nullptr, &classId);
-
-            // cout << "Predicted Class: " << classifydetector.class_name_classify[classId.x] << ", Confidence: " << confidence << endl;
-
-            classify_light__ = true;
-            traffic_class_num = classId.x;
-
-        }
-        else if( ( obj.class_id == 4 || obj.class_id == 5 || obj.class_id == 6) && obj.box.y <= 250 ){
-
-            Mat crop_image;
-            crop_image = classifydetector.cropObjects(image, obj, Classify_Model_Width, Classify_Model_Height);  //to crop_image
-
-            // 調整輸入大小 (根據 ONNX 模型需求)
-            Mat blob;
-            Size inputSize(Classify_Model_Width, Classify_Model_Height);  // 根據模型需求調整
-            blobFromImage(crop_image, blob, 1.0 / 255, inputSize, Scalar(), true, false);
-
-            // 設定模型輸入
-            net.setInput(blob);
-
-            Mat classify_output = net.forward();
-
-            // 解析結果
-            Point classId;
-            double confidence;
-            minMaxLoc(classify_output, nullptr, &confidence, nullptr, &classId);
-
-            // cout << "Predicted Class: " << classifydetector.class_name_classify[classId.x] << ", Confidence: " << confidence << endl;
-
-            classify_light__ = true;
-            traffic_class_num = classId.x;
-
-            if((traffic_class_num == 13 || traffic_class_num == 15 || traffic_class_num == 16)){
-                icon_light_num = traffic_class_num;
-            }
-            if(traffic_class_num >= 0 && traffic_class_num <= 8 ){
-                icon_sign_num = traffic_class_num;
-            }
-
-        }
+        classify_light__ = this->run_traffic_classification(
+            res, obj,
+            Classify_Model_Width, Classify_Model_Height,
+            traffic_class_num,
+            icon_light_num, icon_sign_num
+        );
         
         if(obj.class_id < 2){
-
+            // -------------------------------------------------------------------
             auto& kps = obj.kpts;  // std::vector<cv::Point3f>
             for (int k = 0; k < num_point + 2; k++) {
                 if (k < num_point) {
@@ -724,14 +746,43 @@ void                     YOLOv8::draw_pose( const cv::Mat&                      
                 float pos2_s = p2.z;
 
                 if (pos1_s > 0.5f && pos2_s > 0.5f && obj.class_id == 1) {
-                    cv::Scalar limb_color = cv::Scalar(255, 0, 0);
+                    cv::Scalar limb_color = cv::Scalar(200, 200, 0);
                     cv::line(res, {pos1_x, pos1_y}, {pos2_x, pos2_y}, limb_color, 2);
                 }
             }
+            // -------------------------------------------------------------------
+            auto& track_kps = obj.last_track_kpts;  // std::vector<cv::Point3f>
+            for (int k = 0; k < num_point + 2; k++) {
+                if (k < num_point) {
+                    const cv::Point3f& track_pt = track_kps[k];
+                    int   track_kps_x = std::round(track_pt.x);
+                    int   track_kps_y = std::round(track_pt.y);
+                    float track_kps_s = track_pt.z;          // score
+
+                    if (track_kps_s > 0.5f && obj.class_id == 0 && Draw_track_lane_kpt == true) {
+                        cv::Scalar kps_color = cv::Scalar(0, 165, 255);
+                        cv::circle(res, {track_kps_x, track_kps_y}, 4, ORANGE, -1);
+                    }
+
+                    if (track_kps_s > 0.5f && obj.class_id == 1 && Draw_track_car_kpt== true) {
+                        cv::Scalar kps_color = cv::Scalar(0, 165, 255);
+                        cv::circle(res, {track_kps_x, track_kps_y}, 4, ORANGE, -1);
+                    }
+                }
+            }
+            // -------------------------------------------------------------------
+
         }
 
-        if(obj.class_id >= 2){
+        if(obj.class_id > 0){
             cv::rectangle(res, obj.box, {255, 0, 0}, 2);
+
+            if(Draw_track_box == true){
+                // Track circle
+                cv::circle(res, cv::Point(obj.last_track_box.x + obj.last_track_box.width / 2, obj.last_track_box.y + obj.last_track_box.height / 2), 3, YELLOW, -1);
+                cv::circle(res, cv::Point(obj.box.x + obj.box.width / 2, obj.box.y + obj.box.height / 2), 3, ORANGE, -1);
+            }
+
         }
 
         if(obj.class_id != 0){

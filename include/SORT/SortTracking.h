@@ -4,9 +4,11 @@
 #include "Hungarian.h"
 #include "kalman.h"
 #include "config.h"
+
 #include "opencv2/opencv.hpp"
 #include "opencv2/video/tracking.hpp"
 #include "opencv2/highgui/highgui.hpp"
+
 #include <iostream>
 #include <fstream>
 #include <iomanip> // to format image names using setw() and setfill()
@@ -61,6 +63,13 @@ private:
     cv::Mat m=Mat::ones(3,1,CV_64FC1);
     double GetIOU(Rect_<float> bb_test, Rect_<float> bb_gt);
     double vehicle_dis(double x_data, double y_data, double z_data);
+
+    // 歷史紀錄暫存區：key=ID, value=該 ID 的歷史資料佇列
+    std::map<int, std::deque<TrackingBox>> trajectory_registry; 
+
+    // 新增功能函式宣告
+    void UpdateTrajectory(std::vector<TrackingBox>& results, int history_len);
+
 };
 
 #endif // !MOBILEFACENET_H_

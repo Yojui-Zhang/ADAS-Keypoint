@@ -71,6 +71,19 @@ public:
 
     bool Set_TFlite(const char* model_path);
     void Calculate_Scale(const cv::Mat& frame, int input_width, int input_height);
+
+private:
+    // 回傳：是否有做分類（true = 已分類，traffic_class_num 有效）
+    bool run_traffic_classification(
+        const cv::Mat& frame_bgr,
+        const TrackingBox& obj,
+        int classify_model_width,
+        int classify_model_height,
+        int& traffic_class_num,
+        int& icon_light_num,
+        int& icon_sign_num
+    );
+
 };
 
 Net net;
@@ -392,18 +405,76 @@ void draw_car_cuboid(cv::Mat& image, const std::vector<cv::Point>& P, const std:
 }
 
 // ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
+
+bool PoseDetector::run_traffic_classification(
+    const cv::Mat& frame_bgr,
+    const TrackingBox& obj,
+    int classify_model_width,
+    int classify_model_height,
+    int& traffic_class_num,
+    int& icon_light_num,
+    int& icon_sign_num
+) {
+
+    // 先判斷是否需要做分類（符合你的兩段 if / else if 條件）
+    const bool need_car_cls =
+        (obj.class_id == 1 &&
+         obj.box.x >= 400 && obj.box.x <= 880 &&
+         obj.box.y >= 250);
+
+    const bool need_light_sign_cls =
+        ((obj.class_id == 4 || obj.class_id == 5 || obj.class_id == 6) &&
+         obj.box.y <= 250);
+
+    if (!need_car_cls && !need_light_sign_cls) {
+        return false;
+    }
+
+    // 共同的分類推論流程（把重複碼集中）
+    // -----------------------------------------------------------------------------------------
+    cv::Mat crop_image = classifydetector.cropObjects(
+        frame_bgr, obj, classify_model_width, classify_model_height);
+
+    cv::Mat blob;
+    const cv::Size inputSize(classify_model_width, classify_model_height);
+    cv::dnn::blobFromImage(crop_image, blob, 1.0 / 255, inputSize, cv::Scalar(), true, false);
+
+    net.setInput(blob);
+    cv::Mat classify_output = net.forward();
+
+    cv::Point classId;
+    double confidence = 0.0;
+    cv::minMaxLoc(classify_output, nullptr, &confidence, nullptr, &classId);
+
+    traffic_class_num = classId.x;
+
+    // -----------------------------------------------------------------------------------------
+
+    // 只有「light/sign」那條分支才需要更新 icon_*（依照你原始邏輯）
+    if (need_light_sign_cls) {
+        if (traffic_class_num == 13 || traffic_class_num == 15 || traffic_class_num == 16) {
+            icon_light_num = traffic_class_num;
+        }
+        if (traffic_class_num >= 0 && traffic_class_num <= 8) {
+            icon_sign_num = traffic_class_num;
+        }
+    }
+
+    return true;
+}
+
+
+// ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
 void PoseDetector::draw_objects(const cv::Mat &img, const std::vector<TrackingBox> &objects, cv::Mat& out_bgr, int classify_model_width, int classify_model_height)
 {
-
-    
+    bool Draw_track_box = false;         // except lane box
+    bool Draw_track_lane_kpt = false;    // except only lane
+    bool Draw_track_car_kpt = false;    // except only car
 
     int icon_light_num = 3;
     int icon_sign_num = 9;
 
-
     out_bgr = img.clone();
-
-    
 
     for (const auto &obj : objects)
     {
@@ -413,68 +484,18 @@ void PoseDetector::draw_objects(const cv::Mat &img, const std::vector<TrackingBo
 
         // cv::line(out_bgr, cv::Point(0, 200), cv::Point(1280, 200), BLUE, 5);
 
-        if(obj.class_id == 1 && obj.box.x >= 400 && obj.box.x <= 880 && obj.box.y >= 250){
+        // 只要 run_traffic_classification 回傳 true，就代表有分類成功
+        classify_light__ = run_traffic_classification(
+            out_bgr, obj,
+            classify_model_width, classify_model_height,
+            traffic_class_num,
+            icon_light_num, icon_sign_num
+        );
 
-            Mat crop_image;
-            crop_image = classifydetector.cropObjects(out_bgr, obj, classify_model_width, classify_model_height);  //to crop_image
-
-            // 調整輸入大小 (根據 ONNX 模型需求)
-            Mat blob;
-            Size inputSize(classify_model_width, classify_model_height);  // 根據模型需求調整
-            blobFromImage(crop_image, blob, 1.0 / 255, inputSize, Scalar(), true, false);
-
-            // 設定模型輸入
-            net.setInput(blob);
-
-            Mat classify_output = net.forward();
-
-            // 解析結果
-            Point classId;
-            double confidence;
-            minMaxLoc(classify_output, nullptr, &confidence, nullptr, &classId);
-
-            // cout << "Predicted Class: " << classifydetector.class_name_classify[classId.x] << ", Confidence: " << confidence << endl;
-
-            classify_light__ = true;
-            traffic_class_num = classId.x;
-
-        }
-        else if( ( obj.class_id == 4 || obj.class_id == 5 || obj.class_id == 6) && obj.box.y <= 250 ){
-
-            Mat crop_image;
-            crop_image = classifydetector.cropObjects(out_bgr, obj, classify_model_width, classify_model_height);  //to crop_image
-
-            // 調整輸入大小 (根據 ONNX 模型需求)
-            Mat blob;
-            Size inputSize(classify_model_width, classify_model_height);  // 根據模型需求調整
-            blobFromImage(crop_image, blob, 1.0 / 255, inputSize, Scalar(), true, false);
-
-            // 設定模型輸入
-            net.setInput(blob);
-
-            Mat classify_output = net.forward();
-
-            // 解析結果
-            Point classId;
-            double confidence;
-            minMaxLoc(classify_output, nullptr, &confidence, nullptr, &classId);
-
-            // cout << "Predicted Class: " << classifydetector.class_name_classify[classId.x] << ", Confidence: " << confidence << endl;
-
-            classify_light__ = true;
-            traffic_class_num = classId.x;
-
-            if((traffic_class_num == 13 || traffic_class_num == 15 || traffic_class_num == 16)){
-                icon_light_num = traffic_class_num;
-            }
-            if(traffic_class_num >= 0 && traffic_class_num <= 8 ){
-                icon_sign_num = traffic_class_num;
-            }
-
-        }
-
+        // Draw Kpt
         if(obj.class_id <= 1){
 
+            // -----------------------------------------------
             std::vector<cv::Point> P;
             std::vector<int> V;
 
@@ -492,18 +513,47 @@ void PoseDetector::draw_objects(const cv::Mat &img, const std::vector<TrackingBo
                     cv::circle(out_bgr, cv::Point(x, y), 3, GREEN, -1);
                 }
             }
+            // -----------------------------------------------
+            if(Draw_track_lane_kpt == true || Draw_track_car_kpt == true){
+                std::vector<cv::Point> P_track;
+                std::vector<int> V_track;
+
+                P_track.reserve(obj.last_track_kpts.size());
+                V_track.reserve(obj.last_track_kpts.size());
+
+                for (const auto& kpt : obj.last_track_kpts) {
+                    int x = static_cast<int>(kpt.x);
+                    int y = static_cast<int>(kpt.y);
+                    int v = static_cast<int>(kpt.z);  // 0/1/2
+                    P_track.emplace_back(x, y);
+                    V_track.emplace_back(v);
+
+                    if(obj.class_id == 0 && Draw_track_lane_kpt == true){
+                        cv::circle(out_bgr, cv::Point(x, y), 3, ORANGE, -1);
+                    }
+                    if(obj.class_id == 1 && Draw_track_car_kpt == true){
+                        cv::circle(out_bgr, cv::Point(x, y), 3, ORANGE, -1);
+                    }
+                }
+            }
+            // -----------------------------------------------
+
             if(obj.class_id == 1){
                 draw_car_cuboid(out_bgr, P, V);
             }
         }
 
+        // Draw Box
         if(obj.class_id != 0 ){
             
-            if(obj.class_id != 0){
-                // Draw bbox
-                cv::rectangle(out_bgr, obj.box, GREEN, 2);
+            cv::rectangle(out_bgr, obj.box, GREEN, 2);
+
+            if(Draw_track_box == true){
+                // Track circle
+                cv::circle(out_bgr, cv::Point(obj.last_track_box.x + obj.last_track_box.width / 2, obj.last_track_box.y + obj.last_track_box.height / 2), 3, YELLOW, -1);
+                cv::circle(out_bgr, cv::Point(obj.box.x + obj.box.width / 2, obj.box.y + obj.box.height / 2), 3, ORANGE, -1);
             }
-        
+
             // Draw class label
             if(classify_light__ == false){
                 label_txt = cv::format("%s", config.class_names[obj.class_id]);
@@ -519,6 +569,8 @@ void PoseDetector::draw_objects(const cv::Mat &img, const std::vector<TrackingBo
             cv::putText(out_bgr, label_txt, textOrg, cv::FONT_HERSHEY_SIMPLEX, 0.5, WHITE, 1);
         }
 
+
+
     }
 
     // draw icon light
@@ -527,5 +579,4 @@ void PoseDetector::draw_objects(const cv::Mat &img, const std::vector<TrackingBo
     // draw icon sign
     out_bgr = IconManager::Draw_Icon_Sign(out_bgr, icon_sign_num);
 
-    // return objects;
 }

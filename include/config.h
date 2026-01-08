@@ -225,6 +225,11 @@ typedef struct TrackingBox
 
     cv::Rect box;
     std::vector<cv::Point3f> kpts;
-    // std::vector<float> kps;         //                      (TensorRT)
+    
+    cv::Rect last_track_box;
+    std::vector<cv::Point3f> last_track_kpts;
+
+    std::vector<cv::Rect> track_box_history;               // 歷史 Bounding Boxes
+    std::vector<std::vector<cv::Point3f>> track_kpt_history; // 歷史 Keypoints (每一幀都有一組 kpts)
 
 } TrackingBox;
