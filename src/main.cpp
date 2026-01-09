@@ -21,11 +21,13 @@
 #include "config.h"
 #include "write_video.h"
 
+#include "input-view.h"
 #include "GeometryFunction.h"
 #include "lane_keeping.h"
 #include "AccApi.h"
 #include "AccDebugDraw.h"
 #include "draw_icon.h"
+
 
 // CANBus
 #include "canbus_recv.h"
@@ -42,12 +44,6 @@
 #include "../Engine/TensorRT/include/TensorRT_main.hpp"
 #endif
 
-//Camera
-#ifdef _v4l2cap
-#include "V4L2_define.h"
-int v4l2res = v4l2init(V4L2_cap_num);
-#endif
-
 #ifdef _opengl
 static unsigned char* outputRgbaMem;
 extern void glinit(void);    // 初始化OpenGL
@@ -59,8 +55,9 @@ extern void imageShow(int width, int height,
 using namespace std;
 using namespace cv;
 
-cv::Mat frame(input_video_height, input_video_width, CV_8UC3);
-cv::Mat Output_frame(input_video_height, input_video_width, CV_8UC3);
+cv::Mat inputView(input_video_height, input_video_width, CV_8UC3);
+cv::Mat frame(process_video_height, process_video_width, CV_8UC3);
+cv::Mat Output_frame(process_video_height, process_video_width, CV_8UC3);
 
 // ====================== CANBus Set ======================
 /**
@@ -76,6 +73,7 @@ float target_speed = 0.f;
 CAR CAN;
 // ====================== CANBus Set ======================
 
+
 int main(int argc, char** argv) {
   if (argc < 3) {
     std::cerr << "Usage: " << argv[0]
@@ -87,6 +85,11 @@ int main(int argc, char** argv) {
   char* classify_model_path = argv[2];
   char* Icon_path = "../icon";
 
+  std::vector<TrackingBox> TrackingResult;
+  std::vector<TrackingBox> WorldResult;
+  clock_t start, end;
+  double system_time_used;
+
   Config config;
 
   CameraModel cam;
@@ -94,43 +97,19 @@ int main(int argc, char** argv) {
       std::cerr << "Main: Failed to load camera config." << std::endl;
       return -1;
   }
-
-// ============================== Input View ==============================
-#ifdef _openCVcap
-  // 初始化影片路徑
-  const char* inputVideoPath = "../video/1280x720/vecow-demo.mp4";
-
-  // 打開輸入影片
-  cv::VideoCapture cap(inputVideoPath);
-  // cv::VideoCapture cap(0);
-
-  if (!cap.isOpened()) {
-    printf("can't open openCV camera\n");
-    return -1;
+  // ============================== Input View ==============================
+  cv::VideoCapture cap; // 宣告 cap 物件
+  
+  // 呼叫外部函式進行初始化，將 cap 和 frame 傳進去
+  if (InitInputAndDisplay(cap, inputView) != 0) {
+      std::cerr << "Video Initialization Failed." << std::endl;
+      return -1;
   }
 
-  cap.set(cv::CAP_PROP_FRAME_WIDTH,
-          input_video_width);  // Setting the width of the video
-  cap.set(cv::CAP_PROP_FRAME_HEIGHT,
-          input_video_height);  // Setting the height of the video//
+  cv::Rect roi_input_view(input_video_width - rect_video_width, input_video_height - rect_video_height, rect_video_width, rect_video_height);
+  frame = inputView(roi_input_view);
+  cv::resize(frame, frame, cv::Size(process_video_width, process_video_height));
 
-  int codec = static_cast<int>(cap.get(cv::CAP_PROP_FOURCC));
-
-  cap >> frame;
-  cv::resize(frame, frame, cv::Size(input_video_width, input_video_height));
-
-#endif
-#ifdef _v4l2cap
-  frame = v4l2Cam();
-#endif
-#ifdef _opengl
-  outputRgbaMem = (unsigned char*)calloc(1280 * 720 * 4, sizeof(unsigned char));
-  glinit();
-#else
-  cv::namedWindow("Screen", cv::WINDOW_NORMAL);
-  cv::setWindowProperty("Screen", cv::WND_PROP_FULLSCREEN,
-                        cv::WINDOW_FULLSCREEN);
-#endif
   // ======================================================================
 
 #ifdef Write_Video__
@@ -154,12 +133,7 @@ int main(int argc, char** argv) {
 #endif
 
 // ========================================================================
-  std::vector<TrackingBox> TrackingResult;
-  std::vector<TrackingBox> WorldResult;
-  clock_t start, end;
-  double system_time_used;
 
-  // ---------------------------------------------------
 #ifdef CANBUS__
   canbus_recv(CAN);
 
@@ -180,7 +154,6 @@ int main(int argc, char** argv) {
   pthread_create(&t_S3_dec, NULL, S3_dec, NULL);
 
 #endif
-  // ---------------------------------------------------
 
   while (1) {
     start = clock();
@@ -188,7 +161,12 @@ int main(int argc, char** argv) {
     // =============================== Camera =============================
 
 #ifdef _openCVcap
-    cap >> frame;
+    cap >> inputView;
+
+    cv::Rect roi_input_view(input_video_width - rect_video_width, input_video_height - rect_video_height, rect_video_width, rect_video_height);
+    frame = inputView(roi_input_view);
+    cv::resize(frame, frame, cv::Size(process_video_width, process_video_height));
+
 #endif
 #ifdef _v4l2cap
     frame = v4l2Cam();
@@ -249,7 +227,7 @@ int main(int argc, char** argv) {
 
 
     // ------------------------ Draw info ------------------------
-    DrawTargetInfo(Output_frame, TargetSpeedKmh, Targetdistance, TargetTTC);
+    DrawTargetInfo(Output_frame, TargetSpeedKmh, Targetdistance, TargetTTC);    //目標車速 目標距離 目標TTC
 
     // ============================= Experiment =============================
 
@@ -276,7 +254,7 @@ int main(int argc, char** argv) {
 
 #ifdef _opengl
     outputRgbaMem = Output_frame.data;
-    imageShow(1280, 720, outputRgbaMem);
+    imageShow(output_video_width, output_video_height, outputRgbaMem);
     swap_egl();
 #else
     cv::resize(Output_frame, Output_frame,

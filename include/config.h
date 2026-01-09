@@ -15,6 +15,7 @@
 // #define _v4l2cap
 #define _openCVcap
 
+
 // 選擇畫面輸出
 // #define _opengl
 
@@ -28,7 +29,12 @@
 #define input_video_width 1280
 #define input_video_height 720
 
-// ============= write image size ===========
+#define rect_video_width 1280       //openCV
+#define rect_video_height 720      //openCV
+
+#define process_video_width 1280
+#define process_video_height 720
+
 #define output_video_width 1920
 #define output_video_height 1080
 #define output_video_fps 15

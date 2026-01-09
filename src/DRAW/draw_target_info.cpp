@@ -17,7 +17,7 @@ void DrawTargetInfo(cv::Mat& img, float speed, float dist, float ttc) {
     // 1. 格式化字串 (使用 stringstream 控制小數點位數)
     std::stringstream ss;
     ss << std::fixed << std::setprecision(1); // 設定小數點後 1 位
-    ss << "Spd: " << speed << " km/h | Dist: " << dist << " m | TTC: " << ttc << " s";
+    ss << "Tg-Spd: " << speed << " km/h | Tg-Dist: " << dist << " m | Tg-TTC: " << ttc << " s";
     std::string text = ss.str();
 
     // 2. 設定字型參數

@@ -90,11 +90,13 @@ endif()
 
 # =========================== Source Files ===========================
 aux_source_directory(./src/ SRC_LIST)
+aux_source_directory(./src/Camera/ CAMERA_SRC_LIST)
 aux_source_directory(./src/SORT/ SORT_SRC_LIST)
 aux_source_directory(./src/LKA/ LKA_SRC_LIST)
 aux_source_directory(./src/Geometry/ Geometry_SRC_LIST)
 aux_source_directory(./src/ACC/ ACC_SRC_LIST)
 aux_source_directory(./src/DRAW/ DRAW_SRC_LIST)
+
 
 #Engine
 if(ENGINE STREQUAL "TFLITE")
@@ -114,6 +116,7 @@ endif()
 
 add_executable(${PROJECT_NAME} 
     ${SRC_LIST}
+    ${CAMERA_SRC_LIST}
     ${CANBUS_SRC_LIST}
     ${Engine_SRC_LIST}
     ${SORT_SRC_LIST}
@@ -121,6 +124,7 @@ add_executable(${PROJECT_NAME}
     ${Geometry_SRC_LIST}
     ${ACC_SRC_LIST}
     ${DRAW_SRC_LIST}
+    
 )
 
 # ========================= Include Directories =========================
@@ -128,6 +132,7 @@ add_executable(${PROJECT_NAME}
 include_directories(
     ${CMAKE_CURRENT_LIST_DIR}
     ${CMAKE_CURRENT_LIST_DIR}/include
+    ${CMAKE_CURRENT_LIST_DIR}/include/Camera
     ${CMAKE_CURRENT_LIST_DIR}/include/SORT
     ${CMAKE_CURRENT_LIST_DIR}/include/LKA
     ${CMAKE_CURRENT_LIST_DIR}/include/Geometry
