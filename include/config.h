@@ -1,18 +1,21 @@
 #pragma once
 #include <opencv2/core.hpp>  // 包含 cv::Scalar 和其他基本類型
 
-// ============= GPU Accelerate =============
+// 是否啟動控車
+// #define CANBUS__
+
+// 是否啟用GPU加速
 // #define _GPU_delegate
 
-// ============= write Data ================
+// 紀錄TFlite權重輸出
 // #define Write_Video__
 // #define Save_infer_raw_data__
 
-// ============= Camera Choose ==============
+// 鏡頭輸入選擇
 // #define _v4l2cap
 #define _openCVcap
 
-// ============= Screen Show Choose ==============
+// 選擇畫面輸出
 // #define _opengl
 
 // ============= model channel size =========

@@ -1,3 +1,5 @@
+# 2026 / 01 / 09
+
 cmake_minimum_required(VERSION 3.14)
 
 # ==================== Project Settings ====================
@@ -14,6 +16,10 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -Wall")
 set(CMAKE_BUILD_TYPE Release)
+
+# ====================== Choose CANBUS（ITRI/YUNTECH) ======================
+set(CANBUS "ITRI" CACHE STRING "Choose Canbus: ITRI or YUNTECH")
+set_property(CACHE CANBUS PROPERTY STRINGS "ITRI" "YUNTECH")
 
 # ========================= CUDA and TensorRT Configuration =========================
 
@@ -87,20 +93,34 @@ aux_source_directory(./src/ SRC_LIST)
 aux_source_directory(./src/SORT/ SORT_SRC_LIST)
 aux_source_directory(./src/LKA/ LKA_SRC_LIST)
 aux_source_directory(./src/Geometry/ Geometry_SRC_LIST)
+aux_source_directory(./src/ACC/ ACC_SRC_LIST)
+aux_source_directory(./src/DRAW/ DRAW_SRC_LIST)
 
-
+#Engine
 if(ENGINE STREQUAL "TFLITE")
     aux_source_directory(./Engine/TFlite/src/ Engine_SRC_LIST)
 elseif(ENGINE STREQUAL "TENSORRT")
     aux_source_directory(./Engine/TensorRT/src/ Engine_SRC_LIST)
 endif()
 
+#CANBus
+if(CANBUS STREQUAL "ITRI")
+    aux_source_directory(./CANBus/itri/src/ CANBUS_SRC_LIST )
+    add_definitions(-DUSE_ITRI_CAN)
+elseif(CANBUS STREQUAL "YUNTECH")
+    aux_source_directory(./CANBus/yuntech/src/ CANBUS_SRC_LIST )
+    add_definitions(-DUSE_YUNTECH_CAN)
+endif()
+
 add_executable(${PROJECT_NAME} 
     ${SRC_LIST}
+    ${CANBUS_SRC_LIST}
+    ${Engine_SRC_LIST}
     ${SORT_SRC_LIST}
     ${LKA_SRC_LIST}
-    ${Engine_SRC_LIST}
     ${Geometry_SRC_LIST}
+    ${ACC_SRC_LIST}
+    ${DRAW_SRC_LIST}
 )
 
 # ========================= Include Directories =========================
@@ -111,12 +131,26 @@ include_directories(
     ${CMAKE_CURRENT_LIST_DIR}/include/SORT
     ${CMAKE_CURRENT_LIST_DIR}/include/LKA
     ${CMAKE_CURRENT_LIST_DIR}/include/Geometry
+    ${CMAKE_CURRENT_LIST_DIR}/include/ACC
+    ${CMAKE_CURRENT_LIST_DIR}/include/DRAW
 )
 
+#Engine
 if(ENGINE STREQUAL "TFLITE")
     include_directories(${CMAKE_CURRENT_LIST_DIR}/Engine/TFlite/include)
 elseif(ENGINE STREQUAL "TENSORRT")
     include_directories(${CMAKE_CURRENT_LIST_DIR}/Engine/TensorRT/include)
+endif()
+
+#CANBus
+if(CANBUS STREQUAL "ITRI")
+    include_directories(
+        ${CMAKE_CURRENT_LIST_DIR}/CANBus/itri/include
+    )
+elseif(CANBUS STREQUAL "YUNTECH")
+    include_directories(
+        ${CMAKE_CURRENT_LIST_DIR}/CANBus/yuntech/include
+    )
 endif()
 
 # ========================= Libraries Dependencies =========================

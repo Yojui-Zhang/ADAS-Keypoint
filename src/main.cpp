@@ -20,9 +20,20 @@
 // 自訂頭檔
 #include "config.h"
 #include "write_video.h"
+
 #include "GeometryFunction.h"
 #include "lane_keeping.h"
+#include "AccApi.h"
+#include "AccDebugDraw.h"
+#include "draw_icon.h"
 
+// CANBus
+#include "canbus_recv.h"
+#include "lib.h"
+#include "terminal.h"
+#include "pid_controller.h"
+
+//Engine
 #ifdef USE_TFLITE
 #include "../Engine/TFlite/include/TFlite_main.h"
 #endif
@@ -31,6 +42,7 @@
 #include "../Engine/TensorRT/include/TensorRT_main.hpp"
 #endif
 
+//Camera
 #ifdef _v4l2cap
 #include "V4L2_define.h"
 int v4l2res = v4l2init(V4L2_cap_num);
@@ -49,6 +61,20 @@ using namespace cv;
 
 cv::Mat frame(input_video_height, input_video_width, CV_8UC3);
 cv::Mat Output_frame(input_video_height, input_video_width, CV_8UC3);
+
+// ====================== CANBus Set ======================
+/**
+ * @SteerCtrlSwitch:	方向盤控制_開關
+ * @targetAngle:		方向盤控制_輸入訊號。WM_SET_ANGLE: 指定角度數值 WM_SET_ANGULAR_VELO: 輸入角速度數值
+*/
+extern volatile int steerCtrlMode;
+extern double targetAngle; // left 0.0 ~ -510.0 , right 0.0 ~ 510.0 
+extern double deceleration; // 0.0 - 10.0
+
+float target_speed = 0.f;
+
+CAR CAN;
+// ====================== CANBus Set ======================
 
 int main(int argc, char** argv) {
   if (argc < 3) {
@@ -133,6 +159,29 @@ int main(int argc, char** argv) {
   clock_t start, end;
   double system_time_used;
 
+  // ---------------------------------------------------
+#ifdef CANBUS__
+  canbus_recv(CAN);
+
+	canbus_ctrl_steer(1);     // Start/Stop ctrl Steer
+  canbus_ctrl_dec(1);       // Start/Stop ctrl Brake
+
+  cout << "target_speed = " << endl;
+  cin >> target_speed;
+
+  // org_target_speed = target_speed;
+
+  cout << "init target_speed" << target_speed;
+
+  pthread_t t_S3_v; // 宣告 pthread 變數
+  pthread_t t_S3_dec; // 宣告 pthread 變數
+
+  pthread_create(&t_S3_v, NULL, S3_speed_v, NULL);
+  pthread_create(&t_S3_dec, NULL, S3_dec, NULL);
+
+#endif
+  // ---------------------------------------------------
+
   while (1) {
     start = clock();
 
@@ -168,18 +217,39 @@ int main(int argc, char** argv) {
     // ============================== Inference ===========================
     // Algorithm for LKA / ACC / AEB / Behavior Detection
 
-    // ---------------------------------------------------
+#ifdef CANBUS__
+    float ego_vehicle_speed = CAN.speed;
+#else
+    float ego_vehicle_speed = 30;
+#endif
+
+    // ------------------------ LKA ------------------------
     std::string dbg;
-    float v = 35.0f;
-    float steer_deg = lane_steering_step(WorldResult, v, &dbg, Output_frame, Output_frame, &cam);
+    targetAngle = lane_steering_step(WorldResult, ego_vehicle_speed, &dbg, Output_frame, Output_frame, &cam);
 
-    cout << "Steer: " << steer_deg << endl;
-    // ---------------------------------------------------
+    // cout << "Steer: " << targetAngle << endl;
+    // ------------------------ ACC ------------------------
+
+    acc::ACC_SetEgoSpeedKmh(ego_vehicle_speed);
+    auto cmd = acc::ACC_Run(WorldResult);
+
+    acc::ACC_DrawTrackingBoxes(Output_frame, WorldResult, cmd);
+
+    float speed_kmh  = cmd.speed_kmh;
+    deceleration = cmd.brake_0_10;
+
+    float TargetSpeedKmh = cmd.TargetSpeedKmh;
+    float Targetdistance = cmd.Targetdistance;
+    float TargetTTC      = cmd.TargetTTC;
+
+    // cout << "\nbrake: " << deceleration << endl;
+    // cout << "Speed: " << speed_kmh << endl << endl;
+
+    // ------------------------ Behavior Detection ------------------------
 
 
-
-
-
+    // ------------------------ Draw info ------------------------
+    DrawTargetInfo(Output_frame, TargetSpeedKmh, Targetdistance, TargetTTC);
 
     // ============================= Experiment =============================
 

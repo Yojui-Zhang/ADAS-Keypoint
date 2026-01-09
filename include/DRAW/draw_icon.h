@@ -26,3 +26,4 @@ class IconManager{
         static std::unordered_map<Icon_ID, cv::Mat> icons_;
 };
 
+void DrawTargetInfo(cv::Mat& img, float speed, float dist, float ttc);
