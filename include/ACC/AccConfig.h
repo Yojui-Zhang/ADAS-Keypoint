@@ -36,7 +36,7 @@ struct AccConfig {
 
   // 定速巡航車速 (km/h)
   // 影響：前方無車時，車輛會加速到的最高速度。
-  float cruise_speed_kmh = 60.0f;    
+  float cruise_speed_kmh = 30.0f;    
 
   // 跟車時距 (秒) - Time Gap
   // 影響：決定跟車距離的鬆緊。公式：距離 = 靜止間距 + 車速 * time_gap。

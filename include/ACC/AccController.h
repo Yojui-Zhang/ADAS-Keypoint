@@ -150,7 +150,7 @@ public:
       out.Targetdistance = filt_dist_m;
 
       const float closing_speed = std::max(0.0f, -rel_speed_mps); // v_ego - v_lead
-      if (closing_speed > 0.1f) {
+      if (closing_speed > 0.5f) {
         out.TargetTTC = filt_dist_m / closing_speed;
       } else {
         out.TargetTTC = std::numeric_limits<float>::infinity();

@@ -25,6 +25,7 @@
 #include "GeometryFunction.h"
 #include "lane_keeping.h"
 #include "AccApi.h"
+#include "AccConfig.h"
 #include "AccDebugDraw.h"
 #include "draw_icon.h"
 
@@ -73,6 +74,7 @@ extern double deceleration; // 0.0 - 10.0
 float target_speed = 0.f;
 
 CAR CAN;
+AccConfig ACCconfig;
 
 
 // ======================================================================
@@ -149,7 +151,7 @@ int main(int argc, char** argv) {
   canbus_ctrl_dec(1);       // Start/Stop ctrl Brake
 
   cout << "target_speed = " << endl;
-  cin >> target_speed;
+  cin >> ACCconfig.cruise_speed_kmh;
 
   // org_target_speed = target_speed;
 
@@ -230,14 +232,14 @@ int main(int argc, char** argv) {
     acc::ACC_SetEgoSpeedKmh(ego_vehicle_speed);
     auto cmd = acc::ACC_Run(WorldResult);
 
-    acc::ACC_DrawTrackingBoxes(Output_frame, WorldResult, cmd);
+    // acc::ACC_DrawTrackingBoxes(Output_frame, WorldResult, cmd);
 
-    float speed_kmh  = cmd.speed_kmh;
-    deceleration = cmd.brake_0_10;
+    float speed_kmh  = cmd.speed_kmh;   // 自身目標車速
+    deceleration = cmd.brake_0_10;      // 自身目標煞車
 
-    float TargetSpeedKmh = cmd.TargetSpeedKmh;
-    float Targetdistance = cmd.Targetdistance;
-    float TargetTTC      = cmd.TargetTTC;
+    float TargetSpeedKmh = cmd.TargetSpeedKmh;    // 前方目標速度
+    float Targetdistance = cmd.Targetdistance;    // 前方目標距離
+    float TargetTTC      = cmd.TargetTTC;         // 前方目標 TTC
 
     // cout << "\nbrake: " << deceleration << endl;
     // cout << "Speed: " << speed_kmh << endl << endl;
