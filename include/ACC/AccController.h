@@ -1,5 +1,6 @@
 #pragma once
 #include "AccConfig.h"
+#include "KalmanDistFiliter.h"
 #include "AlphaBetaFilter.h"
 #include "LeadSelector.h"
 #include "GeometryAdapter.h" // 必須在這裡 include，因為 Update 實作需要它
@@ -175,7 +176,15 @@ private:
 
   AccConfig cfg_;
   LeadSelector selector_;
-  std::unordered_map<int, AlphaBetaFilter> lead_filters_;
+
+  // ==============================================================
+  // *距離Filiter* 可選擇使用那一種濾波器
+  // ==============================================================
+  // 使用Alpha Beta濾波器
+  // std::unordered_map<int, AlphaBetaFilter> lead_filters_;
+  // 使用Kalman濾波器
+  std::unordered_map<int, AccKalmanAdapter> lead_filters_;
+
 
   int   last_frame_ = -1;
   float ego_speed_est_mps_ = 0.0f;

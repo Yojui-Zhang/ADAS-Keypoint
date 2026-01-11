@@ -15,31 +15,7 @@ float lane_steering_step(const std::vector<TrackingBox>& world_result,
 {
     (void)input_img; // currently unused; preserved for API compatibility
 
-    // Static config init once (kept identical to original values)
-    static ControlConfig config = [](){
-        ControlConfig c;
-
-        c.wheel_base_m = 0.30f;
-        c.dt_s = 0.02f;
-
-        c.k_straight = 0.7f;
-        c.k_curve    = 3.0f;
-
-        // straight: look further; curve: look closer
-        c.x_heading_straight_m = 1.5f;
-        c.x_heading_curve_m    = 0.8f;
-
-        // probability smoothing
-        c.enable_prob_lowpass = true;
-        c.prob_alpha = 0.85f;
-
-        // If you want hysteresis mode, switch here:
-        // c.use_hysteresis = true;
-        // c.use_sigmoid_probability = false;
-
-        return c;
-    }();
-
+    static ControlConfig config;
     static ControlState state;
 
     // Per-frame speed update

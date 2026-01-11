@@ -6,6 +6,8 @@
 
 #include "lk_lane_points.h"
 
+static ControlConfig cfg;
+
 namespace lane_keeping {
 namespace internal {
 
@@ -15,8 +17,8 @@ bool BuildCenterlineFromWorldResult(const std::vector<TrackingBox>& world_result
                                    std::string& debug)
 {
     // NOTE: This constant is kept identical to the original implementation.
-    const float lane_width_m = 3.5f;
-    const float half_lane_m  = lane_width_m * 0.5f;
+    
+    const float half_lane_m  = cfg.lane_width_m * 0.5f;
 
     const float x_eval = std::max(0.5f, std::min(cfg.x_heading_straight_m, 3.0f));
 

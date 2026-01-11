@@ -59,7 +59,9 @@ cv::Mat inputView(input_video_height, input_video_width, CV_8UC3);
 cv::Mat frame(process_video_height, process_video_width, CV_8UC3);
 cv::Mat Output_frame(process_video_height, process_video_width, CV_8UC3);
 
-// ====================== CANBus Set ======================
+// ======================================================================
+// CANBus Set
+// ======================================================================
 /**
  * @SteerCtrlSwitch:	方向盤控制_開關
  * @targetAngle:		方向盤控制_輸入訊號。WM_SET_ANGLE: 指定角度數值 WM_SET_ANGULAR_VELO: 輸入角速度數值
@@ -71,9 +73,11 @@ extern double deceleration; // 0.0 - 10.0
 float target_speed = 0.f;
 
 CAR CAN;
-// ====================== CANBus Set ======================
 
 
+// ======================================================================
+// Main Code
+// ======================================================================
 int main(int argc, char** argv) {
   if (argc < 3) {
     std::cerr << "Usage: " << argv[0]
@@ -97,7 +101,9 @@ int main(int argc, char** argv) {
       std::cerr << "Main: Failed to load camera config." << std::endl;
       return -1;
   }
-  // ============================== Input View ==============================
+  // ======================================================================
+  // Input View Set
+  // ======================================================================
   cv::VideoCapture cap; // 宣告 cap 物件
   
   // 呼叫外部函式進行初始化，將 cap 和 frame 傳進去
@@ -110,14 +116,14 @@ int main(int argc, char** argv) {
   frame = inputView(roi_input_view);
   cv::resize(frame, frame, cv::Size(process_video_width, process_video_height));
 
-  // ======================================================================
-
 #ifdef Write_Video__
   write_video(output_video_width, output_video_height, output_video_fps,
               "Output_video.mp4");
 #endif
 
-// ============================== Engine Set ==============================
+  // ======================================================================
+  // Engine Set
+  // ======================================================================
 
 #ifdef USE_TFLITE
   if (!tflite_init(lanepose_model_path, frame)) return -1;
@@ -132,7 +138,9 @@ int main(int argc, char** argv) {
   }
 #endif
 
-// ========================================================================
+  // ======================================================================
+  // CANBus
+  // ======================================================================
 
 #ifdef CANBUS__
   canbus_recv(CAN);
@@ -158,7 +166,9 @@ int main(int argc, char** argv) {
   while (1) {
     start = clock();
 
-    // =============================== Camera =============================
+    // ======================================================================
+    // Input View
+    // ======================================================================
 
 #ifdef _openCVcap
     cap >> inputView;
@@ -172,7 +182,9 @@ int main(int argc, char** argv) {
     frame = v4l2Cam();
 #endif
 
-    // ============================== Inference ===========================
+    // ======================================================================
+    // Inference
+    // ======================================================================
     // SORT Tracking / Draw icon / Draw object
 
 #ifdef USE_TFLITE
@@ -192,7 +204,9 @@ int main(int argc, char** argv) {
 
     WorldResult = GeometryFunction(Output_frame, Output_frame, TrackingResult, &cam);
 
-    // ============================== Inference ===========================
+    // ======================================================================
+    // Inference
+    // ======================================================================
     // Algorithm for LKA / ACC / AEB / Behavior Detection
 
 #ifdef CANBUS__
@@ -201,12 +215,17 @@ int main(int argc, char** argv) {
     float ego_vehicle_speed = 30;
 #endif
 
-    // ------------------------ LKA ------------------------
+    // ==================================================
+    // LKA 
+    // ==================================================
     std::string dbg;
     targetAngle = lane_steering_step(WorldResult, ego_vehicle_speed, &dbg, Output_frame, Output_frame, &cam);
 
     // cout << "Steer: " << targetAngle << endl;
-    // ------------------------ ACC ------------------------
+    
+    // ==================================================
+    // ACC
+    // ==================================================
 
     acc::ACC_SetEgoSpeedKmh(ego_vehicle_speed);
     auto cmd = acc::ACC_Run(WorldResult);
@@ -223,13 +242,23 @@ int main(int argc, char** argv) {
     // cout << "\nbrake: " << deceleration << endl;
     // cout << "Speed: " << speed_kmh << endl << endl;
 
-    // ------------------------ Behavior Detection ------------------------
+    // ==================================================
+    // Behavior Detection
+    // ==================================================
 
 
-    // ------------------------ Draw info ------------------------
+
+
+    // ==================================================
+    // Draw info
+    // ==================================================
     DrawTargetInfo(Output_frame, TargetSpeedKmh, Targetdistance, TargetTTC);    //目標車速 目標距離 目標TTC
 
-    // ============================= Experiment =============================
+
+
+    // ======================================================================
+    // Experiment
+    // ======================================================================
 
 #ifdef Save_infer_raw_data__
     if (!SaveOutputTensorToTxt(pose.interpreter.get(), /*output_index=*/0,
@@ -244,13 +273,9 @@ int main(int argc, char** argv) {
     video_writer.write(Output_frame);
 #endif
 
-    // ==============================================================
-
     end = clock();
     system_time_used = ((double)(end - start)) / CLOCKS_PER_SEC * 1000;
     cout << "Time taken: " << system_time_used << " ms" << endl;
-
-    // ==============================================================
 
 #ifdef _opengl
     outputRgbaMem = Output_frame.data;
