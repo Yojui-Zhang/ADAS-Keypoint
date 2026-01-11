@@ -74,7 +74,7 @@ extern double deceleration; // 0.0 - 10.0
 float target_speed = 0.f;
 
 CAR CAN;
-AccConfig ACCconfig;
+acc::AccConfig ACCconfig;
 
 
 // ======================================================================
@@ -152,8 +152,6 @@ int main(int argc, char** argv) {
 
   cout << "target_speed = " << endl;
   cin >> ACCconfig.cruise_speed_kmh;
-
-  // org_target_speed = target_speed;
 
   cout << "init target_speed" << target_speed;
 
@@ -234,7 +232,7 @@ int main(int argc, char** argv) {
 
     // acc::ACC_DrawTrackingBoxes(Output_frame, WorldResult, cmd);
 
-    float speed_kmh  = cmd.speed_kmh;   // 自身目標車速
+    target_speed  = cmd.speed_kmh;   // 自身目標車速
     deceleration = cmd.brake_0_10;      // 自身目標煞車
 
     float TargetSpeedKmh = cmd.TargetSpeedKmh;    // 前方目標速度
@@ -242,7 +240,7 @@ int main(int argc, char** argv) {
     float TargetTTC      = cmd.TargetTTC;         // 前方目標 TTC
 
     // cout << "\nbrake: " << deceleration << endl;
-    // cout << "Speed: " << speed_kmh << endl << endl;
+    // cout << "Speed: " << target_speed << endl << endl;
 
     // ==================================================
     // Behavior Detection

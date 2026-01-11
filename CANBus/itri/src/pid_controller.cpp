@@ -2,6 +2,8 @@
 
 #include "./CANBus/itri/include/pid_controller.h"
 
+extern float target_speed;
+
 PID_incremental::PID_incremental():kp(0),ki(0),kd(0),e_pre_1(0),e_pre_2(0),target(0),actual(0)
 {
    A=kp+ki+kd;

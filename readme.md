@@ -1,6 +1,6 @@
 **切換TensorRT/TFlite引擎**
-- cmake .. -DENGINE=TFLITE
-- cmake .. -DENGINE=TENSORRT
+- cmake .. -DENGINE=TFLITE -DCANBUS=ITRI
+- cmake .. -DENGINE=TENSORRT -DCANBUS=ITRI
 
 **Ubuntu 須安裝gl 套件**
 - sudo apt-get install libglfw3 libglfw3-dev
