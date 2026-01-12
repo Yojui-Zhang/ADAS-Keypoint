@@ -1,8 +1,23 @@
 #ifdef USE_ITRI_CAN
+#include "unistd.h"
 
-#include "./CANBus/itri/include/pid_controller.h"
+
+#include "pid_controller.h"
+#include "canbus_recv.h"
+#include "lib.h"
+#include "terminal.h"
+#include "pid_controller.h"
 
 extern float target_speed;
+extern volatile int steerCtrlMode;
+extern double targetAngle; // left 0.0 ~ -510.0 , right 0.0 ~ 510.0 
+extern double deceleration; // 0.0 - 10.0
+extern float Targetdistance;
+
+int stop_flag = 0;
+
+
+CAR S3;
 
 PID_incremental::PID_incremental():kp(0),ki(0),kd(0),e_pre_1(0),e_pre_2(0),target(0),actual(0)
 {
@@ -82,7 +97,7 @@ float P_speed(float target, float s3_speed){
 void* S3_speed_v(void* data) {
 
     float P = 0.031666667 * 1.f ;
-    // float gundata = 0.f;
+    float gundata = 0.f;
     PID_incremental throttle(P,0.05,10);
     float gundata_A = 0.0f;
     float gundata_D = 0.0f;
@@ -94,9 +109,8 @@ void* S3_speed_v(void* data) {
 
     while(1){
         
-    #ifdef _canbus
         // pthread_mutex_lock(&mutex_s3);
-
+        // std::cout << "target_speed = " << target_speed << std::endl;
         if(S3.speed <= target_speed * 0.1){
             _kp = 0.031666667;
             _ki = 0.075;
@@ -185,6 +199,7 @@ void* S3_speed_v(void* data) {
         // }
         // pthread_cond_signal(&cond_s3);
         // pthread_mutex_unlock(&mutex_s3);
+
         gundata = throttle.pid_control_ACC(target_speed, S3.speed, _kp, _ki, _kd);
         if( gundata <= 0.0f){
             gundata = 0.75f;
@@ -207,7 +222,6 @@ void* S3_speed_v(void* data) {
         canbus_ctrl_pedal(gundata);
         // cout << "gundata " << gundata << "," << "S3.speed" << S3.speed << endl;
         usleep(2000);
-    #endif
     } 
 }
 
@@ -225,13 +239,12 @@ void* S3_dec(void* data) {
     float _ki_c2 = 0.1;
     float _kd_c2 = 0.2;
     while(1){
-    #ifdef _canbus
         if(stop_flag == 1){
             _ki_c1 = _ki_c1 + 0.001;
             // if(_ki_c1>0.1){
             //     _ki_c1 = 0.1;
             // }
-            break_value = brakes_f.pid_control_ACC(target_speed_distance, S3.speed, _kp_c1, _ki_c1, _kd_c1);
+            break_value = brakes_f.pid_control_ACC(Targetdistance, S3.speed, _kp_c1, _ki_c1, _kd_c1);
             if(break_value < 0.f){
                 break_value = break_value * (-1);
             }
@@ -246,7 +259,7 @@ void* S3_dec(void* data) {
             if(_ki_c2 > 0.45){
                 _ki_c2 = 0.45;
             }
-            break_value = brakes_f.pid_control_ACC(target_speed_distance, S3.speed, _kp_c2, _ki_c2, _kd_c2);
+            break_value = brakes_f.pid_control_ACC(Targetdistance, S3.speed, _kp_c2, _ki_c2, _kd_c2);
             if(break_value < 0.f){
                 break_value = break_value * (-1);
             }
@@ -268,7 +281,6 @@ void* S3_dec(void* data) {
         // cout << "S3 speed " << S3.speed << endl;
         // cout << "deceleration " << break_value << endl;
         usleep(3000);
-    #endif
     } 
 }
 

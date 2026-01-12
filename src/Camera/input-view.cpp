@@ -19,8 +19,8 @@ int InitInputAndDisplay(cv::VideoCapture& cap, cv::Mat& frame) {
 
     const char* inputVideoPath = "../video/1280x720/vecow-demo.mp4";
 
-    cap.open(inputVideoPath);
-    // cap.open(0);
+    // cap.open(inputVideoPath);
+    cap.open(8);
 
     if (!cap.isOpened()) {
         printf("can't open openCV camera\n");

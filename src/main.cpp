@@ -72,6 +72,7 @@ extern double targetAngle; // left 0.0 ~ -510.0 , right 0.0 ~ 510.0
 extern double deceleration; // 0.0 - 10.0
 
 float target_speed = 0.f;
+float Targetdistance = 0.f;
 
 CAR CAN;
 acc::AccConfig ACCconfig;
@@ -153,7 +154,7 @@ int main(int argc, char** argv) {
   cout << "target_speed = " << endl;
   cin >> ACCconfig.cruise_speed_kmh;
 
-  cout << "init target_speed" << target_speed;
+  // cout << "init target_speed" << target_speed;
 
   pthread_t t_S3_v; // 宣告 pthread 變數
   pthread_t t_S3_dec; // 宣告 pthread 變數
@@ -219,7 +220,7 @@ int main(int argc, char** argv) {
     // LKA 
     // ==================================================
     std::string dbg;
-    targetAngle = lane_steering_step(WorldResult, ego_vehicle_speed, &dbg, Output_frame, Output_frame, &cam);
+    targetAngle = -(lane_steering_step(WorldResult, ego_vehicle_speed, &dbg, Output_frame, Output_frame, &cam)) /29 * 510;
 
     // cout << "Steer: " << targetAngle << endl;
     
@@ -230,13 +231,13 @@ int main(int argc, char** argv) {
     acc::ACC_SetEgoSpeedKmh(ego_vehicle_speed);
     auto cmd = acc::ACC_Run(WorldResult);
 
-    // acc::ACC_DrawTrackingBoxes(Output_frame, WorldResult, cmd);
+    acc::ACC_DrawTrackingBoxes(Output_frame, WorldResult, cmd);
 
     target_speed  = cmd.speed_kmh;   // 自身目標車速
-    deceleration = cmd.brake_0_10;      // 自身目標煞車
+    int deceleration_test = cmd.brake_0_10;      // 自身目標煞車
 
     float TargetSpeedKmh = cmd.TargetSpeedKmh;    // 前方目標速度
-    float Targetdistance = cmd.Targetdistance;    // 前方目標距離
+    Targetdistance = cmd.Targetdistance;    // 前方目標距離
     float TargetTTC      = cmd.TargetTTC;         // 前方目標 TTC
 
     // cout << "\nbrake: " << deceleration << endl;
@@ -252,7 +253,8 @@ int main(int argc, char** argv) {
     // ==================================================
     // Draw info
     // ==================================================
-    DrawTargetInfo(Output_frame, TargetSpeedKmh, Targetdistance, TargetTTC);    //目標車速 目標距離 目標TTC
+    DrawTargetInfo(Output_frame, TargetSpeedKmh, Targetdistance, TargetTTC, 40);    //目標車速 目標距離 目標TTC
+    DrawTargetInfo(Output_frame, target_speed, targetAngle, deceleration_test, 80);    //目標車速 目標距離 目標TTC
 
 
 

@@ -8,7 +8,7 @@
 // #define _GPU_delegate
 
 // 紀錄TFlite權重輸出
-// #define Write_Video__
+#define Write_Video__
 // #define Save_infer_raw_data__
 
 // 鏡頭輸入選擇

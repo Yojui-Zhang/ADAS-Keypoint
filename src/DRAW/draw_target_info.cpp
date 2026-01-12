@@ -11,7 +11,7 @@
  * @param dist  目標距離 (Targetdistance)
  * @param ttc   碰撞時間 (TargetTTC)
  */
-void DrawTargetInfo(cv::Mat& img, float speed, float dist, float ttc) {
+void DrawTargetInfo(cv::Mat& img, float speed, float dist, float ttc, int y) {
     if (img.empty()) return;
 
     // 1. 格式化字串 (使用 stringstream 控制小數點位數)
@@ -31,7 +31,7 @@ void DrawTargetInfo(cv::Mat& img, float speed, float dist, float ttc) {
 
     // 4. 計算繪製座標 (X: 畫面寬度的一半減去文字寬度的一半, Y: 距離頂部 40 pixel)
     int x = (img.cols - textSize.width) / 2;
-    int y = 40; // 距離上方邊緣的像素距離，可依需求調整
+    // int y = 40; // 距離上方邊緣的像素距離，可依需求調整
     cv::Point textOrg(x, y);
 
     // 5. (選用) 繪製黑色背景框以增加對比度

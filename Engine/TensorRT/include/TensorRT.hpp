@@ -589,7 +589,11 @@ void YOLOv8::postprocess_pose(std::vector<Object>& objs, float score_thres, floa
             for (int k = 0; k < 17; k++) {
                 float kps_x = (*(kps_ptr + 3 * k) - dw) * ratio;
                 float kps_y = (*(kps_ptr + 3 * k + 1) - dh) * ratio;
-                float kps_s = *(kps_ptr + 3 * k + 2);
+                float kps_s;
+                if(num_labels == 0)
+                    kps_s = *(kps_ptr + 3 * k + 2);
+                else
+                    kps_s = 1;
 
                 kps_x = clamp(kps_x, 0.f, width);
                 kps_y = clamp(kps_y, 0.f, height);
