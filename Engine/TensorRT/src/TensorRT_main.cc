@@ -66,6 +66,9 @@ std::vector<TrackingBox>  trt_process_frame(const cv::Mat& frame,
     
     TrackingResult = sorttracking.TrackingResult(objs);
 
+
+    // ===========================
+    // output_frame = frame;
     yolov8->draw_pose(
         frame,
         output_frame,

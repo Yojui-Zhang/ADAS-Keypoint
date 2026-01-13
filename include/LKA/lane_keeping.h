@@ -68,6 +68,8 @@ struct ControlConfig {
     float prob_alpha = 0.85f;            //【可調】低通係數 alpha（0~1）。越接近 1 越平滑但反應慢；越小越跟隨即時但易跳動。
 
     float lane_width_m = 3.76f;         //【可調】車道寬度（m）。僅在「只偵測到單側車道線」時，用來推估中心線偏移量（± lane_width/2）。
+
+    float visual_limit_m = 20.0f;       // 【設定】您想要繪製的最大長度 (公尺)
 };
 
 // Controller state (persistent across frames)
@@ -88,7 +90,7 @@ struct ControlState {
 // Input TrackingBox is assumed to be in vehicle ground frame (meters): x-forward, y-left.
 // 重要假設/提醒：
 // 1) world_result 的 TrackingBox.kpts 單位為「公尺」，座標定義為 x=前方、y=左方。
-// 2) 中心線生成時，若只偵測到單側車道線，內部會假設 lane width = 3.5 m（目前硬編碼於 lk_centerline.cpp）。
+// 2) 中心線生成時，若只偵測到單側車道線，會使用 cfg.lane_width_m 推估中心線（± lane_width/2）。
 float calculate_lane_steering(const TrackingBox& input,
                               const ControlConfig& cfg,
                               ControlState* state);

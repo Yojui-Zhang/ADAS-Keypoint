@@ -172,34 +172,6 @@ void* S3_speed_v(void* data) {
             _kd = 0.28;
         }
 
-        // if(S3.speed <= target_speed * 0.2){
-        //     _kp = 0.031666667;
-        //     _ki = 0.05;
-        //     _kd = 0.08;
-        // }
-        // else if(S3.speed > target_speed * 0.2 && S3.speed <= target_speed * 0.4){
-        //     _kp = 0.031666667;
-        //     _ki = 0.1;
-        //     _kd = 0.08;
-        // }
-        // else if(S3.speed > target_speed * 0.4 && S3.speed <= target_speed * 0.6){
-        //     _kp = 0.031666667;
-        //     _ki = 0.15;
-        //     _kd = 0.28;
-        // }
-        // else if(S3.speed > target_speed * 0.6 && S3.speed <= target_speed * 0.8){
-        //     _kp = 0.031666667;
-        //     _ki = 0.25;
-        //     _kd = 0.28;
-        // }
-        // else if(S3.speed > target_speed * 0.8){
-        //     _kp = 0.031666667;
-        //     _ki = 0.5;
-        //     _kd = 0.28;
-        // }
-        // pthread_cond_signal(&cond_s3);
-        // pthread_mutex_unlock(&mutex_s3);
-
         gundata = throttle.pid_control_ACC(target_speed, S3.speed, _kp, _ki, _kd);
         if( gundata <= 0.0f){
             gundata = 0.75f;
@@ -211,13 +183,6 @@ void* S3_speed_v(void* data) {
         if(target_speed == 0){
             gundata = 0.0f;
         }
-
-        // if( S3.speed > 5 && S3.speed < org_target_speed){
-        //     target_speed_add = target_speed_add + 1;
-        // }
-        // else if( S3.speed > org_target_speed){
-        //     target_speed_add = target_speed_add - 1;
-        // }        
 
         canbus_ctrl_pedal(gundata);
         // cout << "gundata " << gundata << "," << "S3.speed" << S3.speed << endl;

@@ -217,7 +217,7 @@ int main(int argc, char** argv) {
 #endif
 
     // ==================================================
-    // LKA 
+    // LKA （Draw Lane）
     // ==================================================
     std::string dbg;
     targetAngle = -(lane_steering_step(WorldResult, ego_vehicle_speed, &dbg, Output_frame, Output_frame, &cam)) /29 * 510;
@@ -231,6 +231,7 @@ int main(int argc, char** argv) {
     acc::ACC_SetEgoSpeedKmh(ego_vehicle_speed);
     auto cmd = acc::ACC_Run(WorldResult);
 
+    // Draw box
     acc::ACC_DrawTrackingBoxes(Output_frame, WorldResult, cmd);
 
     target_speed  = cmd.speed_kmh;   // 自身目標車速

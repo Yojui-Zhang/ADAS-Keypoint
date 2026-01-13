@@ -29,7 +29,10 @@ float lane_steering_step(const std::vector<TrackingBox>& world_result,
 
     // Optional visualization
     if (has_lane && !output_img.empty() && cam != nullptr) {
-        lane_keeping::internal::DrawCenterlineOnImage(center_lane, output_img, *cam);
+        lane_keeping::internal::DrawFittedLeftRightLanesOnImage(world_result, output_img, *cam, config);
+        if (has_lane) {
+            lane_keeping::internal::DrawCenterlineOnImage(center_lane, output_img, *cam);
+        }
     }
 
     // B/C/D) centerline -> steering
