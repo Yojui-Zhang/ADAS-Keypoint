@@ -232,13 +232,21 @@ typedef struct TrackingBox
     int class_id;
     float score;
 
+    // SORT
     cv::Rect box;
-    std::vector<cv::Point3f> kpts;
+    std::vector<cv::Point3f> kpts;                                  // Geometry中會轉換成 World point
     
     cv::Rect last_track_box;
     std::vector<cv::Point3f> last_track_kpts;
 
-    std::vector<cv::Rect> track_box_history;               // 歷史 Bounding Boxes
-    std::vector<std::vector<cv::Point3f>> track_kpt_history; // 歷史 Keypoints (每一幀都有一組 kpts)
+    std::vector<cv::Rect> track_box_history;                        // 歷史 Bounding Boxes
+    std::vector<std::vector<cv::Point3f>> track_kpt_history;        // 歷史 Keypoints (每一幀都有一組 kpts)
+
+    // ACC
+    std::vector<cv::Point3f> World_box;                             // World Box
+
+    // Vehicle Behavior
+    float target_heading_deg = std::numeric_limits<float>::quiet_NaN();
+    bool  target_heading_valid = false;
 
 } TrackingBox;

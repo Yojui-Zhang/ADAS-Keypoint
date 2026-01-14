@@ -16,7 +16,7 @@ public:
     //
     // class_id == 0: transform kpts -> world points
     // class_id  > 0: transform bottom-left & bottom-right of box -> world points (size = 2)
-    std::vector<cv::Point3f> toWorldPoints(const TrackingBox& tb) const;
+    std::vector<cv::Point3f> toWorldPoints(TrackingBox& tb) const;
 
 private:
     WorldProjector projector_;

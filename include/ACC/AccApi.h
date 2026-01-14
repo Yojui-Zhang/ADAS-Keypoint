@@ -4,9 +4,6 @@
 #include "config.h"
 #include <vector>
 
-// 你的 TrackingBox 在專案中已存在：只要 include 你自己的定義即可
-// #include "TrackingBox.h"
-
 namespace acc {
 
 // 對外：只吃 WorldResult，吐 speed(km/h) + brake(0~10)

@@ -26,4 +26,12 @@ class IconManager{
         static std::unordered_map<Icon_ID, cv::Mat> icons_;
 };
 
-void DrawTargetInfo(cv::Mat& img, float speed, float dist, float ttc, int y);
+void DrawTargetInfo(cv::Mat& img, 
+                    float txt_a, float txt_b, float txt_c, 
+                    int y, 
+                    const std::string& label_a, 
+                    const std::string& label_b, 
+                    const std::string& label_c,
+                    const std::string& unit_a = " km/h", 
+                    const std::string& unit_b = " m", 
+                    const std::string& unit_c = " s");

@@ -27,6 +27,7 @@
 #include "AccApi.h"
 #include "AccConfig.h"
 #include "AccDebugDraw.h"
+#include "VehicleSkeletonAPI.h"
 #include "draw_icon.h"
 
 
@@ -132,6 +133,10 @@ int main(int argc, char** argv) {
   if (!tflite_init(lanepose_model_path, frame)) return -1;
 
   if (!Classify_and_icon_init(classify_model_path, Icon_path)) return -1;
+
+  // Behavior Function Set
+  vehicle_skeleton::SkeletonKptLayout layout =
+        vehicle_skeleton::SkeletonKptLayout::Default0123_4567_891011();
 #endif
 
 #ifdef USE_TENSORRT
@@ -139,6 +144,11 @@ int main(int argc, char** argv) {
     std::cerr << "TensorRT init failed\n";
     return -1;
   }
+
+  // Behavior Function Set
+  vehicle_skeleton::SkeletonKptLayout layout =
+        vehicle_skeleton::SkeletonKptLayout::Default3456_78910_12131415();
+
 #endif
 
   // ======================================================================
@@ -248,16 +258,25 @@ int main(int argc, char** argv) {
     // Behavior Detection
     // ==================================================
 
-
-
+    vehicle_skeleton::RunVehicleSkeletonAndHeading(Output_frame, Output_frame, WorldResult, layout);
 
     // ==================================================
     // Draw info
     // ==================================================
-    DrawTargetInfo(Output_frame, TargetSpeedKmh, Targetdistance, TargetTTC, 40);    //目標車速 目標距離 目標TTC
-    DrawTargetInfo(Output_frame, target_speed, targetAngle, deceleration_test, 80);    //目標車速 目標距離 目標TTC
+    DrawTargetInfo(Output_frame, 
+                  TargetSpeedKmh, Targetdistance, TargetTTC, 40, 
+                  "Tg-sped"     , "Tg-dist"     , "TTC", 
+                  " km/h"       , " m"          , " s");
 
+    DrawTargetInfo(Output_frame, 
+                  target_speed, targetAngle , deceleration_test, 80, 
+                  "Our-Speed" , "Angle"    , "Dec", 
+                  " km/h"     , " m"        , " s");
 
+    DrawTargetInfo(Output_frame, 
+                  0, 0 , CAN.speed, 120, 
+                  "" , "" , " ", 
+                  "" , "" , " km/h");
 
     // ======================================================================
     // Experiment

@@ -12,10 +12,10 @@ namespace acc {
 template <typename TrackingBoxT>
 inline bool TryGetGroundBottomCenterXY(const TrackingBoxT& tb, cv::Point2f& out_xy_m) {
   if (tb.class_id <= 0) return false;              // 排除 lane 或其他
-  if (tb.kpts.size() < 2) return false;
+  if (tb.World_box.size() < 2) return false;
 
-  const auto& bl = tb.kpts[0];
-  const auto& br = tb.kpts[1];
+  const auto& bl = tb.World_box[0];
+  const auto& br = tb.World_box[1];
 
   if (std::isnan(bl.x) || std::isnan(bl.y) || std::isnan(br.x) || std::isnan(br.y)) return false;
 

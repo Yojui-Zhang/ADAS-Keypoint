@@ -21,6 +21,7 @@ float AccController::ComputeDtSec(int current_frame) {
 }
 
 void AccController::SetEgoSpeedKmh(float ego_speed_kmh) {
+
   cfg_.use_external_ego_speed = true;
   // 調用 .h 裡的 member function
   ego_speed_est_mps_ = std::max(0.0f, KmhToMps(ego_speed_kmh));
