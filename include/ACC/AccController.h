@@ -120,7 +120,7 @@ public:
     if (!cfg_.use_external_ego_speed) {
       v_ego = std::max(0.0f, v_ego + accel_cmd * dt);
       ego_speed_est_mps_ = v_ego;
-    } else {
+    } else{
       v_ego = ego_speed_est_mps_;
     }
 

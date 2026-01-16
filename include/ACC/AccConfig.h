@@ -22,7 +22,7 @@ struct AccConfig {
 
   // 最大有效距離 (公尺)
   // 影響：ACC 考慮的最遠距離。超過此距離的車輛只追蹤但不進行加減速反應。
-  float max_forward_m   = 120.0f;
+  float max_forward_m   = 40.0f;
 
   // 目標切換遲滯 (公尺) - 用於 LeadSelector
   // 影響：防止鎖定目標在前車與旁車之間快速跳動。
@@ -47,7 +47,7 @@ struct AccConfig {
   // 靜止停等距離 (公尺) - Standstill Gap
   // 影響：當前車完全停下時，本車預計停在離前車多遠的地方 (Stop-and-Go)。
   // 建議：2.0m ~ 3.0m。
-  float standstill_gap_m = 2.0f;     
+  float standstill_gap_m = 5.0f;     
 
 
   // ==========================================
@@ -84,7 +84,7 @@ struct AccConfig {
   // 影響：將演算法計算出的減速度 (m/s^2) 轉換為 brake (0~10) 訊號。
   // 定義：當輸出 brake = 10 (或歸一化的 1.0) 時，對應物理上多少減速度。
   // 若發現 ACC 煞車常常煞不住，可能需要將此值調「小」(讓同樣的減速需求對應更大的 brake 值) 或調整 multiplier。
-  float brake_full_decel_mps2 = 3.0f;  
+  float brake_full_decel_mps2 = 2.0f;  
 
   // 煞車力道倍率
   // 影響：直接線性放大輸出的 brake 數值。
