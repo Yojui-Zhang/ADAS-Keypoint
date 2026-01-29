@@ -95,6 +95,8 @@ aux_source_directory(./src/SORT/ SORT_SRC_LIST)
 aux_source_directory(./src/Geometry/ Geometry_SRC_LIST)
 aux_source_directory(./src/LKA/ LKA_SRC_LIST)
 aux_source_directory(./src/ACC/ ACC_SRC_LIST)
+aux_source_directory(./src/StabilityControl/ StabilityControl_SRC_LIST)
+
 aux_source_directory(./src/VehicleBehavior/ VehicleBehavior_SRC_LIST)
 aux_source_directory(./src/DRAW/ DRAW_SRC_LIST)
 
@@ -125,6 +127,7 @@ add_executable(${PROJECT_NAME}
     ${ACC_SRC_LIST}
     ${VehicleBehavior_SRC_LIST}
     ${DRAW_SRC_LIST}
+    ${StabilityControl_SRC_LIST}
 )
 
 # ========================= Include Directories =========================
@@ -137,9 +140,10 @@ include_directories(
     ${CMAKE_CURRENT_LIST_DIR}/include/Geometry
     ${CMAKE_CURRENT_LIST_DIR}/include/LKA
     ${CMAKE_CURRENT_LIST_DIR}/include/ACC
+    ${CMAKE_CURRENT_LIST_DIR}/include/StabilityControl
     ${CMAKE_CURRENT_LIST_DIR}/include/VehicleBehavior
     ${CMAKE_CURRENT_LIST_DIR}/include/DRAW
-    
+  
 )
 
 #Engine

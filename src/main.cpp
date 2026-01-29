@@ -27,6 +27,7 @@
 #include "AccApi.h"
 #include "AccConfig.h"
 #include "AccDebugDraw.h"
+#include "VehicleControlApi.h"
 #include "VehicleSkeletonAPI.h"
 #include "draw_icon.h"
 
@@ -229,30 +230,49 @@ int main(int argc, char** argv) {
     // ==================================================
     // LKA （Draw Lane）
     // ==================================================
-    std::string dbg;
-    targetAngle = -(lane_steering_step(WorldResult, ego_vehicle_speed, &dbg, Output_frame, Output_frame, &cam)) /29 * 510;
-
+    // std::string dbg;
+    // targetAngle = -(lane_steering_step(WorldResult, ego_vehicle_speed, &dbg, Output_frame, Output_frame, &cam)) /29 * 510;
     // cout << "Steer: " << targetAngle << endl;
     
     // ==================================================
     // ACC
     // ==================================================
+    // acc::ACC_SetEgoSpeedKmh(ego_vehicle_speed);
+    // auto cmd = acc::ACC_Run(WorldResult);
 
-    acc::ACC_SetEgoSpeedKmh(ego_vehicle_speed);
-    auto cmd = acc::ACC_Run(WorldResult);
 
-    // Draw box
-    acc::ACC_DrawTrackingBoxes(Output_frame, WorldResult, cmd);
+    // ==================================================
+    // StabilityControl
+    // ==================================================
+    // dt_s：每次控制迴圈的時間間隔（秒）
+    static auto last = std::chrono::steady_clock::now();
+    auto now = std::chrono::steady_clock::now();
+    float dt_s = std::chrono::duration<float>(now - last).count();
+    last = now;
+    // 防呆：避免掉幀或時間戳錯讓 dt 爆掉
+    dt_s = std::clamp(dt_s, 0.005f, 0.2f);
 
-    target_speed  = cmd.speed_kmh;   // 自身目標車速
-    int deceleration_test = cmd.brake_0_10;      // 自身目標煞車
+    // 你的 ego_vehicle_speed 目前看起來是 km/h
+    float ego_speed_kmh = ego_vehicle_speed;
+    float ego_speed_mps = ego_speed_kmh / 3.6f;
 
-    float TargetSpeedKmh = cmd.TargetSpeedKmh;    // 前方目標速度
-    Targetdistance = cmd.Targetdistance;    // 前方目標距離
-    float TargetTTC      = cmd.TargetTTC;         // 前方目標 TTC
+    // ==================================================
+    std::string dbg;
+    auto cmd = stability::VehicleControl_Run(WorldResult, ego_speed_mps, dt_s, &dbg);
 
-    // cout << "\nbrake: " << deceleration << endl;
-    // cout << "Speed: " << target_speed << endl << endl;
+    acc::ACC_DrawTrackingBoxes(Output_frame, WorldResult, cmd.acc_cmd);
+
+    float TargetSpeedKmh = cmd.acc_cmd.TargetSpeedKmh;
+    Targetdistance       = cmd.acc_cmd.Targetdistance;
+    float TargetTTC      = cmd.acc_cmd.TargetTTC;
+
+    targetAngle = cmd.steer_deg;
+    target_speed = cmd.speed_kmh;
+    deceleration = cmd.brake_0_10;
+
+    // std::cout << "\nbrake: " << deceleration << std::endl;
+    // std::cout << "Speed: " << target_speed << std::endl << std::endl;
+
 
     // ==================================================
     // Behavior Detection
@@ -269,7 +289,7 @@ int main(int argc, char** argv) {
                   " km/h"       , " m"          , " s");
 
     DrawTargetInfo(Output_frame, 
-                  target_speed, targetAngle , deceleration_test, 80, 
+                  target_speed, targetAngle , deceleration, 80, 
                   "Our-Speed" , "Angle"    , "Dec", 
                   " km/h"     , " m"        , " s");
 
