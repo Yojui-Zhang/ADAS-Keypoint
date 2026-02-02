@@ -7,14 +7,14 @@
 #include "opencv2/video/tracking.hpp"
 #include "opencv2/highgui/highgui.hpp"
 #include <cmath>
+#include <algorithm>
 
 using namespace std;
 using namespace cv;
 
 #define StateType Rect_<float>
 
-
-// This class represents the internel state of individual tracked objects observed as bounding box.
+// This class represents the internal state of individual tracked objects observed as bounding box.
 class KalmanTracker
 {
 public:
@@ -27,21 +27,22 @@ public:
 		m_age = 0;
 		m_class = -1;
 		m_id = kf_count;
-		score = 0.0;  // 初始化 score
-		//kf_count++;
+		score = 0.0f;
+		// kf_count++;  // 你的原本邏輯保留（若你確定 default ctor 不會被用到就 OK）
 	}
-    KalmanTracker(StateType initRect, float initScore)
-    {
-        init_kf(initRect);
-        m_time_since_update = 0;
-        m_hits = 0;
-        m_hit_streak = 0;
-        m_age = 0;
-        m_id = kf_count;
-        m_class = -1;
-        score = initScore;  // 初始化 score
-        kf_count++;
-    }
+
+	KalmanTracker(StateType initRect, float initScore)
+	{
+		init_kf(initRect);
+		m_time_since_update = 0;
+		m_hits = 0;
+		m_hit_streak = 0;
+		m_age = 0;
+		m_id = kf_count;
+		m_class = -1;
+		score = initScore;
+		kf_count++;
+	}
 
 	~KalmanTracker()
 	{
@@ -49,8 +50,15 @@ public:
 	}
 
 	StateType predict();
-	void update(StateType stateMat, float score);  // 修改 update 方法，添加 score 參數
-	
+
+	// ✅ 主介面：外部一般傳 Rect(x,y,w,h) + score
+	void update(StateType stateMat, float score);
+
+	// ✅ 兼容你目前 kalman.cc 寫法：若別處是 update(x,y,w,h,score)，不用改
+	inline void update(float x, float y, float w, float h, float score) {
+		update(StateType(x, y, w, h), score);
+	}
+
 	StateType get_state();
 	StateType get_rect_xysr(float cx, float cy, float s, float r);
 
@@ -72,8 +80,5 @@ private:
 
 	std::vector<StateType> m_history;
 };
-
-
-
 
 #endif

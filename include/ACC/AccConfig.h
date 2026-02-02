@@ -116,6 +116,11 @@ struct AccCommand {
   float TargetSpeedKmh = 0.0f;  // 估測的前車車速 (km/h)
   float Targetdistance = 0.0f;  // 估測的目標距離 (m) (同 target_forward_m)
   float TargetTTC      = 0.0f;  // TTC (s), closing_speed<=0 時為 inf
+
+  float TargetScore   = 0.0f;  // detection/track confidence
+  float TargetDistStd = 0.0f;  // sqrt(P00)
+  float RelSpeedStd   = 0.0f;  // sqrt(P11)
+  float TargetTTCStd  = 0.0f;  // propagated
 };
 
 } // namespace acc

@@ -1,11 +1,24 @@
 #include "VehicleControlApi.h"
 #include <mutex>
+#include <limits>
 
 namespace stability {
 
 static std::mutex g_mtx;
 static StabilityConfig g_stab_cfg;
 static StabilitySupervisor g_supervisor(g_stab_cfg);
+
+static double g_yaw_rate_rps = std::numeric_limits<double>::quiet_NaN();
+static double g_alat_mps2    = std::numeric_limits<double>::quiet_NaN();
+static double g_imu_age_s    = 1e9;
+
+void VehicleControl_SetImu(double yaw_rate_rps, double alat_mps2)
+{
+  std::lock_guard<std::mutex> lk(g_mtx);
+  g_yaw_rate_rps = yaw_rate_rps;
+  g_alat_mps2    = alat_mps2;
+  g_imu_age_s    = 0.0;
+}
 
 VehicleControlCommand VehicleControl_Run(const std::vector<TrackingBox>& world_result,
                                         float ego_speed_mps,
@@ -14,41 +27,52 @@ VehicleControlCommand VehicleControl_Run(const std::vector<TrackingBox>& world_r
 {
   std::lock_guard<std::mutex> lk(g_mtx);
 
-  // 1) ACC（餵入外部車速可以更穩） :contentReference[oaicite:7]{index=7} :contentReference[oaicite:8]{index=8}
+  // age IMU
+  g_imu_age_s += (dt_s > 0 ? dt_s : 0.0f);
+
+  double yaw_rate = g_yaw_rate_rps;
+  double alat     = g_alat_mps2;
+
+  // timeout => treat as invalid (Supervisor will fallback to command-based bound)
+  if (g_imu_age_s > g_stab_cfg.alat_meas_timeout_s) {
+    yaw_rate = std::numeric_limits<double>::quiet_NaN();
+    alat     = std::numeric_limits<double>::quiet_NaN();
+  }
+
+  // 1) ACC
   acc::ACC_SetEgoSpeedKmh(ego_speed_mps * 3.6f);
   const acc::AccCommand acc_cmd = acc::ACC_Run(world_result);
 
-  // 2) LKA（讀取 steer） :contentReference[oaicite:9]{index=9} :contentReference[oaicite:10]{index=10}
+  // 2) LKA
   std::string lka_dbg;
   const float steer_deg = lane_steering_step(world_result, ego_speed_mps, &lka_dbg);
 
-  // 3) Supervisor（摩擦/離心/動能約束，輸出最終命令）
+  // 3) Supervisor projection
   VehicleControlCommand cmd = g_supervisor.Update(
-      static_cast<double>(ego_speed_mps),
-      static_cast<double>(dt_s),
-      acc_cmd,
-      static_cast<double>(steer_deg),
-      /*acc_dbg*/"",
-      /*lka_dbg*/lka_dbg
+      ego_speed_mps, dt_s,
+      acc_cmd, steer_deg,
+      yaw_rate, alat,
+      "", lka_dbg
   );
 
-  if (out_debug) *out_debug = cmd.debug;
-  
   cmd.acc_cmd = acc_cmd;
   cmd.lka_steer_deg_raw = steer_deg;
+
+  if (out_debug) *out_debug = cmd.debug;
   return cmd;
 }
 
-void VehicleControl_SetStabilityConfig(const StabilityConfig& cfg) {
+void VehicleControl_SetStabilityConfig(const StabilityConfig& cfg)
+{
   std::lock_guard<std::mutex> lk(g_mtx);
   g_stab_cfg = cfg;
   g_supervisor.SetConfig(g_stab_cfg);
 }
 
-StabilityConfig VehicleControl_GetStabilityConfig() {
+StabilityConfig VehicleControl_GetStabilityConfig()
+{
   std::lock_guard<std::mutex> lk(g_mtx);
   return g_stab_cfg;
 }
 
 } // namespace stability
-

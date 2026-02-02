@@ -5,9 +5,10 @@
 namespace acc {
 
 struct LeadCandidate {
-  int   id = -1;
+  int id = -1;
   float forward_m = 0.0f;
   float lateral_m = 0.0f;
+  float score = 0.0f;     // NEW
 };
 
 class LeadSelector {

@@ -48,6 +48,30 @@ struct StabilityConfig {
 
   // TTC extra guard（可選：感知誤判時也不要做太激烈）
   double ttc_hard_guard_s = 0.8;  // 小於此 TTC 允許更積極減速（但仍受 mu*g）
+
+  // 摩擦圓係數設置
+  // --- 投影/類QP權重 (paper: W = diag(w_lat, w_long)) ---
+  double w_lat  = 1.0;   // 改變轉向/橫向加速度成本
+  double w_long = 4.0;   // 縱向加速成本變化 (通常希望更偏向改 a_long)
+
+  // --- 衝擊限制 Jerk limits（舒適度）---
+  double max_jerk_acc_mps3 = 2.0;   // + jerk (加速方向)
+  double max_jerk_dec_mps3 = 3.5;   // - jerk magnitude (減速方向)
+
+  // --- 利用測量得到的橫向動力學 (IMU / yaw rate) ---
+  bool   use_measured_alat = true;
+  double alat_lpf_alpha = 0.25;        // 0~1, 低通
+  double alat_meas_timeout_s = 0.20;   // 超過就視為無效
+  double alat_cmd_guard_ratio = 0.50;  // 安全保守：a_lat_used = max(|alat_meas|, guard*|alat_cmd|)
+
+  // --- 不確定性 → 監管者的保守傾向 ---
+  bool   use_uncertainty_scaling = true;
+  double uncert_gain = 0.20;        // risk = 1 + gain * sigma_dist
+  double uncert_sigma_dist_max = 5.0;
+  double ttc_sigma_k = 1.0;         // ttc_eff = ttc - k*sigma_ttc
+
+
+
 };
 
 } // namespace stability

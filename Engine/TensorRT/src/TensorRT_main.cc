@@ -69,15 +69,15 @@ std::vector<TrackingBox>  trt_process_frame(const cv::Mat& frame,
 
     // ===========================
     output_frame = frame;
-    // yolov8->draw_pose(
-    //     frame,
-    //     output_frame,
-    //     TrackingResult,
-    //     SKELETON,
-    //     KPS_COLORS,
-    //     LIMB_COLORS,
-    //     config.num_keypoint
-    // );
+    yolov8->draw_pose(
+        frame,
+        output_frame,
+        TrackingResult,
+        SKELETON,
+        KPS_COLORS,
+        LIMB_COLORS,
+        config.num_keypoint
+    );
 
     return TrackingResult;
 }
