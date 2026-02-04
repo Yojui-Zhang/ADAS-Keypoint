@@ -99,6 +99,8 @@ aux_source_directory(./src/StabilityControl/ StabilityControl_SRC_LIST)
 
 aux_source_directory(./src/VehicleBehavior/ VehicleBehavior_SRC_LIST)
 aux_source_directory(./src/DRAW/ DRAW_SRC_LIST)
+aux_source_directory(./src/Collision/ Collision_SRC_LIST)
+
 
 #Engine
 if(ENGINE STREQUAL "TFLITE")
@@ -128,6 +130,7 @@ add_executable(${PROJECT_NAME}
     ${VehicleBehavior_SRC_LIST}
     ${DRAW_SRC_LIST}
     ${StabilityControl_SRC_LIST}
+    ${Collision_SRC_LIST}
 )
 
 # ========================= Include Directories =========================
@@ -143,7 +146,8 @@ include_directories(
     ${CMAKE_CURRENT_LIST_DIR}/include/StabilityControl
     ${CMAKE_CURRENT_LIST_DIR}/include/VehicleBehavior
     ${CMAKE_CURRENT_LIST_DIR}/include/DRAW
-  
+    ${CMAKE_CURRENT_LIST_DIR}/include/Collision
+    
 )
 
 #Engine

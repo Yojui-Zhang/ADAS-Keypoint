@@ -231,6 +231,7 @@ typedef struct TrackingBox
     int id;
     int class_id;
     float score;
+    int classify_num;
 
     // SORT
     cv::Rect box;

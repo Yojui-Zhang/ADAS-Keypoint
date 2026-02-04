@@ -67,7 +67,7 @@ public:
                              int            left, 
                              int            right);
 
-    void draw_objects(const cv::Mat &img, const std::vector<TrackingBox> &objects, cv::Mat& out_bgr, int classify_model_width, int classify_model_height);
+    void draw_objects(const cv::Mat &img, std::vector<TrackingBox> &objects, cv::Mat& out_bgr, int classify_model_width, int classify_model_height);
 
     bool Set_TFlite(const char* model_path);
     void Calculate_Scale(const cv::Mat& frame, int input_width, int input_height);
@@ -465,7 +465,7 @@ bool PoseDetector::run_traffic_classification(
 
 
 // ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
-void PoseDetector::draw_objects(const cv::Mat &img, const std::vector<TrackingBox> &objects, cv::Mat& out_bgr, int classify_model_width, int classify_model_height)
+void PoseDetector::draw_objects(const cv::Mat &img, std::vector<TrackingBox> &objects, cv::Mat& out_bgr, int classify_model_width, int classify_model_height)
 {
     bool Draw_track_box = false;         // except lane box
     bool Draw_track_lane_kpt = false;    // except only lane
@@ -476,7 +476,7 @@ void PoseDetector::draw_objects(const cv::Mat &img, const std::vector<TrackingBo
 
     out_bgr = img.clone();
 
-    for (const auto &obj : objects)
+    for (auto &obj : objects)
     {
         std::string label_txt;
         bool classify_light__ = false;
@@ -491,6 +491,8 @@ void PoseDetector::draw_objects(const cv::Mat &img, const std::vector<TrackingBo
             traffic_class_num,
             icon_light_num, icon_sign_num
         );
+
+        obj.classify_num = traffic_class_num;
 
         // Draw Kpt
         if(obj.class_id <= 1){

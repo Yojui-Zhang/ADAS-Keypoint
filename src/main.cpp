@@ -30,7 +30,7 @@
 #include "VehicleControlApi.h"
 #include "VehicleSkeletonAPI.h"
 #include "draw_icon.h"
-
+#include "CollisionAssistApi.h"
 
 // CANBus
 #include "canbus_recv.h"
@@ -224,7 +224,7 @@ int main(int argc, char** argv) {
 #ifdef CANBUS__
     float ego_vehicle_speed = CAN.speed;
 #else
-    float ego_vehicle_speed = 30;
+    float ego_vehicle_speed = 10;
 #endif
 
     // ==================================================
@@ -279,6 +279,38 @@ int main(int argc, char** argv) {
     // ==================================================
 
     vehicle_skeleton::RunVehicleSkeletonAndHeading(Output_frame, Output_frame, WorldResult, layout);
+
+    // 建議用 static：保留跨幀速度估測狀態
+    static collision::CollisionAssist g_collision_assist;
+
+    // 開關：false 只 warning；true 才改 speed/steer/brake
+    bool enable_collision_actuation = false;
+
+    auto ca = g_collision_assist.Step(
+        WorldResult,
+        ego_speed_mps,
+        targetAngle,     // 目前方向盤命令（你已經用 cmd.steer_deg 填過 targetAngle）
+        dt_s,
+        enable_collision_actuation,
+        &target_speed,   // in/out
+        &targetAngle,    // in/out
+        &deceleration    // in/out
+    );
+
+    // bool collision_warning = ca.warning;   // 你要的警告訊號
+
+    if(ca.warning == 1){
+      cv::rectangle(Output_frame, cv::Point(0, 0), cv::Point(Output_frame.cols - 1, Output_frame.rows - 1), RED, 10 );
+    }
+
+    if (ca.warning && ca.threat_id >= 0) {
+      for (const auto& tb : WorldResult) {
+        if (tb.id == ca.threat_id) {
+          cv::rectangle(Output_frame, tb.box, YELLOW, 10 );
+        }
+      }
+    }
+
 
     // ==================================================
     // Draw info

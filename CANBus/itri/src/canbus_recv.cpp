@@ -577,6 +577,14 @@ void* pth_canRecv(void *data) {
 
 
 					steer = (double)(canData.steer - 9000)*0.1;
+
+					if (wheel_max < 1e-6) {
+						wheel_max = 540.0;   // 例：方向盤最大角度(度)，用你車實測值替換
+					}
+					if (tire_max < 1e-6) {
+						tire_max = 35.0;     // 例：前輪最大轉角(度)，用你車實測值替換
+					}
+
 					tireAngle = steer * tire_max/wheel_max;
 					ptr_car->cal_radius();
 
@@ -1171,6 +1179,7 @@ void canbus_recv(CAR &car)
 void wait_pthread()
 {
 	pthread_join(canRecvSend, NULL);
+	pthread_join(can1_pth, NULL);   // <- 補上
 	pthread_join(canWheel, NULL);
 	pthread_join(canDec, NULL);
 }

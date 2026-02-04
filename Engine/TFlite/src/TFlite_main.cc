@@ -91,8 +91,8 @@ std::vector<TrackingBox> tflite_run_frame(const cv::Mat& frame,
     TrackingResult = sorttracking.TrackingResult(objs);
 
     out_bgr = frame;
-    // pose.draw_objects(frame, TrackingResult, out_bgr,
-    //                             classify_model_width, classify_model_height);
+    pose.draw_objects(frame, TrackingResult, out_bgr,
+                                classify_model_width, classify_model_height);
     return TrackingResult;
 }
 

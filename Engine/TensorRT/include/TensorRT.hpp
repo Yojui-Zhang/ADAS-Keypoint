@@ -53,7 +53,7 @@ public:
  
     void          draw_pose(const cv::Mat&                                image,
                                                      cv::Mat&                                res,
-                                               const std::vector<TrackingBox>&                    objs,
+                                                     std::vector<TrackingBox>&                    objs,
                                                const std::vector<std::vector<unsigned int>>& SKELETON,
                                                const std::vector<std::vector<unsigned int>>& KPS_COLORS,
                                                const std::vector<std::vector<unsigned int>>& LIMB_COLORS,
@@ -688,7 +688,7 @@ bool YOLOv8::run_traffic_classification(
 
 void                     YOLOv8::draw_pose( const cv::Mat&                                image,
                                                   cv::Mat&                                res,
-                                            const std::vector<TrackingBox>&               objs,
+                                                  std::vector<TrackingBox>&               objs,
                                             const std::vector<std::vector<unsigned int>>& SKELETON,
                                             const std::vector<std::vector<unsigned int>>& KPS_COLORS,
                                             const std::vector<std::vector<unsigned int>>& LIMB_COLORS,
@@ -717,6 +717,8 @@ void                     YOLOv8::draw_pose( const cv::Mat&                      
             traffic_class_num,
             icon_light_num, icon_sign_num
         );
+
+        obj.classify_num = traffic_class_num;
         
         if(obj.class_id < 2){
             // -------------------------------------------------------------------
