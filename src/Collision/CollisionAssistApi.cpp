@@ -190,15 +190,45 @@ CollisionAssistOutput CollisionAssist::Step(const std::vector<TrackingBox>& worl
     traj.heading_valid = tb.target_heading_valid;
     traj.heading_deg   = tb.target_heading_deg;
 
+    // --- IEEE T-ITS Revision: Geometry-Guided Prediction Logic (INSERT THIS) ---
     const float T  = std::max(cfg_.horizon_s, 0.5f);
     const float dt = std::max(cfg_.step_s, 0.05f);
     const int   N  = static_cast<int>(std::floor(T / dt)) + 1;
 
+    // [Step 1] 解析慣性狀態 (Inertial State)
+    cv::Point2f vel_inertial = st.vel;
+    float speed = cv::norm(vel_inertial);
+    float angle_inertial = std::atan2(vel_inertial.y, vel_inertial.x);
+
+    // [Step 2] 融合權重設定 (Fusion Configuration)
+    // 如果骨架角度無效，則 alpha = 0 (完全退回慣性導航)
+    // 如果有效，alpha = 0.4 (引入 40% 的骨架意圖)
+    float alpha = 0.0f;
+    float angle_skeleton = angle_inertial; // 預設同慣性
+
+    if (tb.target_heading_valid) {
+        alpha = 0.4f; // Fusion Factor: Empirically set to 0.4 for robustness
+        // 假設 heading_deg 為度數，需轉弧度。注意 OpenCV 坐標系方向
+        angle_skeleton = tb.target_heading_deg * CV_PI / 180.0f;
+    }
+
+    // [Step 3] 向量融合 (Vector Fusion)
+    // 使用向量合成避免角度跳變問題 (-180 vs 180)
+    float fuse_cos = (1.0f - alpha) * std::cos(angle_inertial) + alpha * std::cos(angle_skeleton);
+    float fuse_sin = (1.0f - alpha) * std::sin(angle_inertial) + alpha * std::sin(angle_skeleton);
+    float angle_fused = std::atan2(fuse_sin, fuse_cos);
+
+    // 重組預測速度向量 (保留慣性速率，改變方向)
+    cv::Point2f vel_pred(speed * std::cos(angle_fused), speed * std::sin(angle_fused));
+
+    // [Step 4] 生成修正後的軌跡 (Trajectory Generation)
     traj.pred.reserve((size_t)N);
     for (int i = 0; i <= N; ++i) {
       const float t = (float)i * dt;
-      traj.pred.emplace_back(st.pos + st.vel * t);
+      // 使用融合後的 vel_pred 進行推估
+      traj.pred.emplace_back(st.pos + vel_pred * t);
     }
+    // --------------------------------------------------------------------------
 
     out.all_trajs.push_back(std::move(traj));
   }
