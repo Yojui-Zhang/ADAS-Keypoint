@@ -14,6 +14,13 @@ extern const std::vector<std::vector<unsigned int>> SKELETON;
 extern const std::vector<std::vector<unsigned int>> KPS_COLORS;
 extern const std::vector<std::vector<unsigned int>> LIMB_COLORS;
 
+void trt_set_sort_config(const SORTTRACKING::SortTrackingConfig& sort_cfg,
+                         const sort_kpt::KeypointFilterConfig& kpt_cfg)
+{
+    sorttracking.SetConfig(sort_cfg);
+    sort_kpt::ConfigureGlobalKeypointFilter(kpt_cfg);
+}
+
 bool trt_init(const char* lanepose_model_path,
                     char* classify_model_path,
               const char* icon_path,
@@ -84,8 +91,10 @@ std::vector<TrackingBox>  trt_process_frame(const cv::Mat& frame,
 
 #else
 
+void trt_set_sort_config(const SORTTRACKING::SortTrackingConfig&, const sort_kpt::KeypointFilterConfig&) {}
+
 bool trt_init(const char*,
-              const char*,
+              char*,
               const char*,
               Config&)
 {
@@ -93,11 +102,11 @@ bool trt_init(const char*,
     return false;
 }
 
-void trt_process_frame(const cv::Mat&,
-                       cv::Mat&,
-                       Config&)
+std::vector<TrackingBox> trt_process_frame(const cv::Mat&,
+                                           cv::Mat&,
+                                           Config&)
 {
-    // do nothing
+    return {};
 }
 
 #endif

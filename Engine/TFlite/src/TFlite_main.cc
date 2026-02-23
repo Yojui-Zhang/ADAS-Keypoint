@@ -39,6 +39,13 @@ bool Classify_and_icon_init(const char* classify_model_path, const char* Icon_pa
 }
 // ======================= TFlite Process =======================
 
+void tflite_set_sort_config(const SORTTRACKING::SortTrackingConfig& sort_cfg,
+                            const sort_kpt::KeypointFilterConfig& kpt_cfg)
+{
+    sorttracking.SetConfig(sort_cfg);
+    sort_kpt::ConfigureGlobalKeypointFilter(kpt_cfg);
+}
+
 bool tflite_init(const char* lanepose_model_path, const cv::Mat& first_frame)
 {
     if (!pose.Set_TFlite(lanepose_model_path)) {
@@ -99,7 +106,8 @@ std::vector<TrackingBox> tflite_run_frame(const cv::Mat& frame,
 #else
 
 bool Classify_and_icon_init(const char* classify_model_path, const char* Icon_path) {return false; }
+void tflite_set_sort_config(const SORTTRACKING::SortTrackingConfig&, const sort_kpt::KeypointFilterConfig&) {}
 bool tflite_init(const char*, const cv::Mat&) { return false; }
-bool tflite_run_frame(const cv::Mat&, cv::Mat&, int, int) { return false; }
+std::vector<TrackingBox> tflite_run_frame(const cv::Mat&, cv::Mat&, int, int) { return {}; }
 
 #endif

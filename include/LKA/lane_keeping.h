@@ -87,6 +87,10 @@ struct ControlState {
 // Public API
 // =========================
 
+void lane_keeping_set_control_config(const ControlConfig& cfg);
+ControlConfig lane_keeping_get_control_config();
+void lane_keeping_reset_state();
+
 // Input TrackingBox is assumed to be in vehicle ground frame (meters): x-forward, y-left.
 // 重要假設/提醒：
 // 1) world_result 的 TrackingBox.kpts 單位為「公尺」，座標定義為 x=前方、y=左方。

@@ -5,7 +5,9 @@
 #include <opencv2/core/ocl.hpp>
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
+#include <cstdint>
 #include <cmath>
 #include <string>
 #include <cstring>
@@ -26,6 +28,10 @@ cv::Mat rgbImg_v4l2;
 //==============V4L2 End Update 20210930========================
 
 using namespace std;
+
+namespace {
+std::atomic<uint64_t> g_last_v4l2_buffer_timestamp_ns{0};
+}  // namespace
 
 //==============V4L2 Start Update 20210930======================
 #define v4l2_printf(LEVEL, fmt, args...)  \
@@ -867,6 +873,10 @@ static int dqueue_buffer(int buf_id, struct video_channel *video_ch)
         free(planes);
         return ret;
     }
+    const uint64_t ts_ns =
+        static_cast<uint64_t>(buf.timestamp.tv_sec) * 1000000000ULL +
+        static_cast<uint64_t>(buf.timestamp.tv_usec) * 1000ULL;
+    g_last_v4l2_buffer_timestamp_ns.store(ts_ns, std::memory_order_release);
     video_ch->frame_num++;
     video_ch->cur_buf_id = buf.index;
 
@@ -1128,4 +1138,8 @@ cv::Mat v4l2Cam()
     cv::cvtColor(yuvImg, rgbImg_v4l2, cv::COLOR_YUV2BGR_YUYV);
     Qdraw(&media);
     return rgbImg_v4l2;
+}
+
+uint64_t v4l2_get_last_buffer_timestamp_ns() {
+    return g_last_v4l2_buffer_timestamp_ns.load(std::memory_order_acquire);
 }

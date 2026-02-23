@@ -40,6 +40,15 @@ static inline int GetTrafficClassSafe(const TrackingBox& tb) {
 
 } // namespace
 
+void CollisionAssist::ApplyConfigToTracker()
+{
+  tracker_.SetGains(cfg_.tracker_alpha, cfg_.tracker_beta);
+  tracker_.SetDtClamp(cfg_.tracker_dt_min_s, cfg_.tracker_dt_max_s);
+  tracker_.SetStaleFrames(cfg_.tracker_stale_frames);
+  tracker_.SetResidualResetMeters(cfg_.tracker_residual_reset_m);
+  tracker_.SetVelMaxMps(cfg_.tracker_vel_max_mps);
+}
+
 
 void CollisionAssist::UpdateClassify(int track_id, int frame, int classify_id)
 {
@@ -207,7 +216,7 @@ CollisionAssistOutput CollisionAssist::Step(const std::vector<TrackingBox>& worl
     float angle_skeleton = angle_inertial; // 預設同慣性
 
     if (tb.target_heading_valid) {
-        alpha = 0.4f; // Fusion Factor: Empirically set to 0.4 for robustness
+        alpha = std::clamp(cfg_.heading_fusion_alpha, 0.0f, 1.0f);
         // 假設 heading_deg 為度數，需轉弧度。注意 OpenCV 坐標系方向
         angle_skeleton = tb.target_heading_deg * CV_PI / 180.0f;
     }

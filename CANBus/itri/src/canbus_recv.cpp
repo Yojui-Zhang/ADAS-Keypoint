@@ -21,6 +21,7 @@
 #include "../include/canbus_recv.h"
 #include "../include/terminal.h"
 #include "../include/lib.h"
+#include "time_sync.h"
 
 #define MAXSOCK 16    /* max. number of CAN interfaces given on the cmdline */
 #define MAXIFNAMES 30 /* size of receive name index to omit ioctls */
@@ -753,6 +754,9 @@ void *pth_canDec(void *data)
 			ECU.ECUMsg1.len = 8;
 
 			ret = write(s, &(ECU.ECUMsg1), 16);
+			if (ret > 0) {
+				TimeSyncMarkCanBrakeTxNs(TimeSyncNowNs());
+			}
 		}
 	}
 	
@@ -879,7 +883,10 @@ void canbus_ctrl_pedal(double pedalDst)
     ECU.AutoPedal.data[6] = 0x00;
     ECU.AutoPedal.data[7] = 0x00;
     ECU.AutoPedal.len = 8;
-    write(s, &(ECU.AutoPedal), 16);
+    ret = write(s, &(ECU.AutoPedal), 16);
+	if (ret > 0) {
+		TimeSyncMarkCanBrakeTxNs(TimeSyncNowNs());
+	}
 }
 /* ========================================== */
 
@@ -939,6 +946,9 @@ inline void send_Rq_EPS_Ctrl()
 	ECU.ECUMsg2.len = 8;
 
 	ret = write(s, &(ECU.ECUMsg2), 16);
+	if (ret > 0) {
+		TimeSyncMarkCanSteerTxNs(TimeSyncNowNs());
+	}
 }
 
 static inline void angleDecToCanbus(double angleIn, char canbusOut[2])
@@ -967,6 +977,9 @@ inline void send_target_angle(double angle)
 	ECU.ECUMsg2.len = 8;
 
 	ret = write(s, &(ECU.ECUMsg2), 16);
+	if (ret > 0) {
+		TimeSyncMarkCanSteerTxNs(TimeSyncNowNs());
+	}
 }
 
 inline void send_max_speed()

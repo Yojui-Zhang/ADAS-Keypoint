@@ -85,6 +85,19 @@ struct CollisionAssistConfig {
   // Threat 維持：讓 threat_id 穩定，便於知道哪台觸發
   int   threat_hold_frames = 6;
   float threat_switch_hysteresis_s = 0.4f;
+
+  // ----------------------------------------------------------------------
+  // 2D motion tracker tuning
+  float tracker_alpha = 0.6f;
+  float tracker_beta = 0.2f;
+  float tracker_dt_min_s = 0.005f;
+  float tracker_dt_max_s = 0.2f;
+  int   tracker_stale_frames = 10;
+  float tracker_residual_reset_m = 4.0f;
+  float tracker_vel_max_mps = 50.0f;
+
+  // Skeleton + motion heading fusion
+  float heading_fusion_alpha = 0.4f;
 };
 
 struct CollisionAssistOutput {
@@ -111,7 +124,13 @@ struct CollisionAssistOutput {
 
 class CollisionAssist {
 public:
-  explicit CollisionAssist(const CollisionAssistConfig& cfg = {}) : cfg_(cfg) {}
+  explicit CollisionAssist(const CollisionAssistConfig& cfg = {}) : cfg_(cfg) { ApplyConfigToTracker(); }
+
+  void SetConfig(const CollisionAssistConfig& cfg) {
+    cfg_ = cfg;
+    ApplyConfigToTracker();
+  }
+  CollisionAssistConfig GetConfig() const { return cfg_; }
 
   // 若你外部仍在用分類器結果 callback，可用這個更新 cache。
   void UpdateClassify(int track_id, int frame, int classify_id);
@@ -173,6 +192,7 @@ private:
                              const std::vector<cv::Point2f>& path);
 
   static float Clamp01(float x) { return std::max(0.f, std::min(1.f, x)); }
+  void ApplyConfigToTracker();
 };
 
 } // namespace collision

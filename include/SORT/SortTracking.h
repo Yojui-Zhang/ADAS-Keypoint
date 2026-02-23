@@ -21,28 +21,30 @@ class SORTTRACKING {
 
 public:
 
+    struct SortTrackingConfig {
+        int max_age = 5;
+        int min_hits = 3;
+        double iou_threshold = 0.3;
+        int history_length = 10;
+    };
+
     // global variables for counting
     #define CNUM 20
 
     SORTTRACKING();
+    explicit SORTTRACKING(const SortTrackingConfig& cfg);
     ~SORTTRACKING();
     std::vector<TrackingBox> TrackingResult(const std::vector<Object> &bboxes);
+
+    void SetConfig(const SortTrackingConfig& cfg);
+    SortTrackingConfig GetConfig() const { return config_; }
 
     std::vector<KalmanTracker> trackers;
 private:
 
     int frame_count = 0;
 
-    // 消失時間，未被偵測幾幀後刪除
-	int max_age = 5;
-
-    // 最小連續命中次數，才輸出
-	int min_hits = 3;
-
-    // IOU
-    // 調大（例如 0.5）→ 要求 IOU 更高才算配對，ID 比較穩，但容易丟失/斷軌
-    // 調小（例如 0.2~0.3）→ 容易配對，不易斷軌，但誤配風險↑
-	double iouThreshold = 0.3;
+    SortTrackingConfig config_;
 	
 	
 	// variables used in the for-loop

@@ -8,8 +8,20 @@
 
 using namespace std;
 
-SORTTRACKING::SORTTRACKING() {}
+SORTTRACKING::SORTTRACKING() : SORTTRACKING(SortTrackingConfig{}) {}
+
+SORTTRACKING::SORTTRACKING(const SortTrackingConfig& cfg) {
+    SetConfig(cfg);
+}
 SORTTRACKING::~SORTTRACKING() {}
+
+void SORTTRACKING::SetConfig(const SortTrackingConfig& cfg) {
+    config_ = cfg;
+    config_.max_age = std::max(1, config_.max_age);
+    config_.min_hits = std::max(1, config_.min_hits);
+    config_.iou_threshold = std::clamp(config_.iou_threshold, 0.0, 1.0);
+    config_.history_length = std::max(1, config_.history_length);
+}
 
 // Computes IOU between two bounding boxes
 double SORTTRACKING::GetIOU(Rect_<float> bb_test, Rect_<float> bb_gt)
@@ -140,7 +152,7 @@ std::vector<TrackingBox> SORTTRACKING::TrackingResult(const std::vector<Object>&
         }
 
         // 紀錄追蹤(含第一幀)，避免 history 缺第一筆
-        UpdateTrajectory(frameTrackingResult, 10);
+        UpdateTrajectory(frameTrackingResult, config_.history_length);
 
         return frameTrackingResult;
     }
@@ -209,7 +221,7 @@ std::vector<TrackingBox> SORTTRACKING::TrackingResult(const std::vector<Object>&
         if (assignment[i] == -1) continue;
 
         const double iou = 1.0 - iouMatrix[i][assignment[i]];
-        if (iou < iouThreshold)
+        if (iou < config_.iou_threshold)
         {
             unmatchedTrajectories.insert(static_cast<int>(i));
             unmatchedDetections.insert(assignment[i]);
@@ -259,7 +271,7 @@ std::vector<TrackingBox> SORTTRACKING::TrackingResult(const std::vector<Object>&
     for (auto it = trackers.begin(); it != trackers.end(); ++it)
     {
         if ((it->m_time_since_update < 1) &&
-            (it->m_hit_streak >= min_hits || frame_count <= min_hits))
+            (it->m_hit_streak >= config_.min_hits || frame_count <= config_.min_hits))
         {
             TrackingBox res;
             res.box = it->get_state();
@@ -279,7 +291,7 @@ std::vector<TrackingBox> SORTTRACKING::TrackingResult(const std::vector<Object>&
     // 9) Remove dead tracks (and their keypoints)
     for (auto it = trackers.begin(); it != trackers.end();)
     {
-        if (it->m_time_since_update > max_age)
+        if (it->m_time_since_update > config_.max_age)
         {
             kptFilter.Erase(it->m_id);
             it = trackers.erase(it);
@@ -291,7 +303,7 @@ std::vector<TrackingBox> SORTTRACKING::TrackingResult(const std::vector<Object>&
     }
 
     // 紀錄追蹤
-    UpdateTrajectory(frameTrackingResult, 10);
+    UpdateTrajectory(frameTrackingResult, config_.history_length);
 
     return frameTrackingResult;
 }

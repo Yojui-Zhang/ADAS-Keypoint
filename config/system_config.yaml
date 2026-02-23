@@ -1,0 +1,190 @@
+%YAML:1.0
+---
+app:
+  camera_yaml_path: "../Camera-Config/Sensing-3M.yaml"
+  icon_path: "../icon"
+  fallback_ego_speed_kmh: 10.0
+  enable_collision_actuation: 0
+  draw_collision_border: 1
+  draw_collision_target_box: 1
+  show_timing_ms: 1
+  wait_key_ms: 30
+
+input:
+  video_path: "../video/1280x720/vecow-demo.mp4"
+  camera_index: -1
+  capture_width: 1280
+  capture_height: 720
+  window_name: "Screen"
+  fullscreen: 1
+
+geometry:
+  draw_kpt_world: 0
+  draw_box_world: 0
+  world_unit_scale: 0.01
+
+model:
+  classify_model_width: 60
+  classify_model_height: 60
+  tensorrt:
+    topk: 100
+    score_thres: 0.3
+    iou_thres: 0.6
+    num_labels: 7
+
+sort:
+  max_age: 5
+  min_hits: 3
+  iou_threshold: 0.3
+  history_length: 10
+
+sort_keypoint:
+  filter_type: "kf"          # auto / ema / kf
+  allow_env_override: 1
+  ema:
+    conf_thr: 0.2
+    alpha_lo: 0.15
+    alpha_hi: 0.65
+  kf:
+    conf_thr: 0.2
+    process_var: 1.0
+    meas_var_base: 25.0
+    gate_dist_px: 80.0
+    init_pos_var: 100.0
+    init_vel_var: 1000.0
+
+acc:
+  lateral_limit_m: 1.0
+  min_forward_m: 0.5
+  max_forward_m: 40.0
+  lead_hysteresis_m: 1.0
+  cruise_speed_kmh: 30.0
+  time_gap_s: 1.5
+  standstill_gap_m: 5.0
+  max_accel_mps2: 2.0
+  comfort_decel_mps2: 2.5
+  max_decel_mps2: 6.0
+  jerk_limit_mps3: 2.0
+  brake_full_decel_mps2: 2.0
+  brake_multiplier: 1.0
+  default_fps: 30.0
+  use_external_ego_speed: 0
+
+lka:
+  wheel_base_m: 2.62
+  velocity_mps: 5.0
+  softening: 0.5
+  k_straight: 0.7
+  k_curve: 3.0
+  x_ref_straight_m: 0.3
+  x_heading_straight_m: 1.5
+  x_ref_curve_m: 0.3
+  x_heading_curve_m: 0.8
+  enable_feedforward: 1
+  ff_gain: 1.0
+  x_curvature_m: 1.0
+  max_ff_deg: 25.0
+  max_steer_deg: 30.0
+  max_steer_rate_deg_s: 200.0
+  dt_s: 0.02
+  use_confidence: 1
+  conf_threshold: 0.5
+  min_x_m: 0.05
+  max_x_m: 30.0
+  max_abs_y_m: 5.0
+  curvature_samples: 6
+  metric_w_mean: 1.0
+  metric_w_std: 0.5
+  use_sigmoid_probability: 1
+  metric_threshold: 0.08
+  metric_sensitivity: 25.0
+  use_hysteresis: 0
+  metric_enter_curve: 0.10
+  metric_exit_curve: 0.06
+  enable_prob_lowpass: 1
+  prob_alpha: 0.85
+  lane_width_m: 3.76
+  visual_limit_m: 20.0
+
+stability:
+  mass_kg: 1500.0
+  wheelbase_m: 2.62
+  steering_ratio: 1.0
+  g: 9.81
+  mu_static: 0.90
+  mu_dynamic: 0.75
+  mu_lowpass_alpha: 0.90
+  lat_safety: 0.85
+  total_safety: 0.90
+  lat_accel_comfort_mps2: 2.5
+  long_accel_comfort_mps2: 1.8
+  long_decel_comfort_mps2: 2.8
+  emergency_decel_cap_mps2: 6.0
+  steer_high_speed_guard_kmh: 60.0
+  min_speed_for_curvelimit_mps: 1.0
+  speed_lowpass_alpha: 0.85
+  max_speed_drop_mps2: 3.5
+  max_speed_rise_mps2: 2.0
+  slip_enter_ratio: 0.98
+  slip_exit_ratio: 0.85
+  ttc_hard_guard_s: 0.8
+  w_lat: 1.0
+  w_long: 4.0
+  max_jerk_acc_mps3: 2.0
+  max_jerk_dec_mps3: 3.5
+  use_measured_alat: 1
+  alat_lpf_alpha: 0.25
+  alat_meas_timeout_s: 0.2
+  alat_cmd_guard_ratio: 0.5
+  use_uncertainty_scaling: 1
+  uncert_gain: 0.2
+  uncert_sigma_dist_max: 5.0
+  ttc_sigma_k: 1.0
+
+collision:
+  roi_y_half_m: 5.63
+  roi_x_min_m: 0.0
+  roi_x_max_m: 60.0
+  danger_forward_m: 10.0
+  corridor_half_width_m: 1.2
+  path_sample_step_m: 0.25
+  horizon_s: 4.0
+  step_s: 0.2
+  ttc_warn_s: 3.0
+  ttc_brake_s: 1.2
+  dis_warn_m: 12.0
+  dis_brake_m: 6.0
+  max_extra_brake_0_10: 4.0
+  max_avoid_steer_deg: 4.0
+  enable_classify_warning: 1
+  prefer_trackingbox_classify: 1
+  classify_ttl_frames: 5
+  enable_bbox_fallback_classify: 0
+  classify_car_roi_x_min_px: 400
+  classify_car_roi_x_max_px: 880
+  classify_car_roi_y_min_px: 250
+  classify_center_x_px: 640
+  classify_lr_deadband_px: 80
+  enable_warning_kf: 1
+  warning_kf_q_per_s: 2.0
+  warning_kf_r: 1.0
+  warning_kf_on_th: 0.65
+  warning_kf_off_th: 0.35
+  track_warmup_frames: 3
+  attention_half_width_m: 2.5
+  min_approach_speed_mps: 0.8
+  threat_hold_frames: 6
+  threat_switch_hysteresis_s: 0.4
+  tracker_alpha: 0.6
+  tracker_beta: 0.2
+  tracker_dt_min_s: 0.005
+  tracker_dt_max_s: 0.2
+  tracker_stale_frames: 10
+  tracker_residual_reset_m: 4.0
+  tracker_vel_max_mps: 50.0
+  heading_fusion_alpha: 0.4
+
+behavior:
+  enable: 1
+  use_custom_layout: 0
+  custom_layout: [11, 12, 13, 14, 6, 7, 8, 9, 2, 3, 4, 5]

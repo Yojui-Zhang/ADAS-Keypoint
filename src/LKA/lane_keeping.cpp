@@ -1,10 +1,32 @@
 #include "lane_keeping.h"
 
+#include <mutex>
 #include <sstream>
 
 #include "lk_centerline.h"
 #include "lk_math.h"
 #include "lk_visualization.h"
+
+namespace {
+std::mutex g_lane_keeping_mtx;
+ControlConfig g_lane_keeping_cfg;
+ControlState g_lane_keeping_state;
+}  // namespace
+
+void lane_keeping_set_control_config(const ControlConfig& cfg) {
+    std::lock_guard<std::mutex> lk(g_lane_keeping_mtx);
+    g_lane_keeping_cfg = cfg;
+}
+
+ControlConfig lane_keeping_get_control_config() {
+    std::lock_guard<std::mutex> lk(g_lane_keeping_mtx);
+    return g_lane_keeping_cfg;
+}
+
+void lane_keeping_reset_state() {
+    std::lock_guard<std::mutex> lk(g_lane_keeping_mtx);
+    g_lane_keeping_state = ControlState{};
+}
 
 float lane_steering_step(const std::vector<TrackingBox>& world_result,
                          float velocity_mps,
@@ -13,10 +35,12 @@ float lane_steering_step(const std::vector<TrackingBox>& world_result,
                          cv::Mat output_img,
                          const CameraModel* cam)
 {
+    std::lock_guard<std::mutex> lk(g_lane_keeping_mtx);
+
     (void)input_img; // currently unused; preserved for API compatibility
 
-    static ControlConfig config;
-    static ControlState state;
+    ControlConfig& config = g_lane_keeping_cfg;
+    ControlState& state = g_lane_keeping_state;
 
     // Per-frame speed update
     config.velocity_mps = velocity_mps;

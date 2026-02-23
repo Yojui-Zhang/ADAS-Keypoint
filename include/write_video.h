@@ -1,4 +1,11 @@
+#pragma once
 
+#include <csignal>
+#include <cstdlib>
+#include <iostream>
+#include <string>
+
+#include <opencv2/opencv.hpp>
 
 cv::VideoWriter video_writer;
 bool stop_signal = false;

@@ -14,21 +14,22 @@
 #endif
 
 
-int InitInputAndDisplay(cv::VideoCapture& cap, cv::Mat& frame) {
+int InitInputAndDisplay(cv::VideoCapture& cap, cv::Mat& frame, const InputViewConfig& cfg) {
 #ifdef _openCVcap
 
-    const char* inputVideoPath = "../video/1280x720/vecow-demo.mp4";
-
-    cap.open(inputVideoPath);
-    // cap.open(8);
+    if (cfg.camera_index >= 0) {
+        cap.open(cfg.camera_index);
+    } else {
+        cap.open(cfg.video_path);
+    }
 
     if (!cap.isOpened()) {
         printf("can't open openCV camera\n");
         return -1;
     }
 
-    cap.set(cv::CAP_PROP_FRAME_WIDTH, input_video_width);
-    cap.set(cv::CAP_PROP_FRAME_HEIGHT, input_video_height);
+    cap.set(cv::CAP_PROP_FRAME_WIDTH, cfg.capture_width);
+    cap.set(cv::CAP_PROP_FRAME_HEIGHT, cfg.capture_height);
 
     cap >> frame;
     if(frame.empty()){
@@ -44,12 +45,14 @@ int InitInputAndDisplay(cv::VideoCapture& cap, cv::Mat& frame) {
 
 #ifdef _opengl
     if(outputRgbaMem == nullptr) {
-        outputRgbaMem = (unsigned char*)calloc(1280 * 720 * 4, sizeof(unsigned char));
+        outputRgbaMem = (unsigned char*)calloc(cfg.capture_width * cfg.capture_height * 4, sizeof(unsigned char));
     }
     glinit();
 #else
-    cv::namedWindow("Screen", cv::WINDOW_NORMAL);
-    cv::setWindowProperty("Screen", cv::WND_PROP_FULLSCREEN, cv::WINDOW_FULLSCREEN);
+    cv::namedWindow(cfg.window_name, cv::WINDOW_NORMAL);
+    if (cfg.fullscreen) {
+        cv::setWindowProperty(cfg.window_name, cv::WND_PROP_FULLSCREEN, cv::WINDOW_FULLSCREEN);
+    }
 
 #endif
 

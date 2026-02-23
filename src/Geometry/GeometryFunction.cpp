@@ -8,9 +8,22 @@
 #include <string>
 #include <iomanip>
 #include <sstream>
+#include <mutex>
 
-bool Draw_KPT_World = false;     //  true,   false
-bool Draw_Box_World = false;
+namespace {
+std::mutex g_geometry_cfg_mtx;
+GeometryConfig g_geometry_cfg;
+}  // namespace
+
+void Geometry_SetConfig(const GeometryConfig& cfg) {
+    std::lock_guard<std::mutex> lk(g_geometry_cfg_mtx);
+    g_geometry_cfg = cfg;
+}
+
+GeometryConfig Geometry_GetConfig() {
+    std::lock_guard<std::mutex> lk(g_geometry_cfg_mtx);
+    return g_geometry_cfg;
+}
 
 static void drawCoordinates(cv::Mat& img, const cv::Point2f& px_pos, const cv::Point3f& w_pos, const cv::Scalar& color)
 {
@@ -35,6 +48,9 @@ static void drawCoordinates(cv::Mat& img, const cv::Point2f& px_pos, const cv::P
 
 std::vector<TrackingBox> GeometryFunction(const cv::Mat& Src_frame, cv::Mat& Output_frame, std::vector<TrackingBox>& TrackingResult, const CameraModel* cam)
 {
+    const GeometryConfig geom_cfg = Geometry_GetConfig();
+    const float world_scale = geom_cfg.world_unit_scale;
+
     // 1. 複製原始影像到輸出影像
     if (Src_frame.empty()) {
         // 防止空圖傳入
@@ -61,8 +77,8 @@ std::vector<TrackingBox> GeometryFunction(const cv::Mat& Src_frame, cv::Mat& Out
         world_tb.kpts.clear();
         world_tb.kpts.reserve(result_points.size());
         for (const auto& p : result_points) {
-            float x_forward_m = p.y / 100.0f;
-            float y_left_m    = -(p.x / 100.0f);
+            float x_forward_m = p.y * world_scale;
+            float y_left_m    = -(p.x * world_scale);
             float confidence  = 1.0f;
             world_tb.kpts.emplace_back(x_forward_m, y_left_m, confidence);
         }
@@ -71,8 +87,8 @@ std::vector<TrackingBox> GeometryFunction(const cv::Mat& Src_frame, cv::Mat& Out
         world_tb.World_box.clear();
         world_tb.World_box.reserve(tb.World_box.size());
         for (const auto& p : tb.World_box) {
-            float x_forward_m = p.y / 100.0f;
-            float y_left_m    = -(p.x / 100.0f);
+            float x_forward_m = p.y * world_scale;
+            float y_left_m    = -(p.x * world_scale);
             float confidence  = 1.0f;
             world_tb.World_box.emplace_back(x_forward_m, y_left_m, confidence);
         }
@@ -83,4 +99,3 @@ std::vector<TrackingBox> GeometryFunction(const cv::Mat& Src_frame, cv::Mat& Out
 
     return WorldResult;
 }
-

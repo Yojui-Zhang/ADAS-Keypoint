@@ -22,12 +22,22 @@ static inline const char* skip_ws_(const char* s)
     return s;
 }
 
-KeypointFilterSwitch::KeypointFilterSwitch()
-    : active_(ResolveActive_()), ema_(), kf_()
+KeypointFilterSwitch::KeypointFilterSwitch(const KeypointFilterConfig& cfg)
+    : cfg_(cfg), active_(ResolveActive_(cfg_)), ema_(cfg_.ema_params), kf_(cfg_.kf_params)
 {
 }
 
-KeypointFilterSwitch::FilterType KeypointFilterSwitch::ResolveActive_()
+void KeypointFilterSwitch::SetConfig(const KeypointFilterConfig& cfg)
+{
+    cfg_ = cfg;
+    active_ = ResolveActive_(cfg_);
+
+    // Recreate filters to apply new params; call Clear() before this if preserving state is desired.
+    ema_ = kpt_ema::KeypointEMAFilter(cfg_.ema_params);
+    kf_ = kpt_kf::KeypointKFFilter(cfg_.kf_params);
+}
+
+KeypointFilterSwitch::FilterType KeypointFilterSwitch::ResolveActive_(const KeypointFilterConfig& cfg) const
 {
 
     // Compile-time default
@@ -37,23 +47,26 @@ KeypointFilterSwitch::FilterType KeypointFilterSwitch::ResolveActive_()
     FilterType chosen = EMA;
 #endif
 
-    // Runtime override via env var
-    const char* env = std::getenv("SORT_KPT_FILTER");
-    env = skip_ws_(env);
-    if (!env || *env == '\0') {
-
-        std::cerr << ">>>> [Tips] SORT kpt choose: " 
-              << (chosen == KF ? "KF" : "EMA") << std::endl;
-
-        return chosen;
+    if (cfg.filter_type == static_cast<int>(EMA)) {
+        chosen = EMA;
+    } else if (cfg.filter_type == static_cast<int>(KF)) {
+        chosen = KF;
     }
 
-    if (std::strcmp(env, "kf") == 0 || std::strcmp(env, "KF") == 0 ||
-        std::strcmp(env, "1") == 0  || std::strcmp(env, "true") == 0 || std::strcmp(env, "TRUE") == 0) {
-        chosen = KF;
-    } else if (std::strcmp(env, "ema") == 0 || std::strcmp(env, "EMA") == 0 ||
-               std::strcmp(env, "0") == 0   || std::strcmp(env, "false") == 0 || std::strcmp(env, "FALSE") == 0) {
-        chosen = EMA;
+    if (cfg.allow_env_override) {
+        // Runtime override via env var
+        const char* env = std::getenv("SORT_KPT_FILTER");
+        env = skip_ws_(env);
+
+        if (env && *env != '\0') {
+            if (std::strcmp(env, "kf") == 0 || std::strcmp(env, "KF") == 0 ||
+                std::strcmp(env, "1") == 0  || std::strcmp(env, "true") == 0 || std::strcmp(env, "TRUE") == 0) {
+                chosen = KF;
+            } else if (std::strcmp(env, "ema") == 0 || std::strcmp(env, "EMA") == 0 ||
+                       std::strcmp(env, "0") == 0   || std::strcmp(env, "false") == 0 || std::strcmp(env, "FALSE") == 0) {
+                chosen = EMA;
+            }
+        }
     }
 
     std::cerr << ">>>> [Tips] SORT kpt choose: " 
@@ -91,6 +104,13 @@ KeypointFilterSwitch& GlobalKeypointFilter()
 {
     static KeypointFilterSwitch inst;
     return inst;
+}
+
+void ConfigureGlobalKeypointFilter(const KeypointFilterConfig& cfg)
+{
+    KeypointFilterSwitch& inst = GlobalKeypointFilter();
+    inst.Clear();
+    inst.SetConfig(cfg);
 }
 
 } // namespace sort_kpt
