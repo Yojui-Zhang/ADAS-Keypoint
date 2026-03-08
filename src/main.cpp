@@ -1,8 +1,10 @@
 // 基本函式
 #include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <cstdint>
 #include <ctime>
+#include <filesystem>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -28,6 +30,7 @@
 #include "draw_icon.h"
 #include "CollisionAssistApi.h"
 #include "research_data_logger.h"
+#include "algorithm_ablation_logger.h"
 #include "time_sync.h"
 
 // CANBus
@@ -95,6 +98,71 @@ bool ParseCliArgs(int argc, char** argv, CliArgs& out_args) {
     out_args.system_config_path = argv[3];
   }
   return true;
+}
+
+enum class RunMode {
+  Video,
+  VirtualRoad,
+  RealCar
+};
+
+std::string ToLowerCopy(std::string s) {
+  std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) {
+    return static_cast<char>(std::tolower(c));
+  });
+  return s;
+}
+
+RunMode ParseRunMode(const std::string& s) {
+  const std::string mode = ToLowerCopy(s);
+  if (mode == "virtual_road" || mode == "virtual-road" || mode == "virtual") {
+    return RunMode::VirtualRoad;
+  }
+  if (mode == "real_car" || mode == "real-car" || mode == "real") {
+    return RunMode::RealCar;
+  }
+  return RunMode::Video;
+}
+
+const char* RunModeName(RunMode mode) {
+  switch (mode) {
+    case RunMode::VirtualRoad: return "virtual_road";
+    case RunMode::RealCar: return "real_car";
+    default: return "video";
+  }
+}
+
+std::string ResolvePathWithConfig(const std::string& raw_path,
+                                  const std::string& cfg_path) {
+  if (raw_path.empty()) return raw_path;
+
+  namespace fs = std::filesystem;
+  const fs::path raw(raw_path);
+  std::error_code ec;
+
+  if (raw.is_absolute()) {
+    return raw.lexically_normal().string();
+  }
+
+  if (fs::exists(raw, ec)) {
+    return fs::absolute(raw, ec).lexically_normal().string();
+  }
+
+  const fs::path cfg(cfg_path);
+  if (!cfg_path.empty() && cfg.has_parent_path()) {
+    const fs::path cfg_dir = cfg.parent_path();
+    const fs::path from_cfg_dir = cfg_dir / raw;
+    if (fs::exists(from_cfg_dir, ec)) {
+      return fs::absolute(from_cfg_dir, ec).lexically_normal().string();
+    }
+
+    const fs::path from_cfg_parent = cfg_dir / ".." / raw;
+    if (fs::exists(from_cfg_parent, ec)) {
+      return fs::absolute(from_cfg_parent, ec).lexically_normal().string();
+    }
+  }
+
+  return raw_path;
 }
 
 bool LoadRuntimeConfigWithFallback(const std::string& requested_path,
@@ -190,6 +258,93 @@ int main(int argc, char** argv) {
   Config trt_config;
   ApplyTensorRtRuntimeConfig(runtime_cfg.model.tensorrt, trt_config);
 
+  RunMode run_mode = ParseRunMode(runtime_cfg.app.run_mode);
+#ifndef CANBUS__
+  if (run_mode == RunMode::RealCar) {
+    std::cout << "Main: run_mode=real_car requested, but CANBUS__ is disabled. "
+                 "Fallback to video mode."
+              << std::endl;
+    run_mode = RunMode::Video;
+  }
+#endif
+  if (run_mode == RunMode::RealCar && runtime_cfg.input.camera_index < 0) {
+    std::cout << "Main: run_mode=real_car requires live camera. "
+                 "Override input.camera_index -> 0."
+              << std::endl;
+    runtime_cfg.input.camera_index = 0;
+  }
+  std::cout << "Main: Run mode -> " << RunModeName(run_mode) << std::endl;
+
+  std::string time_sync_error;
+  if (!TimeSyncInit(&time_sync_error)) {
+    std::cerr << "Main: time sync init failed: " << time_sync_error << std::endl;
+    return -1;
+  }
+
+  std::cout << "Main: Time sync source -> " << TimeSyncClockSource()
+            << (TimeSyncUsingPtp() ? " (PTP)" : " (fallback)") << std::endl;
+
+  ablation::AlgorithmAblationOptions ablation_options;
+  ablation_options.output_path = runtime_cfg.ablation.output_path;
+  ablation_options.output_dir = runtime_cfg.ablation.output_dir;
+  ablation_options.flush_every_n = runtime_cfg.ablation.flush_every_n;
+  ablation_options.plot_size_px = runtime_cfg.ablation.plot_size_px;
+  ablation_options.plot_margin_px = runtime_cfg.ablation.plot_margin_px;
+  ablation_options.steering_ratio = runtime_cfg.stability.steering_ratio;
+  ablation_options.wheelbase_m = runtime_cfg.stability.wheelbase_m;
+  ablation_options.virtual_road_enable = runtime_cfg.ablation.virtual_road_enable;
+  ablation_options.virtual_road_mode = runtime_cfg.ablation.virtual_road_mode;
+  ablation_options.virtual_road_csv_path =
+      ResolvePathWithConfig(runtime_cfg.ablation.virtual_road_csv_path, cfg_path);
+  ablation_options.virtual_road_length_m = runtime_cfg.ablation.virtual_road_length_m;
+  ablation_options.virtual_road_step_m = runtime_cfg.ablation.virtual_road_step_m;
+  ablation_options.virtual_road_lane_width_m = runtime_cfg.ablation.virtual_road_lane_width_m;
+  ablation_options.virtual_road_arc_radius_m = runtime_cfg.ablation.virtual_road_arc_radius_m;
+  ablation_options.virtual_road_s_amplitude_m = runtime_cfg.ablation.virtual_road_s_amplitude_m;
+  ablation_options.virtual_road_s_wavelength_m = runtime_cfg.ablation.virtual_road_s_wavelength_m;
+  ablation_options.enabled = runtime_cfg.ablation.enable;
+
+  ablation::AlgorithmAblationLogger ablation_logger(ablation_options);
+  std::string ablation_error;
+  if (!ablation_logger.Start(&ablation_error)) {
+    std::cerr << "Main: failed to start algorithm ablation logger: " << ablation_error << std::endl;
+    return -1;
+  }
+  if (ablation_logger.IsRunning()) {
+    std::cout << "Main: Ablation log -> " << ablation_logger.OutputPath() << std::endl;
+  } else {
+    std::cout << "Main: Ablation logger disabled." << std::endl;
+  }
+
+  if (run_mode == RunMode::VirtualRoad) {
+    if (!ablation_logger.IsRunning()) {
+      std::cerr << "Main: run_mode=virtual_road requires ablation.enable=1." << std::endl;
+      return -1;
+    }
+
+    ablation::VirtualRoadSimulationOptions sim_opts;
+    sim_opts.frame_count = runtime_cfg.ablation.virtual_sim_frame_count;
+    sim_opts.dt_s = runtime_cfg.ablation.virtual_sim_dt_s;
+    sim_opts.speed_kmh = runtime_cfg.ablation.virtual_sim_speed_kmh;
+    sim_opts.max_steer_deg = runtime_cfg.ablation.virtual_sim_max_steer_deg;
+    sim_opts.vc_k_cte = runtime_cfg.ablation.virtual_sim_vc_k_cte;
+    sim_opts.vc_k_heading = runtime_cfg.ablation.virtual_sim_vc_k_heading;
+    sim_opts.raw_k_cte = runtime_cfg.ablation.virtual_sim_raw_k_cte;
+    sim_opts.raw_k_heading = runtime_cfg.ablation.virtual_sim_raw_k_heading;
+    sim_opts.raw_steer_bias_deg = runtime_cfg.ablation.virtual_sim_raw_steer_bias_deg;
+    sim_opts.raw_steer_osc_amp_deg = runtime_cfg.ablation.virtual_sim_raw_steer_osc_amp_deg;
+    sim_opts.raw_steer_osc_period_s = runtime_cfg.ablation.virtual_sim_raw_steer_osc_period_s;
+
+    std::string sim_error;
+    if (!ablation_logger.RunVirtualRoadSimulation(sim_opts, &sim_error)) {
+      std::cerr << "Main: virtual road simulation failed: " << sim_error << std::endl;
+      return -1;
+    }
+    std::cout << "Main: virtual road simulation completed." << std::endl;
+    ablation_logger.Stop();
+    return 0;
+  }
+
   CameraModel cam;
   if (!cam.loadFromYaml(runtime_cfg.app.camera_yaml_path)) {
       std::cerr << "Main: Failed to load camera config: "
@@ -245,15 +400,6 @@ int main(int argc, char** argv) {
 
   const vehicle_skeleton::SkeletonKptLayout layout = ResolveSkeletonLayout(runtime_cfg);
   collision::CollisionAssist collision_assist(runtime_cfg.collision);
-
-  std::string time_sync_error;
-  if (!TimeSyncInit(&time_sync_error)) {
-    std::cerr << "Main: time sync init failed: " << time_sync_error << std::endl;
-    return -1;
-  }
-
-  std::cout << "Main: Time sync source -> " << TimeSyncClockSource()
-            << (TimeSyncUsingPtp() ? " (PTP)" : " (fallback)") << std::endl;
 
   ResearchLogOptions log_options;
   log_options.steering_ratio = runtime_cfg.stability.steering_ratio;
@@ -378,8 +524,25 @@ int main(int argc, char** argv) {
     target_speed = cmd.speed_kmh;
     deceleration = cmd.brake_0_10;
 
+    std::vector<TrackingBox> world_before_behavior;
+    if (ablation_logger.IsRunning()) {
+      world_before_behavior = world_result;
+    }
+
     if (runtime_cfg.behavior.enable) {
       vehicle_skeleton::RunVehicleSkeletonAndHeading(output_frame, output_frame, world_result, layout);
+    }
+
+    if (ablation_logger.IsRunning()) {
+      ablation::AlgorithmAblationFrame ablation_frame;
+      ablation_frame.frame_index = frame_index;
+      ablation_frame.frame_sync_ns = frame_sync_ns;
+      ablation_frame.dt_s = dt_s;
+      ablation_frame.ego_speed_kmh = ego_vehicle_speed_kmh;
+      ablation_frame.world_before_skeleton = &world_before_behavior;
+      ablation_frame.world_after_skeleton = &world_result;
+      ablation_frame.vehicle_control_cmd = cmd;
+      ablation_logger.Step(ablation_frame);
     }
 
     auto ca = collision_assist.Step(
@@ -534,6 +697,7 @@ int main(int argc, char** argv) {
 #ifdef Write_Video__
   video_writer.release();
 #endif
+  ablation_logger.Stop();
   research_logger.Stop();
 
   return 0;

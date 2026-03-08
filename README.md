@@ -168,8 +168,11 @@ make -j$(nproc)
 
 1. `main` 讀取 CLI 與 `system_config.yaml`。
 2. 套用配置到 LKA/ACC/Stability/Geometry。
-3. 初始化 Camera/Input/Engine（TFLite 或 TensorRT）。
-4. 每幀執行：
+3. 依 `app.run_mode` 切換執行模式：
+   - `video`：影片/相機推論主流程
+   - `real_car`：實車模式（需 `CANBUS__`）
+   - `virtual_road`：純虛擬道路閉迴路模擬（不依賴影片）
+4. `video` / `real_car` 每幀執行：
    - 推論 -> SORT
    - Geometry 世界轉換
    - VehicleControl（ACC + LKA + Stability）
@@ -191,3 +194,39 @@ make -j$(nproc)
 4. `acc`（縱向控制）
 5. `stability`（物理與舒適邊界）
 6. `collision`（警示/介入策略）
+
+## 8. 演算法模擬對照（無 CANBus、影片回放）
+
+主流程已新增 `AlgorithmAblationLogger`，呼叫點位於：
+- `RunVehicleSkeletonAndHeading(...)` 後
+- `Draw info` 前（同幀比較，不改既有控制輸出）
+
+每幀會輸出兩類對照：
+1. Skeleton 前後差異：`target_heading_valid/target_heading_deg` 變化。
+2. VehicleControl 差異：`VehicleControl_Run` 輸出 vs `ACC+LKA` 原始輸出（不重跑演算法狀態機）。
+
+輸出檔案：
+- `ablation_drive_*.csv`：逐幀差異與兩條模擬路徑（VC on / VC off）。
+- `ablation_drive_*.summary.txt`：平均與最大差異、路徑偏離統整。
+- `ablation_drive_*.csv.route.png`：三線路徑圖（Reference 虛擬道路 / VC on / VC off）。
+
+YAML 開關（建議優先用 `config/system_config.yaml`）：
+- `app.run_mode=video|virtual_road|real_car`：切換「跑影片 / 跑虛擬道路模擬 / 跑實車」。
+- `ablation.virtual_road_*`：reference 道路來源與參數（含 `mode=csv` + `virtual_road_csv_path`）。
+- `ablation.virtual_sim_*`：`run_mode=virtual_road` 時的模擬控制參數（幀數、dt、速度、VC on/off 控制增益）。
+
+環境變數（選用，會覆寫 YAML）：
+- `ADAS_ABLATION_LOG_ENABLE=0/1`：關閉或啟用 ablation logger。
+- `ADAS_ABLATION_LOG_DIR=/path/to/dir`：設定輸出資料夾。
+- `ADAS_ABLATION_LOG_PATH=/path/to/file.csv`：指定完整輸出 CSV 路徑。
+
+虛擬道路驗證（Reference 路徑）：
+- `ADAS_ABLATION_VROAD_ENABLE=0/1`：啟用 reference 比對（預設 0）。
+- `ADAS_ABLATION_VROAD_MODE=straight|arc|s_curve|csv`：道路型態。
+- `ADAS_ABLATION_VROAD_FILE=/path/to/road.csv`：`mode=csv` 時的路徑檔（每列 `x,y`）。
+- `ADAS_ABLATION_VROAD_LENGTH_M=300`：內建道路長度（公尺）。
+- `ADAS_ABLATION_VROAD_STEP_M=0.5`：內建道路取樣間距（公尺）。
+- `ADAS_ABLATION_VROAD_LANE_WIDTH_M=3.5`：車道寬（用於 lane departure 判定）。
+- `ADAS_ABLATION_VROAD_ARC_RADIUS_M=120`：`mode=arc` 半徑（公尺，正左負右）。
+- `ADAS_ABLATION_VROAD_S_AMPLITUDE_M=2.0`：`mode=s_curve` 振幅（公尺）。
+- `ADAS_ABLATION_VROAD_S_WAVELENGTH_M=80`：`mode=s_curve` 波長（公尺）。

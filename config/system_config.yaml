@@ -1,190 +1,225 @@
 %YAML:1.0
 ---
 app:
-  camera_yaml_path: "../Camera-Config/Sensing-3M.yaml"
-  icon_path: "../icon"
-  fallback_ego_speed_kmh: 10.0
-  enable_collision_actuation: 0
-  draw_collision_border: 1
-  draw_collision_target_box: 1
-  show_timing_ms: 1
-  wait_key_ms: 30
+  run_mode: "virtual_road"                             # 執行模式：video / virtual_road / real_car
+  camera_yaml_path: "../Camera-Config/Sensing-3M.yaml"  # 相機內外參檔案路徑
+  icon_path: "../icon"                                  # 分類圖示資料夾
+  fallback_ego_speed_kmh: 10.0                          # 無 CANBus 時的自車速度回退值（km/h）
+  enable_collision_actuation: 0                         # 是否允許碰撞模組直接介入控制（0/1）
+  draw_collision_border: 1                              # 碰撞警示時是否畫全畫面紅框（0/1）
+  draw_collision_target_box: 1                          # 是否標註碰撞威脅目標框（0/1）
+  show_timing_ms: 1                                     # 是否輸出每幀耗時（0/1）
+  wait_key_ms: 30                                       # 顯示迴圈 waitKey 延遲（ms）
 
 input:
-  video_path: "../video/1280x720/vecow-demo.mp4"
-  camera_index: -1
-  capture_width: 1280
-  capture_height: 720
-  window_name: "Screen"
-  fullscreen: 1
+  video_path: "../video/1280x720/Paper.mp4"  # 影片路徑（camera_index < 0 時使用）
+  camera_index: -1                            # 攝影機索引（>=0 優先於 video_path）
+  capture_width: 1280                         # 擷取寬度（像素）
+  capture_height: 720                         # 擷取高度（像素）
+  window_name: "Screen"                       # 顯示視窗名稱
+  fullscreen: 1                               # 是否全螢幕顯示（0/1）
 
 geometry:
-  draw_kpt_world: 0
-  draw_box_world: 0
-  world_unit_scale: 0.01
+  draw_kpt_world: 0      # 是否繪製世界座標 keypoint（0/1）
+  draw_box_world: 0      # 是否繪製世界座標 box（0/1）
+  world_unit_scale: 0.01 # 世界座標縮放比例（常見為 cm->m 的 0.01）
 
 model:
-  classify_model_width: 60
-  classify_model_height: 60
+  classify_model_width: 60   # 分類模型輸入寬度
+  classify_model_height: 60  # 分類模型輸入高度
   tensorrt:
-    topk: 100
-    score_thres: 0.3
-    iou_thres: 0.6
-    num_labels: 7
+    topk: 100         # TensorRT 後處理：候選框上限
+    score_thres: 0.3  # TensorRT 後處理：分數門檻
+    iou_thres: 0.6    # TensorRT 後處理：NMS IoU 門檻
+    num_labels: 7     # TensorRT 模型類別數
 
 sort:
-  max_age: 5
-  min_hits: 3
-  iou_threshold: 0.3
-  history_length: 10
+  max_age: 5          # 追蹤器最大失配幀數
+  min_hits: 3         # 軌跡輸出前所需最小命中幀數
+  iou_threshold: 0.3  # 匹配 IoU 門檻
+  history_length: 10  # 每個目標保存歷史軌跡長度
 
 sort_keypoint:
-  filter_type: "kf"          # auto / ema / kf
-  allow_env_override: 1
+  filter_type: "kf"          # keypoint 濾波器：auto / ema / kf
+  allow_env_override: 1      # 是否允許環境變數覆寫濾波器（0/1）
   ema:
-    conf_thr: 0.2
-    alpha_lo: 0.15
-    alpha_hi: 0.65
+    conf_thr: 0.2   # EMA：低於此信心值時降低量測權重
+    alpha_lo: 0.15  # EMA：低信心時平滑係數
+    alpha_hi: 0.65  # EMA：高信心時平滑係數
   kf:
-    conf_thr: 0.2
-    process_var: 1.0
-    meas_var_base: 25.0
-    gate_dist_px: 80.0
-    init_pos_var: 100.0
-    init_vel_var: 1000.0
+    conf_thr: 0.2        # KF：低於此信心值時降低量測可信度
+    process_var: 1.0     # KF：系統噪聲（過程噪聲）
+    meas_var_base: 25.0  # KF：基礎量測噪聲
+    gate_dist_px: 80.0   # KF：量測門檻距離（像素）
+    init_pos_var: 100.0  # KF：初始位置方差
+    init_vel_var: 1000.0 # KF：初始速度方差
 
 acc:
-  lateral_limit_m: 1.0
-  min_forward_m: 0.5
-  max_forward_m: 40.0
-  lead_hysteresis_m: 1.0
-  cruise_speed_kmh: 30.0
-  time_gap_s: 1.5
-  standstill_gap_m: 5.0
-  max_accel_mps2: 2.0
-  comfort_decel_mps2: 2.5
-  max_decel_mps2: 6.0
-  jerk_limit_mps3: 2.0
-  brake_full_decel_mps2: 2.0
-  brake_multiplier: 1.0
-  default_fps: 30.0
-  use_external_ego_speed: 0
+  lateral_limit_m: 1.0         # 目標車道橫向限制（m）
+  min_forward_m: 0.5           # 最小有效前向距離（m）
+  max_forward_m: 40.0          # 最大有效前向距離（m）
+  lead_hysteresis_m: 1.0       # 目標切換遲滯（m）
+  cruise_speed_kmh: 30.0       # 無前車時巡航速度（km/h）
+  time_gap_s: 1.5              # 跟車時距（s）
+  standstill_gap_m: 5.0        # 停車時保留距離（m）
+  max_accel_mps2: 2.0          # 最大加速度（m/s^2）
+  comfort_decel_mps2: 2.5      # 舒適減速度（m/s^2）
+  max_decel_mps2: 6.0          # 最大減速度（m/s^2）
+  jerk_limit_mps3: 2.0         # 加加速度限制（m/s^3）
+  brake_full_decel_mps2: 2.0   # brake=滿值 對應減速度（m/s^2）
+  brake_multiplier: 1.0        # 煞車輸出倍率
+  default_fps: 30.0            # 時間差估算用預設幀率
+  use_external_ego_speed: 0    # 是否使用外部車速（CAN）作為 ego speed（0/1）
 
 lka:
-  wheel_base_m: 2.62
-  velocity_mps: 5.0
-  softening: 0.5
-  k_straight: 0.7
-  k_curve: 3.0
-  x_ref_straight_m: 0.3
-  x_heading_straight_m: 1.5
-  x_ref_curve_m: 0.3
-  x_heading_curve_m: 0.8
-  enable_feedforward: 1
-  ff_gain: 1.0
-  x_curvature_m: 1.0
-  max_ff_deg: 25.0
-  max_steer_deg: 30.0
-  max_steer_rate_deg_s: 200.0
-  dt_s: 0.02
-  use_confidence: 1
-  conf_threshold: 0.5
-  min_x_m: 0.05
-  max_x_m: 30.0
-  max_abs_y_m: 5.0
-  curvature_samples: 6
-  metric_w_mean: 1.0
-  metric_w_std: 0.5
-  use_sigmoid_probability: 1
-  metric_threshold: 0.08
-  metric_sensitivity: 25.0
-  use_hysteresis: 0
-  metric_enter_curve: 0.10
-  metric_exit_curve: 0.06
-  enable_prob_lowpass: 1
-  prob_alpha: 0.85
-  lane_width_m: 3.76
-  visual_limit_m: 20.0
+  # Luxgen S3 / S3 EV+ 軸距 = 2620 mm（U-CAR, LTN）
+  wheel_base_m: 2.62            # LKA 幾何軸距（m）
+  velocity_mps: 5.0             # LKA 預設車速（m/s）
+  softening: 0.5                # Stanley 速度軟化項
+  k_straight: 0.7               # 直線模式增益
+  k_curve: 3.0                  # 彎道模式增益
+  x_ref_straight_m: 0.3         # 直線 CTE 取樣前視距離（m）
+  x_heading_straight_m: 1.5     # 直線 heading 取樣前視距離（m）
+  x_ref_curve_m: 0.3            # 彎道 CTE 取樣前視距離（m）
+  x_heading_curve_m: 0.8        # 彎道 heading 取樣前視距離（m）
+  enable_feedforward: 1         # 是否啟用曲率前饋（0/1）
+  ff_gain: 1.0                  # 前饋增益
+  x_curvature_m: 1.0            # 曲率取樣位置（保留欄位）
+  max_ff_deg: 25.0              # 前饋轉角上限（deg）
+  max_steer_deg: 30.0           # LKA 輸出轉角上限（deg）
+  max_steer_rate_deg_s: 200.0   # LKA 轉角變化率上限（deg/s）
+  dt_s: 0.02                    # LKA 控制週期（s）
+  use_confidence: 1             # 是否使用 keypoint 信心值過濾（0/1）
+  conf_threshold: 0.5           # keypoint 信心門檻
+  min_x_m: 0.05                 # 可用點最小前向距離（m）
+  max_x_m: 30.0                 # 可用點最大前向距離（m）
+  max_abs_y_m: 5.0              # 可用點最大橫向絕對距離（m）
+  curvature_samples: 6          # 曲率估計採樣點數
+  metric_w_mean: 1.0            # 曲率均值權重
+  metric_w_std: 0.5             # 曲率標準差權重
+  use_sigmoid_probability: 1    # 是否使用 sigmoid 混合機制（0/1）
+  metric_threshold: 0.08        # 曲率切換門檻
+  metric_sensitivity: 25.0      # 曲率切換靈敏度
+  use_hysteresis: 0             # 是否啟用遲滯切換（0/1）
+  metric_enter_curve: 0.10      # 進入彎道門檻
+  metric_exit_curve: 0.06       # 離開彎道門檻
+  enable_prob_lowpass: 1        # 是否對曲率機率低通（0/1）
+  prob_alpha: 0.85              # 曲率機率低通係數
+  lane_width_m: 3.76            # 單側線補中心線時使用的車道寬（m）
+  visual_limit_m: 20.0          # 可視化繪製前向距離（m）
 
 stability:
-  mass_kg: 1500.0
-  wheelbase_m: 2.62
-  steering_ratio: 1.0
-  g: 9.81
-  mu_static: 0.90
-  mu_dynamic: 0.75
-  mu_lowpass_alpha: 0.90
-  lat_safety: 0.85
-  total_safety: 0.90
-  lat_accel_comfort_mps2: 2.5
-  long_accel_comfort_mps2: 1.8
-  long_decel_comfort_mps2: 2.8
-  emergency_decel_cap_mps2: 6.0
-  steer_high_speed_guard_kmh: 60.0
-  min_speed_for_curvelimit_mps: 1.0
-  speed_lowpass_alpha: 0.85
-  max_speed_drop_mps2: 3.5
-  max_speed_rise_mps2: 2.0
-  slip_enter_ratio: 0.98
-  slip_exit_ratio: 0.85
-  ttc_hard_guard_s: 0.8
-  w_lat: 1.0
-  w_long: 4.0
-  max_jerk_acc_mps3: 2.0
-  max_jerk_dec_mps3: 3.5
-  use_measured_alat: 1
-  alat_lpf_alpha: 0.25
-  alat_meas_timeout_s: 0.2
-  alat_cmd_guard_ratio: 0.5
-  use_uncertainty_scaling: 1
-  uncert_gain: 0.2
-  uncert_sigma_dist_max: 5.0
-  ttc_sigma_k: 1.0
+  # Luxgen S3 油車整備重約 1250kg；EV+ 公開資料缺官方整備重，先用工程估值。
+  mass_kg: 1350.0               # 車輛質量（kg）
+  # Luxgen S3 / S3 EV+ 軸距 = 2620 mm
+  wheelbase_m: 2.62             # 車輛軸距（m）
+  # 本專案 steer_deg 目前以路輪角語意使用；若改方向盤角語意再調整
+  steering_ratio: 1.0           # 方向盤角/路輪角轉向比
+  g: 9.81                       # 重力加速度
+  mu_static: 0.90               # 靜摩擦係數
+  mu_dynamic: 0.75              # 動摩擦係數
+  mu_lowpass_alpha: 0.90        # 摩擦係數低通係數
+  lat_safety: 0.85              # 側向安全係數
+  total_safety: 0.90            # 總體安全係數
+  lat_accel_comfort_mps2: 2.5   # 舒適側向加速度上限（m/s^2）
+  long_accel_comfort_mps2: 1.8  # 舒適縱向加速度上限（m/s^2）
+  long_decel_comfort_mps2: 2.8  # 舒適縱向減速度上限（m/s^2）
+  emergency_decel_cap_mps2: 6.0 # 緊急減速度上限（m/s^2）
+  steer_high_speed_guard_kmh: 60.0      # 高速轉向守護門檻（km/h）
+  min_speed_for_curvelimit_mps: 1.0     # 啟用曲率限速最低速度（m/s）
+  speed_lowpass_alpha: 0.85             # 速度命令低通係數
+  max_speed_drop_mps2: 3.5              # 最大降速率（m/s^2）
+  max_speed_rise_mps2: 2.0              # 最大升速率（m/s^2）
+  slip_enter_ratio: 0.98                # 進入打滑判定比例
+  slip_exit_ratio: 0.85                 # 離開打滑判定比例
+  ttc_hard_guard_s: 0.8                 # TTC 硬守護門檻（s）
+  w_lat: 1.0                            # 投影成本：側向權重
+  w_long: 4.0                           # 投影成本：縱向權重
+  max_jerk_acc_mps3: 2.0                # 最大加速 jerk（m/s^3）
+  max_jerk_dec_mps3: 3.5                # 最大減速 jerk（m/s^3）
+  use_measured_alat: 1                  # 是否使用 IMU/CAN 側向加速度（0/1）
+  alat_lpf_alpha: 0.25                  # 側向加速度低通係數
+  alat_meas_timeout_s: 0.2              # 側向加速度量測逾時（s）
+  alat_cmd_guard_ratio: 0.5             # 命令側向加速度守護比例
+  use_uncertainty_scaling: 1            # 是否啟用不確定性保守縮放（0/1）
+  uncert_gain: 0.2                      # 不確定性增益
+  uncert_sigma_dist_max: 5.0            # 距離標準差上限（m）
+  ttc_sigma_k: 1.0                      # TTC 不確定性係數
 
 collision:
-  roi_y_half_m: 5.63
-  roi_x_min_m: 0.0
-  roi_x_max_m: 60.0
-  danger_forward_m: 10.0
-  corridor_half_width_m: 1.2
-  path_sample_step_m: 0.25
-  horizon_s: 4.0
-  step_s: 0.2
-  ttc_warn_s: 3.0
-  ttc_brake_s: 1.2
-  dis_warn_m: 12.0
-  dis_brake_m: 6.0
-  max_extra_brake_0_10: 4.0
-  max_avoid_steer_deg: 4.0
-  enable_classify_warning: 1
-  prefer_trackingbox_classify: 1
-  classify_ttl_frames: 5
-  enable_bbox_fallback_classify: 0
-  classify_car_roi_x_min_px: 400
-  classify_car_roi_x_max_px: 880
-  classify_car_roi_y_min_px: 250
-  classify_center_x_px: 640
-  classify_lr_deadband_px: 80
-  enable_warning_kf: 1
-  warning_kf_q_per_s: 2.0
-  warning_kf_r: 1.0
-  warning_kf_on_th: 0.65
-  warning_kf_off_th: 0.35
-  track_warmup_frames: 3
-  attention_half_width_m: 2.5
-  min_approach_speed_mps: 0.8
-  threat_hold_frames: 6
-  threat_switch_hysteresis_s: 0.4
-  tracker_alpha: 0.6
-  tracker_beta: 0.2
-  tracker_dt_min_s: 0.005
-  tracker_dt_max_s: 0.2
-  tracker_stale_frames: 10
-  tracker_residual_reset_m: 4.0
-  tracker_vel_max_mps: 50.0
-  heading_fusion_alpha: 0.4
+  roi_y_half_m: 5.63               # 橫向 ROI 半寬（m）
+  roi_x_min_m: 0.0                 # 前向 ROI 最小距離（m）
+  roi_x_max_m: 60.0                # 前向 ROI 最大距離（m）
+  danger_forward_m: 10.0           # 近場危險區前向距離（m）
+  corridor_half_width_m: 1.2       # 自車路徑走廊半寬（m）
+  path_sample_step_m: 0.25         # 自車預測路徑採樣間距（m）
+  horizon_s: 4.0                   # 預測時間地平線（s）
+  step_s: 0.2                      # 預測時間步長（s）
+  ttc_warn_s: 3.0                  # TTC 警示門檻（s）
+  ttc_brake_s: 1.2                 # TTC 煞車門檻（s）
+  dis_warn_m: 12.0                 # 距離警示門檻（m）
+  dis_brake_m: 6.0                 # 距離煞車門檻（m）
+  max_extra_brake_0_10: 4.0        # 最大追加煞車量（0~10）
+  max_avoid_steer_deg: 4.0         # 最大追加避讓轉角（deg）
+  enable_classify_warning: 1       # 是否啟用分類型警示（0/1）
+  prefer_trackingbox_classify: 1   # 是否優先使用 TrackingBox 內分類（0/1）
+  classify_ttl_frames: 5           # 分類快取有效幀數
+  enable_bbox_fallback_classify: 0 # 是否啟用 bbox 回退分類（0/1）
+  classify_car_roi_x_min_px: 400   # 分類 ROI：x 最小像素
+  classify_car_roi_x_max_px: 880   # 分類 ROI：x 最大像素
+  classify_car_roi_y_min_px: 250   # 分類 ROI：y 最小像素
+  classify_center_x_px: 640        # 分類中心 x 像素
+  classify_lr_deadband_px: 80      # 左右判斷 deadband（像素）
+  enable_warning_kf: 1             # 是否啟用 warning Kalman 濾波（0/1）
+  warning_kf_q_per_s: 2.0          # warning KF 過程噪聲
+  warning_kf_r: 1.0                # warning KF 量測噪聲
+  warning_kf_on_th: 0.65           # warning KF 開啟門檻
+  warning_kf_off_th: 0.35          # warning KF 關閉門檻
+  track_warmup_frames: 3           # 軌跡暖機幀數
+  attention_half_width_m: 2.5      # 關注帶半寬（m）
+  min_approach_speed_mps: 0.8      # 最小接近速度門檻（m/s）
+  threat_hold_frames: 6            # 威脅目標保持幀數
+  threat_switch_hysteresis_s: 0.4  # 威脅切換遲滯（s）
+  tracker_alpha: 0.6               # Alpha-Beta tracker alpha
+  tracker_beta: 0.2                # Alpha-Beta tracker beta
+  tracker_dt_min_s: 0.005          # Tracker 最小時間步長（s）
+  tracker_dt_max_s: 0.2            # Tracker 最大時間步長（s）
+  tracker_stale_frames: 10         # Tracker 失效移除幀數
+  tracker_residual_reset_m: 4.0    # Tracker 殘差重置門檻（m）
+  tracker_vel_max_mps: 50.0        # Tracker 速度上限（m/s）
+  heading_fusion_alpha: 0.4        # skeleton heading 與慣性 heading 融合比例
 
 behavior:
-  enable: 1
-  use_custom_layout: 0
-  custom_layout: [11, 12, 13, 14, 6, 7, 8, 9, 2, 3, 4, 5]
+  enable: 1  # 是否啟用骨架朝向推估（0/1）
+  use_custom_layout: 0  # 是否使用 custom_layout（0/1）
+  custom_layout: [11, 12, 13, 14, 6, 7, 8, 9, 2, 3, 4, 5]  # 自訂 keypoint 佈局索引
+
+ablation:
+  enable: 1                            # 演算法比對 logger 開關
+  output_path: ""                      # 指定完整 CSV 路徑；留空則自動命名
+  output_dir: "research_logs"          # 日誌與圖表輸出資料夾
+  flush_every_n: 30                    # 每 N 幀 flush 一次檔案
+  plot_size_px: 1200                   # 路徑圖輸出尺寸（像素）
+  plot_margin_px: 80                   # 路徑圖邊界留白（像素）
+
+  virtual_road_enable: 1               # 是否啟用 reference road 比對（0/1）
+  virtual_road_mode: "csv"             # straight / arc / s_curve / csv
+  virtual_road_csv_path: "./road_csv/s_curve.csv"  # S 彎道路 CSV 路徑（每列 x,y）
+  virtual_road_length_m: 300.0         # 非 csv 模式時內建道路總長（m）
+  virtual_road_step_m: 0.5             # 非 csv 模式時取樣間距（m）
+  virtual_road_lane_width_m: 3.76      # 車道寬（m），用於 lane departure 判定
+  virtual_road_arc_radius_m: 120.0     # arc 模式半徑（m）
+  virtual_road_s_amplitude_m: 2.0      # s_curve 模式振幅（m）
+  virtual_road_s_wavelength_m: 80.0    # s_curve 模式波長（m）
+
+  virtual_sim_frame_count: 1200        # run_mode=virtual_road 時模擬幀數
+  virtual_sim_dt_s: 0.05               # run_mode=virtual_road 時每幀時間（s）
+  virtual_sim_speed_kmh: 80.0          # run_mode=virtual_road 時固定車速（km/h）
+  virtual_sim_max_steer_deg: 35.0      # 模擬轉角飽和上限（deg）
+  virtual_sim_vc_k_cte: 6.0            # VC on 的 CTE 控制增益
+  virtual_sim_vc_k_heading: 0.9        # VC on 的 heading 控制增益
+  virtual_sim_raw_k_cte: 1.8           # VC off 的 CTE 控制增益
+  virtual_sim_raw_k_heading: 0.2       # VC off 的 heading 控制增益
+  virtual_sim_raw_steer_bias_deg: 2.5  # VC off 固定偏置（deg）
+  virtual_sim_raw_steer_osc_amp_deg: 1.0   # VC off 週期擾動振幅（deg）
+  virtual_sim_raw_steer_osc_period_s: 6.0  # VC off 週期擾動週期（s）

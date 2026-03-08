@@ -75,6 +75,7 @@ void ReadFilterTypeIfPresent(const cv::FileNode& node, const char* key, int& out
 }
 
 void ReadAppConfig(const cv::FileNode& app_node, AppRuntimeConfig& cfg) {
+    ReadIfPresent(app_node, "run_mode", cfg.run_mode);
     ReadIfPresent(app_node, "camera_yaml_path", cfg.camera_yaml_path);
     ReadIfPresent(app_node, "icon_path", cfg.icon_path);
     ReadIfPresent(app_node, "fallback_ego_speed_kmh", cfg.fallback_ego_speed_kmh);
@@ -317,6 +318,41 @@ void ReadBehaviorConfig(const cv::FileNode& b_node, VehicleBehaviorRuntimeConfig
     }
 }
 
+void ReadAblationConfig(const cv::FileNode& a_node, AblationRuntimeConfig& cfg) {
+    ReadBoolIfPresent(a_node, "enable", cfg.enable);
+    ReadIfPresent(a_node, "output_path", cfg.output_path);
+    ReadIfPresent(a_node, "output_dir", cfg.output_dir);
+    ReadIfPresent(a_node, "flush_every_n", cfg.flush_every_n);
+    ReadIfPresent(a_node, "plot_size_px", cfg.plot_size_px);
+    ReadIfPresent(a_node, "plot_margin_px", cfg.plot_margin_px);
+
+    ReadBoolIfPresent(a_node, "virtual_road_enable", cfg.virtual_road_enable);
+    ReadIfPresent(a_node, "virtual_road_mode", cfg.virtual_road_mode);
+    ReadIfPresent(a_node, "virtual_road_csv_path", cfg.virtual_road_csv_path);
+    ReadIfPresent(a_node, "virtual_road_length_m", cfg.virtual_road_length_m);
+    ReadIfPresent(a_node, "virtual_road_step_m", cfg.virtual_road_step_m);
+    ReadIfPresent(a_node, "virtual_road_lane_width_m", cfg.virtual_road_lane_width_m);
+    ReadIfPresent(a_node, "virtual_road_arc_radius_m", cfg.virtual_road_arc_radius_m);
+    ReadIfPresent(a_node, "virtual_road_s_amplitude_m", cfg.virtual_road_s_amplitude_m);
+    ReadIfPresent(a_node, "virtual_road_s_wavelength_m", cfg.virtual_road_s_wavelength_m);
+
+    int sim_frame_count = static_cast<int>(cfg.virtual_sim_frame_count);
+    ReadIfPresent(a_node, "virtual_sim_frame_count", sim_frame_count);
+    if (sim_frame_count > 0) {
+        cfg.virtual_sim_frame_count = static_cast<uint64_t>(sim_frame_count);
+    }
+    ReadIfPresent(a_node, "virtual_sim_dt_s", cfg.virtual_sim_dt_s);
+    ReadIfPresent(a_node, "virtual_sim_speed_kmh", cfg.virtual_sim_speed_kmh);
+    ReadIfPresent(a_node, "virtual_sim_max_steer_deg", cfg.virtual_sim_max_steer_deg);
+    ReadIfPresent(a_node, "virtual_sim_vc_k_cte", cfg.virtual_sim_vc_k_cte);
+    ReadIfPresent(a_node, "virtual_sim_vc_k_heading", cfg.virtual_sim_vc_k_heading);
+    ReadIfPresent(a_node, "virtual_sim_raw_k_cte", cfg.virtual_sim_raw_k_cte);
+    ReadIfPresent(a_node, "virtual_sim_raw_k_heading", cfg.virtual_sim_raw_k_heading);
+    ReadIfPresent(a_node, "virtual_sim_raw_steer_bias_deg", cfg.virtual_sim_raw_steer_bias_deg);
+    ReadIfPresent(a_node, "virtual_sim_raw_steer_osc_amp_deg", cfg.virtual_sim_raw_steer_osc_amp_deg);
+    ReadIfPresent(a_node, "virtual_sim_raw_steer_osc_period_s", cfg.virtual_sim_raw_steer_osc_period_s);
+}
+
 }  // namespace
 
 bool LoadSystemConfig(const std::string& path, AdasSystemConfig& out_config, std::string* out_error) {
@@ -343,6 +379,7 @@ bool LoadSystemConfig(const std::string& path, AdasSystemConfig& out_config, std
     ReadStabilityConfig(fs["stability"], out_config.stability);
     ReadCollisionConfig(fs["collision"], out_config.collision);
     ReadBehaviorConfig(fs["behavior"], out_config.behavior);
+    ReadAblationConfig(fs["ablation"], out_config.ablation);
 
     return true;
 }

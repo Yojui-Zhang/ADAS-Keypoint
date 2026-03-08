@@ -22,10 +22,10 @@ class SORTTRACKING {
 public:
 
     struct SortTrackingConfig {
-        int max_age = 5;
-        int min_hits = 3;
-        double iou_threshold = 0.3;
-        int history_length = 10;
+        int max_age = 5;              // 目標最多可連續遺失幾幀仍保留追蹤
+        int min_hits = 3;             // 軌跡輸出前所需最小連續命中幀數
+        double iou_threshold = 0.3;   // 偵測框與預測框關聯的 IoU 門檻
+        int history_length = 10;      // 每個目標保留的歷史軌跡長度
     };
 
     // global variables for counting

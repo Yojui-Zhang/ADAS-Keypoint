@@ -7,9 +7,9 @@
 class CameraModel;
 
 struct GeometryConfig {
-    bool draw_kpt_world = false;
-    bool draw_box_world = false;
-    float world_unit_scale = 0.01f;  // projector output unit(cm) -> meter
+    bool draw_kpt_world = false;      // 是否繪製 keypoint 的世界座標資訊
+    bool draw_box_world = false;      // 是否繪製 box 的世界座標資訊
+    float world_unit_scale = 0.01f;   // 世界單位縮放（常用於 cm -> m，0.01 代表除以 100）
 };
 
 void Geometry_SetConfig(const GeometryConfig& cfg);

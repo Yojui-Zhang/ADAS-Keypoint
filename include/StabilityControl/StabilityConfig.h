@@ -6,15 +6,15 @@ namespace stability {
 // 監管器參數：把「車輛物理限制」與「舒適性」獨立出來，方便你標定
 struct StabilityConfig {
   // --- vehicle ---
-  double mass_kg = 1500.0;
-  double wheelbase_m = 2.62;
+  double mass_kg = 1500.0;    // 車重（kg）
+  double wheelbase_m = 2.62;  // 軸距（m）
 
   // steering_ratio: 若你的 steer_deg 是「方向盤角」不是「路輪角」就填入轉向比（例如 14~18）
   // 若你輸出的 steer_deg 已經是路輪角，設 1.0
   double steering_ratio = 1.0;
 
   // gravity
-  double g = 9.81;
+  double g = 9.81;            // 重力加速度（m/s^2）
 
   // friction
   double mu_static  = 0.90; // 靜摩擦係數（乾地）
@@ -34,8 +34,8 @@ struct StabilityConfig {
   double emergency_decel_cap_mps2 = 6.0; // 允許最大緊急減速（演算法上限）
 
   // steering envelope
-  double steer_high_speed_guard_kmh = 60.0; // 高於此速，強制使用摩擦包絡限制 steer
-  double min_speed_for_curvelimit_mps = 1.0;
+  double steer_high_speed_guard_kmh = 60.0; // 高於此車速，強制使用摩擦包絡限制 steer
+  double min_speed_for_curvelimit_mps = 1.0; // 啟用曲率限制的最低車速（m/s）
 
   // throttle/speed shaping
   double speed_lowpass_alpha = 0.85; // 目標速度平滑
@@ -59,7 +59,7 @@ struct StabilityConfig {
   double max_jerk_dec_mps3 = 3.5;   // - jerk magnitude (減速方向)
 
   // --- 利用測量得到的橫向動力學 (IMU / yaw rate) ---
-  bool   use_measured_alat = true;
+  bool   use_measured_alat = true;     // 是否使用量測側向加速度（IMU/CAN）
   double alat_lpf_alpha = 0.25;        // 0~1, 低通
   double alat_meas_timeout_s = 0.20;   // 超過就視為無效
   double alat_cmd_guard_ratio = 0.50;  // 安全保守：a_lat_used = max(|alat_meas|, guard*|alat_cmd|)
@@ -67,7 +67,7 @@ struct StabilityConfig {
   // --- 不確定性 → 監管者的保守傾向 ---
   bool   use_uncertainty_scaling = true;
   double uncert_gain = 0.20;        // risk = 1 + gain * sigma_dist
-  double uncert_sigma_dist_max = 5.0;
+  double uncert_sigma_dist_max = 5.0;  // 距離不確定性上限（m）
   double ttc_sigma_k = 1.0;         // ttc_eff = ttc - k*sigma_ttc
 
 
@@ -75,4 +75,3 @@ struct StabilityConfig {
 };
 
 } // namespace stability
-

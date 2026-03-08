@@ -27,24 +27,24 @@ struct Trajectory {
 };
 
 struct CollisionAssistConfig {
-  float roi_y_half_m = 5.63f;
-  float roi_x_min_m  = 0.0f;
-  float roi_x_max_m  = 60.0f;
+  float roi_y_half_m = 5.63f;   // 橫向 ROI 半寬（m）
+  float roi_x_min_m  = 0.0f;    // 前向 ROI 最小距離（m）
+  float roi_x_max_m  = 60.0f;   // 前向 ROI 最大距離（m）
 
-  float danger_forward_m       = 10.0f;
-  float corridor_half_width_m  = 1.2f;
-  float path_sample_step_m     = 0.25f;
+  float danger_forward_m       = 10.0f;  // 近場危險區前向距離（m）
+  float corridor_half_width_m  = 1.2f;   // 自車預測路徑走廊半寬（m）
+  float path_sample_step_m     = 0.25f;  // 預測路徑空間取樣間距（m）
 
-  float horizon_s = 4.0f;
-  float step_s    = 0.2f;
+  float horizon_s = 4.0f;      // 預測時間長度（s）
+  float step_s    = 0.2f;      // 預測時間步長（s）
 
-  float ttc_warn_s  = 3.0f;
-  float ttc_brake_s = 1.2f;
-  float dis_warn_m  = 12.0f;
-  float dis_brake_m = 6.0f;
+  float ttc_warn_s  = 3.0f;    // TTC 警示門檻（s）
+  float ttc_brake_s = 1.2f;    // TTC 介入煞車門檻（s）
+  float dis_warn_m  = 12.0f;   // 距離警示門檻（m）
+  float dis_brake_m = 6.0f;    // 距離煞車門檻（m）
 
-  float max_extra_brake_0_10 = 4.0f;
-  float max_avoid_steer_deg  = 4.0f;
+  float max_extra_brake_0_10 = 4.0f;  // 最大追加煞車量（0~10）
+  float max_avoid_steer_deg  = 4.0f;  // 最大追加避讓轉角（deg）
 
   // ----------------------------------------------------------------------
   // Classify-based CA warning (class_name_classify id 9~12)
@@ -83,21 +83,21 @@ struct CollisionAssistConfig {
   float min_approach_speed_mps = 0.8f;    // 接近速度門檻
 
   // Threat 維持：讓 threat_id 穩定，便於知道哪台觸發
-  int   threat_hold_frames = 6;
-  float threat_switch_hysteresis_s = 0.4f;
+  int   threat_hold_frames = 6;            // 威脅 ID 保持幀數
+  float threat_switch_hysteresis_s = 0.4f; // 威脅切換遲滯（s）
 
   // ----------------------------------------------------------------------
   // 2D motion tracker tuning
-  float tracker_alpha = 0.6f;
-  float tracker_beta = 0.2f;
-  float tracker_dt_min_s = 0.005f;
-  float tracker_dt_max_s = 0.2f;
-  int   tracker_stale_frames = 10;
-  float tracker_residual_reset_m = 4.0f;
-  float tracker_vel_max_mps = 50.0f;
+  float tracker_alpha = 0.6f;              // Alpha-Beta tracker 的 alpha
+  float tracker_beta = 0.2f;               // Alpha-Beta tracker 的 beta
+  float tracker_dt_min_s = 0.005f;         // tracker 最小 dt（s）
+  float tracker_dt_max_s = 0.2f;           // tracker 最大 dt（s）
+  int   tracker_stale_frames = 10;         // 連續未更新幾幀後移除軌跡
+  float tracker_residual_reset_m = 4.0f;   // 殘差過大重置門檻（m）
+  float tracker_vel_max_mps = 50.0f;       // 速度上限（m/s）
 
   // Skeleton + motion heading fusion
-  float heading_fusion_alpha = 0.4f;
+  float heading_fusion_alpha = 0.4f;       // heading 融合比例（越大越偏向 skeleton）
 };
 
 struct CollisionAssistOutput {
