@@ -22,19 +22,20 @@ D: !!opencv-matrix
            -0.02512673098223818 ]
 
 # Extrinsics (world -> camera): p_c = R_cw * p_w + t_cw
-# Assumption: your provided "World" coordinates lie on plane Z=0 in world frame.
+# Raw world axes used by this project are X=lateral_cm, Y=forward_cm, Z=0.
+# Updated from Camera-Config/單應性1280x720.csv after camera remount.
 R_cw: !!opencv-matrix
    rows: 3
    cols: 3
    dt: d
-   data: [ 0.9842000107792466, -0.1651748972548127,  0.06377775996915303,
-           0.01172549265719587, -0.2986111908629236, -0.9543028188716108,
-           0.1766716243215178,  0.9399726666163882, -0.2919563653497616 ]
+   data: [ 0.9477192120977347, -0.2937725563364766,  0.12460329114586291,
+           0.029922338076248434, -0.30694419416340957, -0.9512570185567232,
+           0.3176994628652993,  0.9052529739320975, -0.28210654810229685 ]
 
 t_cw: !!opencv-matrix
    rows: 3
    cols: 1
    dt: d
-   data: [ -80.09859842135672,
-           -11.96075840223026,
-           478.8068131098298 ]
+   data: [ -263.3265264443968,
+           -147.24567405279015,
+           934.3721526554294 ]
