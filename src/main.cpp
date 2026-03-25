@@ -1,4 +1,3 @@
-// 基本函式
 #include <algorithm>
 #include <cctype>
 #include <chrono>
@@ -9,12 +8,10 @@
 #include <string>
 #include <vector>
 
-// OpenCV
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
-// 自訂頭檔
 #include "config.h"
 #include "write_video.h"
 #include "system_config.h"
@@ -29,17 +26,15 @@
 #include "VehicleSkeletonAPI.h"
 #include "draw_icon.h"
 #include "CollisionAssistApi.h"
-#include "research_data_logger.h"
-#include "algorithm_ablation_logger.h"
 #include "time_sync.h"
+#include "runtime_log_manager.h"
+#include "keypad.h"
+#include "keypad_control.h"
 
-// CANBus
 #include "canbus_recv.h"
 #include "lib.h"
 #include "terminal.h"
-#include "pid_controller.h"
 
-//Engine
 #ifdef USE_TFLITE
 #include "../Engine/TFlite/include/TFlite_main.h"
 #endif
@@ -50,10 +45,9 @@
 
 #ifdef _opengl
 static unsigned char* outputRgbaMem;
-extern void glinit(void);    // 初始化OpenGL
-extern void swap_egl(void);  // 使用EGL顯示畫面
-extern void imageShow(int width, int height,
-                      unsigned char rgb[]);  // OpenGL打畫面
+extern void glinit(void);
+extern void swap_egl(void);
+extern void imageShow(int width, int height, unsigned char rgb[]);
 #endif
 
 #ifdef _v4l2cap
@@ -63,22 +57,13 @@ extern uint64_t v4l2_get_last_buffer_timestamp_ns();
 using namespace std;
 using namespace cv;
 
-// ======================================================================
-// CANBus Set
-// ======================================================================
-/**
- * @SteerCtrlSwitch:\t方向盤控制_開關
- * @targetAngle:\t\t方向盤控制_輸入訊號。WM_SET_ANGLE: 指定角度數值 WM_SET_ANGULAR_VELO: 輸入角速度數值
-*/
 extern volatile int steerCtrlMode;
-extern double targetAngle; // left 0.0 ~ -510.0 , right 0.0 ~ 510.0
-extern double deceleration; // 0.0 - 10.0
+extern double targetAngle;
+extern double deceleration;
 
 float target_speed = 0.f;
 float Targetdistance = 0.f;
-
 CAR CAN;
-acc::AccConfig ACCconfig;
 
 namespace {
 
@@ -132,45 +117,12 @@ const char* RunModeName(RunMode mode) {
   }
 }
 
-std::string ResolvePathWithConfig(const std::string& raw_path,
-                                  const std::string& cfg_path) {
-  if (raw_path.empty()) return raw_path;
-
-  namespace fs = std::filesystem;
-  const fs::path raw(raw_path);
-  std::error_code ec;
-
-  if (raw.is_absolute()) {
-    return raw.lexically_normal().string();
-  }
-
-  if (fs::exists(raw, ec)) {
-    return fs::absolute(raw, ec).lexically_normal().string();
-  }
-
-  const fs::path cfg(cfg_path);
-  if (!cfg_path.empty() && cfg.has_parent_path()) {
-    const fs::path cfg_dir = cfg.parent_path();
-    const fs::path from_cfg_dir = cfg_dir / raw;
-    if (fs::exists(from_cfg_dir, ec)) {
-      return fs::absolute(from_cfg_dir, ec).lexically_normal().string();
-    }
-
-    const fs::path from_cfg_parent = cfg_dir / ".." / raw;
-    if (fs::exists(from_cfg_parent, ec)) {
-      return fs::absolute(from_cfg_parent, ec).lexically_normal().string();
-    }
-  }
-
-  return raw_path;
-}
-
 bool LoadRuntimeConfigWithFallback(const std::string& requested_path,
                                    AdasSystemConfig& out_cfg,
                                    std::string& out_loaded_path,
                                    std::string& out_error) {
   std::vector<std::string> candidates;
-  if (!requested_path.empty()) {
+  if (requested_path.empty() == false) {
     candidates.push_back(requested_path);
   } else {
     candidates.push_back("../config/system_config.yaml");
@@ -231,14 +183,29 @@ vehicle_skeleton::SkeletonKptLayout ResolveSkeletonLayout(const AdasSystemConfig
 #endif
 }
 
+void HandlePendingCommands(keypad::CommandSource& command_source,
+                           keypad::RuntimeControlState& control_state) {
+  while (true) {
+    const user_command_mode_t cmd = command_source.Consume();
+    if (cmd == CMD_NONE) {
+      break;
+    }
+
+    std::string message;
+    if (keypad::HandleCommand(cmd, &control_state, &message)) {
+      keypad::SyncCanRuntimeState(control_state);
+      if (message.empty() == false) {
+        std::cout << "Main: " << message << std::endl;
+      }
+    }
+  }
+}
+
 }  // namespace
 
-// ======================================================================
-// Main Code
-// ======================================================================
 int main(int argc, char** argv) {
   CliArgs cli_args;
-  if (!ParseCliArgs(argc, argv, cli_args)) {
+  if (ParseCliArgs(argc, argv, cli_args) == false) {
     std::cerr << "Usage: " << argv[0]
               << " <LanePose_Model_Path> <Classify_Model_Path> [System_Config_Path]" << std::endl;
     return 1;
@@ -247,7 +214,7 @@ int main(int argc, char** argv) {
   AdasSystemConfig runtime_cfg;
   std::string cfg_path;
   std::string cfg_error;
-  if (!LoadRuntimeConfigWithFallback(cli_args.system_config_path, runtime_cfg, cfg_path, cfg_error)) {
+  if (LoadRuntimeConfigWithFallback(cli_args.system_config_path, runtime_cfg, cfg_path, cfg_error) == false) {
     std::cerr << "Main: " << cfg_error << std::endl;
     return -1;
   }
@@ -261,22 +228,18 @@ int main(int argc, char** argv) {
   RunMode run_mode = ParseRunMode(runtime_cfg.app.run_mode);
 #ifndef CANBUS__
   if (run_mode == RunMode::RealCar) {
-    std::cout << "Main: run_mode=real_car requested, but CANBUS__ is disabled. "
-                 "Fallback to video mode."
-              << std::endl;
+    std::cout << "Main: real_car requested but CANBUS__ is disabled. Fallback to video mode." << std::endl;
     run_mode = RunMode::Video;
   }
 #endif
   if (run_mode == RunMode::RealCar && runtime_cfg.input.camera_index < 0) {
-    std::cout << "Main: run_mode=real_car requires live camera. "
-                 "Override input.camera_index -> 0."
-              << std::endl;
+    std::cout << "Main: real_car requires live camera. Override input.camera_index -> 0." << std::endl;
     runtime_cfg.input.camera_index = 0;
   }
   std::cout << "Main: Run mode -> " << RunModeName(run_mode) << std::endl;
 
   std::string time_sync_error;
-  if (!TimeSyncInit(&time_sync_error)) {
+  if (TimeSyncInit(&time_sync_error) == false) {
     std::cerr << "Main: time sync init failed: " << time_sync_error << std::endl;
     return -1;
   }
@@ -284,69 +247,38 @@ int main(int argc, char** argv) {
   std::cout << "Main: Time sync source -> " << TimeSyncClockSource()
             << (TimeSyncUsingPtp() ? " (PTP)" : " (fallback)") << std::endl;
 
-  ablation::AlgorithmAblationOptions ablation_options;
-  ablation_options.output_path = runtime_cfg.ablation.output_path;
-  ablation_options.output_dir = runtime_cfg.ablation.output_dir;
-  ablation_options.flush_every_n = runtime_cfg.ablation.flush_every_n;
-  ablation_options.plot_size_px = runtime_cfg.ablation.plot_size_px;
-  ablation_options.plot_margin_px = runtime_cfg.ablation.plot_margin_px;
-  ablation_options.steering_ratio = runtime_cfg.stability.steering_ratio;
-  ablation_options.wheelbase_m = runtime_cfg.stability.wheelbase_m;
-  ablation_options.virtual_road_enable = runtime_cfg.ablation.virtual_road_enable;
-  ablation_options.virtual_road_mode = runtime_cfg.ablation.virtual_road_mode;
-  ablation_options.virtual_road_csv_path =
-      ResolvePathWithConfig(runtime_cfg.ablation.virtual_road_csv_path, cfg_path);
-  ablation_options.virtual_road_length_m = runtime_cfg.ablation.virtual_road_length_m;
-  ablation_options.virtual_road_step_m = runtime_cfg.ablation.virtual_road_step_m;
-  ablation_options.virtual_road_lane_width_m = runtime_cfg.ablation.virtual_road_lane_width_m;
-  ablation_options.virtual_road_arc_radius_m = runtime_cfg.ablation.virtual_road_arc_radius_m;
-  ablation_options.virtual_road_s_amplitude_m = runtime_cfg.ablation.virtual_road_s_amplitude_m;
-  ablation_options.virtual_road_s_wavelength_m = runtime_cfg.ablation.virtual_road_s_wavelength_m;
-  ablation_options.enabled = runtime_cfg.ablation.enable;
-
-  ablation::AlgorithmAblationLogger ablation_logger(ablation_options);
-  std::string ablation_error;
-  if (!ablation_logger.Start(&ablation_error)) {
-    std::cerr << "Main: failed to start algorithm ablation logger: " << ablation_error << std::endl;
+  adas_log::RuntimeLogManager runtime_log_manager(runtime_cfg, cfg_path);
+  std::string log_error;
+  if (runtime_log_manager.Start(run_mode != RunMode::VirtualRoad, &log_error) == false) {
+    std::cerr << "Main: " << log_error << std::endl;
     return -1;
   }
-  if (ablation_logger.IsRunning()) {
-    std::cout << "Main: Ablation log -> " << ablation_logger.OutputPath() << std::endl;
+  if (runtime_log_manager.AblationRunning()) {
+    std::cout << "Main: Ablation log -> " << runtime_log_manager.AblationOutputPath() << std::endl;
   } else {
     std::cout << "Main: Ablation logger disabled." << std::endl;
   }
+  if (run_mode != RunMode::VirtualRoad) {
+    if (runtime_log_manager.ResearchRunning()) {
+      std::cout << "Main: Research log -> " << runtime_log_manager.ResearchOutputPath() << std::endl;
+    } else {
+      std::cout << "Main: Research logger disabled." << std::endl;
+    }
+  }
 
   if (run_mode == RunMode::VirtualRoad) {
-    if (!ablation_logger.IsRunning()) {
-      std::cerr << "Main: run_mode=virtual_road requires ablation.enable=1." << std::endl;
-      return -1;
-    }
-
-    ablation::VirtualRoadSimulationOptions sim_opts;
-    sim_opts.frame_count = runtime_cfg.ablation.virtual_sim_frame_count;
-    sim_opts.dt_s = runtime_cfg.ablation.virtual_sim_dt_s;
-    sim_opts.speed_kmh = runtime_cfg.ablation.virtual_sim_speed_kmh;
-    sim_opts.max_steer_deg = runtime_cfg.ablation.virtual_sim_max_steer_deg;
-    sim_opts.vc_k_cte = runtime_cfg.ablation.virtual_sim_vc_k_cte;
-    sim_opts.vc_k_heading = runtime_cfg.ablation.virtual_sim_vc_k_heading;
-    sim_opts.raw_k_cte = runtime_cfg.ablation.virtual_sim_raw_k_cte;
-    sim_opts.raw_k_heading = runtime_cfg.ablation.virtual_sim_raw_k_heading;
-    sim_opts.raw_steer_bias_deg = runtime_cfg.ablation.virtual_sim_raw_steer_bias_deg;
-    sim_opts.raw_steer_osc_amp_deg = runtime_cfg.ablation.virtual_sim_raw_steer_osc_amp_deg;
-    sim_opts.raw_steer_osc_period_s = runtime_cfg.ablation.virtual_sim_raw_steer_osc_period_s;
-
     std::string sim_error;
-    if (!ablation_logger.RunVirtualRoadSimulation(sim_opts, &sim_error)) {
+    if (runtime_log_manager.RunVirtualRoadSimulation(&sim_error) == false) {
       std::cerr << "Main: virtual road simulation failed: " << sim_error << std::endl;
       return -1;
     }
     std::cout << "Main: virtual road simulation completed." << std::endl;
-    ablation_logger.Stop();
+    runtime_log_manager.Stop();
     return 0;
   }
 
   CameraModel cam;
-  if (!cam.loadFromYaml(runtime_cfg.app.camera_yaml_path)) {
+  if (cam.loadFromYaml(runtime_cfg.app.camera_yaml_path) == false) {
       std::cerr << "Main: Failed to load camera config: "
                 << runtime_cfg.app.camera_yaml_path << std::endl;
       return -1;
@@ -356,16 +288,13 @@ int main(int argc, char** argv) {
   cv::Mat frame(process_video_height, process_video_width, CV_8UC3);
   cv::Mat output_frame(process_video_height, process_video_width, CV_8UC3);
 
-  // ======================================================================
-  // Input View Set
-  // ======================================================================
   cv::VideoCapture cap;
   if (InitInputAndDisplay(cap, input_view, runtime_cfg.input) != 0) {
       std::cerr << "Video Initialization Failed." << std::endl;
       return -1;
   }
 
-  if (!PrepareProcessFrame(input_view, frame)) {
+  if (PrepareProcessFrame(input_view, frame) == false) {
       std::cerr << "Main: first frame preprocess failed." << std::endl;
       return -1;
   }
@@ -375,25 +304,22 @@ int main(int argc, char** argv) {
               "Output_video.mp4");
 #endif
 
-  // ======================================================================
-  // Engine Set
-  // ======================================================================
 #ifdef USE_TFLITE
   tflite_set_sort_config(runtime_cfg.sort, runtime_cfg.sort_keypoint);
 
-  if (!tflite_init(cli_args.lanepose_model_path, frame)) return -1;
+  if (tflite_init(cli_args.lanepose_model_path, frame) == false) return -1;
 
-  if (!Classify_and_icon_init(cli_args.classify_model_path, runtime_cfg.app.icon_path.c_str())) return -1;
+  if (Classify_and_icon_init(cli_args.classify_model_path, runtime_cfg.app.icon_path.c_str()) == false) return -1;
 #endif
 
 #ifdef USE_TENSORRT
   trt_set_sort_config(runtime_cfg.sort, runtime_cfg.sort_keypoint);
 
-  if (!trt_init(cli_args.lanepose_model_path,
-                cli_args.classify_model_path,
-                runtime_cfg.app.icon_path.c_str(),
-                trt_config)) {
-    std::cerr << "TensorRT init failed\n";
+  if (trt_init(cli_args.lanepose_model_path,
+               cli_args.classify_model_path,
+               runtime_cfg.app.icon_path.c_str(),
+               trt_config) == false) {
+    std::cerr << "TensorRT init failed" << std::endl;
     return -1;
   }
 #endif
@@ -401,54 +327,32 @@ int main(int argc, char** argv) {
   const vehicle_skeleton::SkeletonKptLayout layout = ResolveSkeletonLayout(runtime_cfg);
   collision::CollisionAssist collision_assist(runtime_cfg.collision);
 
-  ResearchLogOptions log_options;
-  log_options.steering_ratio = runtime_cfg.stability.steering_ratio;
-  log_options.wheelbase_m = runtime_cfg.stability.wheelbase_m;
-  log_options.time_sync_uses_ptp = TimeSyncUsingPtp();
-  log_options.time_sync_source = TimeSyncClockSource();
-
-  ResearchDataLogger research_logger(log_options);
-  std::string logger_error;
-  if (!research_logger.Start(&logger_error)) {
-    std::cerr << "Main: failed to start research logger: " << logger_error << std::endl;
-    return -1;
-  }
-  if (research_logger.IsRunning()) {
-    std::cout << "Main: Research log -> " << research_logger.OutputPath() << std::endl;
-  } else {
-    std::cout << "Main: Research logger disabled." << std::endl;
-  }
-
-  // ======================================================================
-  // CANBus
-  // ======================================================================
+  keypad::CommandSource keypad_source;
+  keypad::ReaderConfig keypad_reader_cfg;
+  keypad_reader_cfg.enable_evdev = runtime_cfg.app.enable_keypad_evdev;
+  keypad_reader_cfg.device_path = runtime_cfg.app.keypad_device_path;
+  const bool keypad_evdev_ready = keypad_source.Start(keypad_reader_cfg);
 
 #ifdef CANBUS__
   canbus_recv(CAN);
-
-  canbus_ctrl_steer(1);     // Start/Stop ctrl Steer
-  canbus_ctrl_dec(1);       // Start/Stop ctrl Brake
-
-  cout << "target_speed = " << endl;
-  cin >> ACCconfig.cruise_speed_kmh;
-
-  pthread_t t_S3_v; // 宣告 pthread 變數
-  pthread_t t_S3_dec; // 宣告 pthread 變數
-
-  pthread_create(&t_S3_v, NULL, S3_speed_v, NULL);
-  pthread_create(&t_S3_dec, NULL, S3_dec, NULL);
-
 #endif
+
+#ifdef CANBUS__
+  const bool canbus_compiled = true;
+#else
+  const bool canbus_compiled = false;
+#endif
+  keypad::RuntimeControlState control_state =
+      keypad::MakeInitialRuntimeControlState(runtime_cfg.app, canbus_compiled);
+  keypad::SyncCanRuntimeState(control_state);
 
   clock_t start, end;
   uint64_t frame_index = 0;
 
   while (1) {
     start = clock();
+    HandlePendingCommands(keypad_source, control_state);
 
-    // ======================================================================
-    // Input View
-    // ======================================================================
     uint64_t frame_sync_ns = 0;
     uint64_t frame_hw_ns = 0;
 
@@ -460,7 +364,7 @@ int main(int argc, char** argv) {
       break;
     }
 
-    if (!PrepareProcessFrame(input_view, frame)) {
+    if (PrepareProcessFrame(input_view, frame) == false) {
       std::cout << "Main: frame preprocess failed." << std::endl;
       break;
     }
@@ -475,9 +379,6 @@ int main(int argc, char** argv) {
     }
 #endif
 
-    // ======================================================================
-    // Inference
-    // ======================================================================
     std::vector<TrackingBox> tracking_result;
     std::vector<TrackingBox> world_result;
 
@@ -485,18 +386,19 @@ int main(int argc, char** argv) {
     tracking_result = tflite_run_frame(frame,
                                        output_frame,
                                        runtime_cfg.model.classify_model_width,
-                                       runtime_cfg.model.classify_model_height);
+                                       runtime_cfg.model.classify_model_height,
+                                       control_state.draw_inference_overlay);
 #endif
 
 #ifdef USE_TENSORRT
-    tracking_result = trt_process_frame(frame, output_frame, trt_config);
+    tracking_result = trt_process_frame(frame,
+                                        output_frame,
+                                        trt_config,
+                                        control_state.draw_inference_overlay);
 #endif
 
     world_result = GeometryFunction(output_frame, output_frame, tracking_result, &cam);
 
-    // ======================================================================
-    // Algorithm for LKA / ACC / Stability / Behavior / Collision
-    // ======================================================================
 #ifdef CANBUS__
     const float ego_vehicle_speed_kmh = CAN.speed;
 #else
@@ -514,7 +416,9 @@ int main(int argc, char** argv) {
     std::string dbg;
     auto cmd = stability::VehicleControl_Run(world_result, ego_speed_mps, dt_s, &dbg);
 
-    acc::ACC_DrawTrackingBoxes(output_frame, world_result, cmd.acc_cmd);
+    if (control_state.draw_acc_overlay) {
+      acc::ACC_DrawTrackingBoxes(output_frame, world_result, cmd.acc_cmd);
+    }
 
     const float target_speed_kmh = cmd.acc_cmd.TargetSpeedKmh;
     Targetdistance = cmd.acc_cmd.Targetdistance;
@@ -525,24 +429,21 @@ int main(int argc, char** argv) {
     deceleration = cmd.brake_0_10;
 
     std::vector<TrackingBox> world_before_behavior;
-    if (ablation_logger.IsRunning()) {
+    if (runtime_log_manager.AblationRunning()) {
       world_before_behavior = world_result;
     }
 
-    if (runtime_cfg.behavior.enable) {
-      vehicle_skeleton::RunVehicleSkeletonAndHeading(output_frame, output_frame, world_result, layout);
-    }
+    vehicle_skeleton::SkeletonDrawParams behavior_draw_params;
+    behavior_draw_params.draw_kpts = control_state.draw_behavior_overlay;
+    behavior_draw_params.draw_heading_arrow = control_state.draw_behavior_overlay;
+    behavior_draw_params.draw_heading_text = control_state.draw_behavior_overlay;
 
-    if (ablation_logger.IsRunning()) {
-      ablation::AlgorithmAblationFrame ablation_frame;
-      ablation_frame.frame_index = frame_index;
-      ablation_frame.frame_sync_ns = frame_sync_ns;
-      ablation_frame.dt_s = dt_s;
-      ablation_frame.ego_speed_kmh = ego_vehicle_speed_kmh;
-      ablation_frame.world_before_skeleton = &world_before_behavior;
-      ablation_frame.world_after_skeleton = &world_result;
-      ablation_frame.vehicle_control_cmd = cmd;
-      ablation_logger.Step(ablation_frame);
+    if (runtime_cfg.behavior.enable) {
+      vehicle_skeleton::RunVehicleSkeletonAndHeading(output_frame,
+                                                     output_frame,
+                                                     world_result,
+                                                     layout,
+                                                     behavior_draw_params);
     }
 
     auto ca = collision_assist.Step(
@@ -556,7 +457,8 @@ int main(int argc, char** argv) {
         &deceleration);
     const uint64_t cmd_sync_ns = TimeSyncNowNs();
 
-    if (ca.warning && runtime_cfg.app.draw_collision_border) {
+    if (control_state.draw_collision_overlay &&
+        ca.warning && runtime_cfg.app.draw_collision_border) {
       cv::rectangle(output_frame,
                     cv::Point(0, 0),
                     cv::Point(output_frame.cols - 1, output_frame.rows - 1),
@@ -564,7 +466,8 @@ int main(int argc, char** argv) {
                     10);
     }
 
-    if (ca.warning && ca.threat_id >= 0 && runtime_cfg.app.draw_collision_target_box) {
+    if (control_state.draw_collision_overlay &&
+        ca.warning && ca.threat_id >= 0 && runtime_cfg.app.draw_collision_target_box) {
       for (const auto& tb : world_result) {
         if (tb.id == ca.threat_id) {
           cv::rectangle(output_frame, tb.box, YELLOW, 10);
@@ -572,94 +475,53 @@ int main(int argc, char** argv) {
       }
     }
 
-    // ======================================================================
-    // Draw info
-    // ======================================================================
     DrawTargetInfo(output_frame,
-                  target_speed_kmh, Targetdistance, target_ttc, 40,
-                  "Tg-sped"     , "Tg-dist"     , "TTC",
-                  " km/h"       , " m"          , " s");
+                   target_speed_kmh, Targetdistance, target_ttc, 40,
+                   "Tg-sped", "Tg-dist", "TTC",
+                   " km/h", " m", " s");
 
     DrawTargetInfo(output_frame,
-                  target_speed, targetAngle , deceleration, 80,
-                  "Our-Speed" , "Angle"    , "Dec",
-                  " km/h"     , " m"        , " s");
+                   target_speed, targetAngle, deceleration, 80,
+                   "Our-Speed", "Angle", "Dec",
+                   " km/h", " m", " s");
 
     DrawTargetInfo(output_frame,
-                  0, 0 , CAN.speed, 120,
-                  "" , "" , " ",
-                  "" , "" , " km/h");
+                   0, 0, CAN.speed, 120,
+                   "", "", " ",
+                   "", "", " km/h");
 
-    int world_car_count = 0;
-    int world_person_count = 0;
-    int world_rider_count = 0;
-    for (const auto& tb : world_result) {
-      if (tb.class_id == 1) world_car_count += 1;
-      else if (tb.class_id == 2) world_rider_count += 1;
-      else if (tb.class_id == 3) world_person_count += 1;
-    }
-
-    ResearchLogFrame log_frame;
-    log_frame.frame_index = frame_index++;
-    log_frame.frame_sync_ns = frame_sync_ns;
-    log_frame.frame_hw_ns = frame_hw_ns;
-    log_frame.cmd_sync_ns = cmd_sync_ns;
-    log_frame.can_steer_tx_sync_ns = TimeSyncGetCanSteerTxNs();
-    log_frame.can_brake_tx_sync_ns = TimeSyncGetCanBrakeTxNs();
-
-    log_frame.dt_s = dt_s;
-    log_frame.ego_speed_kmh = ego_vehicle_speed_kmh;
-
-    log_frame.cmd_speed_kmh = target_speed;
-    log_frame.cmd_steer_deg = targetAngle;
-    log_frame.cmd_brake_0_10 = deceleration;
-    log_frame.lka_steer_deg_raw = cmd.lka_steer_deg_raw;
-
-    log_frame.acc_target_speed_kmh = target_speed_kmh;
-    log_frame.acc_target_distance_m = Targetdistance;
-    log_frame.acc_target_ttc_s = target_ttc;
-    log_frame.acc_target_ttc_std_s = cmd.acc_cmd.TargetTTCStd;
-
-    log_frame.collision_warning = ca.warning;
-    log_frame.collision_threat_id = ca.threat_id;
-    log_frame.collision_threat_ttc_s = ca.threat_ttc_s;
-    log_frame.collision_threat_dist_now_m = ca.threat_dist_now_m;
-    log_frame.collision_threat_min_dist_m = ca.threat_min_dist_m;
-    log_frame.collision_threat_approach_speed_mps = ca.threat_approach_speed_mps;
-    log_frame.collision_threat_pos_x_m = ca.threat_pos.x;
-    log_frame.collision_threat_pos_y_m = ca.threat_pos.y;
-
-    log_frame.world_object_count = static_cast<int>(world_result.size());
-    log_frame.world_car_count = world_car_count;
-    log_frame.world_person_count = world_person_count;
-    log_frame.world_rider_count = world_rider_count;
-
+    adas_log::FrameSnapshot log_snapshot;
+    log_snapshot.frame_index = frame_index;
+    log_snapshot.frame_sync_ns = frame_sync_ns;
+    log_snapshot.frame_hw_ns = frame_hw_ns;
+    log_snapshot.cmd_sync_ns = cmd_sync_ns;
+    log_snapshot.dt_s = dt_s;
+    log_snapshot.ego_speed_kmh = ego_vehicle_speed_kmh;
+    log_snapshot.target_speed_kmh = target_speed;
+    log_snapshot.target_distance_m = Targetdistance;
+    log_snapshot.target_ttc_s = target_ttc;
+    log_snapshot.world_before_behavior = runtime_log_manager.AblationRunning() ? &world_before_behavior : nullptr;
+    log_snapshot.world_result = &world_result;
+    log_snapshot.vehicle_cmd = &cmd;
+    log_snapshot.collision_output = &ca;
 #ifdef CANBUS__
-    log_frame.can_valid = true;
+    log_snapshot.can_valid = true;
 #else
-    log_frame.can_valid = false;
+    log_snapshot.can_valid = false;
 #endif
-    log_frame.can_speed_kmh = CAN.speed;
-    log_frame.can_speed_raw_kmh = CAN.speedOri;
-    log_frame.can_steer_deg = CAN.steer;
-    log_frame.can_yaw_deg_s = CAN.yaw;
-    log_frame.can_theta_deg = CAN.theta;
-    log_frame.can_lat_accel_mps2 = CAN.latAccel;
-    log_frame.can_long_accel_mps2 = CAN.longAccel;
-    log_frame.can_steering_torque_nm = CAN.steeringTorque;
-    log_frame.can_meterage_m = CAN.meterage;
-    log_frame.can_throttle = CAN.throttle;
-    log_frame.can_gear = CAN.gear;
-    log_frame.can_turn_signal = CAN.turningSignal;
-
-    research_logger.LogFrame(log_frame);
+    log_snapshot.can_state = &CAN;
+    runtime_log_manager.LogFrame(log_snapshot);
+    frame_index += 1;
 
 #ifdef Save_infer_raw_data__
-    if (!SaveOutputTensorToTxt(pose.interpreter.get(), /*output_index=*/0,
-                               "yolov8_output.txt")) {
-      std::cerr << "SaveOutputTensorToTxt failed\n";
+    if (SaveOutputTensorToTxt(pose.interpreter.get(),
+                              0,
+                              "yolov8_output.txt") == false) {
+      std::cerr << "SaveOutputTensorToTxt failed" << std::endl;
     }
 #endif
+
+    keypad::DrawRuntimeStatusOverlay(output_frame, control_state, keypad_evdev_ready);
 
 #ifdef Write_Video__
     cv::resize(output_frame, output_frame,
@@ -684,21 +546,25 @@ int main(int argc, char** argv) {
 #endif
 
     int key = cv::waitKey(runtime_cfg.app.wait_key_ms);
+    keypad_source.PushCvKey(key);
+    HandlePendingCommands(keypad_source, control_state);
+
     if (key == 32) {
-      std::cout << "Jump Out !" << std::endl;
+      std::cout << "Jump Out" << std::endl;
       break;
     }
   }
 
-  // 關閉資源
+  keypad::ShutdownRuntimeControl(&control_state);
+  keypad_source.Stop();
+
 #ifdef _openCVcap
   cap.release();
 #endif
 #ifdef Write_Video__
   video_writer.release();
 #endif
-  ablation_logger.Stop();
-  research_logger.Stop();
+  runtime_log_manager.Stop();
 
   return 0;
 }

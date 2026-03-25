@@ -75,7 +75,7 @@ typedef struct CAR
 	unsigned char gear;
 	bool SAS_CAL;
 	unsigned char turningSignal;
-	int motorTorque; 
+	int motorTorque;
 
 	/*receive from Radar CAN bus. */
 	int packageID;
@@ -105,7 +105,7 @@ typedef struct CAR
 
 	void cal_radius();
 	void cal_radius(double _tireAngle_, double R[10]);
-	
+
 
 }CAR;
 
@@ -154,6 +154,7 @@ extern std::vector<double> radarV;
 
 extern void canbus_recv(CAR &car);
 extern void canbus_ctrl_steer(int SW);
+extern void canbus_set_steering_tx_enabled(int enabled);
 extern void canbus_ctrl_pedal(double pedalDst);
 extern void canbus_ctrl_gear(int gearDst);
 extern void canbus_ctrl_dec(int SW);

@@ -3,6 +3,7 @@
 #include <sstream>
 #include <iomanip>
 #include <opencv2/opencv.hpp>
+#include "config.h"
 
 // 我增加了 unit_a, unit_b, unit_c 的預設參數
 // 如果你不傳入單位，它會預設使用原本的 km/h, m, s
@@ -49,8 +50,8 @@ void DrawTargetInfo(cv::Mat& img,
 
     // --- 以下為繪圖設定 (保持不變) ---
     int fontFace = cv::FONT_HERSHEY_SIMPLEX;
-    double fontScale = 0.8;
-    int thickness = 2;
+    double fontScale = 0.55;
+    int thickness = 1;
     int baseline = 0;
 
     cv::Size textSize = cv::getTextSize(text, fontFace, fontScale, thickness, &baseline);
@@ -62,12 +63,14 @@ void DrawTargetInfo(cv::Mat& img,
     cv::Rect bgRect(x - padding, y - textSize.height - padding, 
                     textSize.width + (padding * 2), textSize.height + baseline + (padding * 2));
     
-    cv::rectangle(img, bgRect, cv::Scalar(0, 0, 0), cv::FILLED);
+    // cv::rectangle(img, bgRect, cv::Scalar(0, 0, 0), cv::FILLED);
 
     // 顏色邏輯：
     // 如果使用了第三個參數 (TTC) 且數值小於 2.0，則顯示紅色；否則顯示綠色
     // (這裡加了 !label_c.empty() 判斷，避免只顯示變數A時卻變紅)
     cv::Scalar textColor = cv::Scalar(0, 255, 0);
 
-    cv::putText(img, text, textOrg, fontFace, fontScale, textColor, thickness, cv::LINE_AA);
+    cv::putText(img, text, textOrg, fontFace, fontScale, BLACK, thickness+1, cv::LINE_AA);
+    cv::putText(img, text, textOrg, fontFace, fontScale, WHITE, thickness, cv::LINE_AA);
+    
 }

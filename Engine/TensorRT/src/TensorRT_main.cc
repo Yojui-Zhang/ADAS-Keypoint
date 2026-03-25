@@ -4,7 +4,7 @@
 #ifdef USE_TENSORRT
 
 #include "../include/TensorRT.hpp"
-#include <cuda_runtime.h>                   // cudaSetDevice
+#include <cuda_runtime.h>
 
 static SORTTRACKING sorttracking;
 static YOLOv8* yolov8 = nullptr;
@@ -22,69 +22,61 @@ void trt_set_sort_config(const SORTTRACKING::SortTrackingConfig& sort_cfg,
 }
 
 bool trt_init(const char* lanepose_model_path,
-                    char* classify_model_path,
+              char* classify_model_path,
               const char* icon_path,
-              Config&     config)
+              Config& config)
 {
-    // 設定 GPU
+    (void)config;
     cudaSetDevice(0);
 
-    // 建 YOLOv8
     yolov8 = new YOLOv8(lanepose_model_path);
     yolov8->make_pipe(true);
 
-    // 初始化分類模型
     classifydetector.classify_init(classify_model_path);
 
-    // 載入 icon 圖
-    if (!IconManager::Load_Picture(icon_path)) {
-        std::cerr << "\nLoad Icon Picture Failed !" << std::endl;
+    if (IconManager::Load_Picture(icon_path) == false) {
+        std::cerr << "Load Icon Picture Failed" << std::endl;
         return false;
     }
 
     return true;
 }
 
-std::vector<TrackingBox>  trt_process_frame(const cv::Mat& frame,
-                       cv::Mat&       output_frame,
-                       Config&        config)
+std::vector<TrackingBox> trt_process_frame(const cv::Mat& frame,
+                                           cv::Mat& output_frame,
+                                           Config& config,
+                                           bool draw_visuals)
 {
-
     std::vector<TrackingBox> TrackingResult;
 
-    if (!yolov8) {
-        std::cerr << "TensorRT not initialized! Call trt_init() first.\n";
+    if (yolov8 == nullptr) {
+        std::cerr << "TensorRT not initialized" << std::endl;
+        return TrackingResult;
     }
 
-    // preprocess
     yolov8->copy_from_Mat(frame, config.size);
-
-    // invoke
     yolov8->infer();
 
-    // proposals and draw result
-    yolov8->postprocess_pose(
-        objs,
-        config.score_thres,
-        config.iou_thres,
-        config.topk,
-        config.num_labels
-    );
-    
+    yolov8->postprocess_pose(objs,
+                             config.score_thres,
+                             config.iou_thres,
+                             config.topk,
+                             config.num_labels);
+
     TrackingResult = sorttracking.TrackingResult(objs);
 
-
-    // ===========================
-    output_frame = frame;
-    yolov8->draw_pose(
-        frame,
-        output_frame,
-        TrackingResult,
-        SKELETON,
-        KPS_COLORS,
-        LIMB_COLORS,
-        config.num_keypoint
-    );
+    if (draw_visuals) {
+        output_frame = frame;
+        yolov8->draw_pose(frame,
+                          output_frame,
+                          TrackingResult,
+                          SKELETON,
+                          KPS_COLORS,
+                          LIMB_COLORS,
+                          config.num_keypoint);
+    } else {
+        output_frame = frame.clone();
+    }
 
     return TrackingResult;
 }
@@ -93,18 +85,13 @@ std::vector<TrackingBox>  trt_process_frame(const cv::Mat& frame,
 
 void trt_set_sort_config(const SORTTRACKING::SortTrackingConfig&, const sort_kpt::KeypointFilterConfig&) {}
 
-bool trt_init(const char*,
-              char*,
-              const char*,
-              Config&)
+bool trt_init(const char*, char*, const char*, Config&)
 {
-    std::cerr << "TensorRT not enabled (USE_TENSORRT undefined).\n";
+    std::cerr << "TensorRT not enabled" << std::endl;
     return false;
 }
 
-std::vector<TrackingBox> trt_process_frame(const cv::Mat&,
-                                           cv::Mat&,
-                                           Config&)
+std::vector<TrackingBox> trt_process_frame(const cv::Mat&, cv::Mat&, Config&, bool)
 {
     return {};
 }

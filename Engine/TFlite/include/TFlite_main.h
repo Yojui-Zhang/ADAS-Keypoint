@@ -10,6 +10,7 @@ void tflite_set_sort_config(const SORTTRACKING::SortTrackingConfig& sort_cfg,
 
 bool tflite_init(const char* lanepose_model_path, const cv::Mat& first_frame);
 std::vector<TrackingBox> tflite_run_frame(const cv::Mat& frame,
-                                                cv::Mat& out_bgr,
+                                          cv::Mat& out_bgr,
                                           int classify_model_width,
-                                          int classify_model_height);
+                                          int classify_model_height,
+                                          bool draw_visuals = true);

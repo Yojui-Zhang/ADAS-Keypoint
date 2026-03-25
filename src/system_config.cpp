@@ -53,7 +53,7 @@ void ReadBoolIfPresent(const cv::FileNode& node, const char* key, bool& out_valu
 
     int v = out_value ? 1 : 0;
     n >> v;
-    out_value = (v != 0);
+    out_value = (v == 0) ? false : true;
 }
 
 void ReadFilterTypeIfPresent(const cv::FileNode& node, const char* key, int& out_value) {
@@ -84,6 +84,19 @@ void ReadAppConfig(const cv::FileNode& app_node, AppRuntimeConfig& cfg) {
     ReadBoolIfPresent(app_node, "draw_collision_target_box", cfg.draw_collision_target_box);
     ReadBoolIfPresent(app_node, "show_timing_ms", cfg.show_timing_ms);
     ReadIfPresent(app_node, "wait_key_ms", cfg.wait_key_ms);
+
+    ReadBoolIfPresent(app_node, "enable_keypad_evdev", cfg.enable_keypad_evdev);
+    ReadIfPresent(app_node, "keypad_device_path", cfg.keypad_device_path);
+
+    ReadBoolIfPresent(app_node, "can_tx_master_enable", cfg.can_tx_master_enable);
+    ReadBoolIfPresent(app_node, "can_longitudinal_enable", cfg.can_longitudinal_enable);
+    ReadBoolIfPresent(app_node, "can_steering_enable", cfg.can_steering_enable);
+
+    ReadBoolIfPresent(app_node, "draw_inference_overlay", cfg.draw_inference_overlay);
+    ReadBoolIfPresent(app_node, "draw_acc_overlay", cfg.draw_acc_overlay);
+    ReadBoolIfPresent(app_node, "draw_behavior_overlay", cfg.draw_behavior_overlay);
+    ReadBoolIfPresent(app_node, "draw_collision_overlay", cfg.draw_collision_overlay);
+    ReadBoolIfPresent(app_node, "draw_status_hud", cfg.draw_status_hud);
 }
 
 void ReadInputConfig(const cv::FileNode& input_node, InputViewConfig& cfg) {
@@ -310,7 +323,7 @@ void ReadBehaviorConfig(const cv::FileNode& b_node, VehicleBehaviorRuntimeConfig
     ReadBoolIfPresent(b_node, "use_custom_layout", cfg.use_custom_layout);
 
     const cv::FileNode layout_node = b_node["custom_layout"];
-    if (layout_node.empty() || !layout_node.isSeq()) return;
+    if (layout_node.empty() || layout_node.isSeq() == false) return;
     if (layout_node.size() < cfg.custom_layout.size()) return;
 
     for (size_t i = 0; i < cfg.custom_layout.size(); ++i) {
@@ -359,8 +372,8 @@ bool LoadSystemConfig(const std::string& path, AdasSystemConfig& out_config, std
     out_config = AdasSystemConfig{};
 
     cv::FileStorage fs(path, cv::FileStorage::READ);
-    if (!fs.isOpened()) {
-        if (out_error) {
+    if (fs.isOpened() == false) {
+        if (out_error != nullptr) {
             std::ostringstream oss;
             oss << "Failed to open system config: " << path;
             *out_error = oss.str();

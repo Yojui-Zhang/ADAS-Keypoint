@@ -1196,3 +1196,19 @@ void wait_pthread()
 	pthread_join(canWheel, NULL);
 	pthread_join(canDec, NULL);
 }
+
+void canbus_set_steering_tx_enabled(int enabled)
+{
+	if (enabled == 0)
+	{
+		canbus_ctrl_steer(0);
+		return;
+	}
+
+	send_V_Rq_EPS_Ctrl();
+	usleep(10000);
+	send_Rq_EPS_Ctrl();
+	usleep(10000);
+	send_Rq_EPS_Ctrl();
+	canbus_ctrl_steer(1);
+}

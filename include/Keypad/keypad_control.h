@@ -1,0 +1,43 @@
+#pragma once
+
+#include <string>
+
+#include <opencv2/core.hpp>
+
+#include "user_command.h"
+
+struct AppRuntimeConfig;
+
+namespace keypad {
+
+struct RuntimeControlState {
+  bool canbus_compiled = false;
+
+  bool can_tx_master_enable = false;
+  bool can_longitudinal_enable = false;
+  bool can_steering_enable = false;
+
+  bool draw_inference_overlay = true;
+  bool draw_acc_overlay = true;
+  bool draw_behavior_overlay = true;
+  bool draw_collision_overlay = true;
+  bool draw_status_hud = true;
+};
+
+RuntimeControlState MakeInitialRuntimeControlState(const AppRuntimeConfig& cfg,
+                                                   bool canbus_compiled);
+
+bool HandleCommand(user_command_mode_t command,
+                   RuntimeControlState* state,
+                   std::string* out_message = nullptr);
+
+void SyncCanRuntimeState(const RuntimeControlState& state);
+void ShutdownRuntimeControl(RuntimeControlState* state);
+void DrawRuntimeStatusOverlay(cv::Mat& frame,
+                              const RuntimeControlState& state,
+                              bool evdev_ready);
+
+bool LongitudinalControlActive(const RuntimeControlState& state);
+bool SteeringControlActive(const RuntimeControlState& state);
+
+}  // namespace keypad

@@ -12,7 +12,7 @@
 namespace vehicle_skeleton {
 
 static void drawHeadingAnnotation(cv::Mat& img, const TrackingBox& tb, const SkeletonDrawParams& p) {
-    if (!p.draw_heading_text) return;
+    if (p.draw_heading_text == false) return;
 
     std::ostringstream oss;
     if (tb.target_heading_valid) {
@@ -39,28 +39,27 @@ ProcessorOutput ProcessVehicleSkeletonAndHeading(
     out.drawn = src_frame.empty() ? cv::Mat() : src_frame.clone();
 
     for (auto& tb : world_result) {
-        // 只處理車輛類別 = 1
-        if (tb.class_id != 1) continue;
+        if (tb.class_id == 1) {
+            auto hr = ComputeVehicleHeadingFromWorldKpts(tb.kpts, layout, ego_heading_deg);
+            tb.target_heading_valid = hr.valid;
+            tb.target_heading_deg = hr.valid ? hr.heading_deg : std::numeric_limits<float>::quiet_NaN();
 
-        // world kpts -> heading
-        auto hr = ComputeVehicleHeadingFromWorldKpts(tb.kpts, layout, ego_heading_deg);
-        tb.target_heading_valid = hr.valid;
-        tb.target_heading_deg = hr.valid ? hr.heading_deg : std::numeric_limits<float>::quiet_NaN();
+            if (out.drawn.empty() == false) {
+                const bool draw_anything = draw_params.draw_kpts ||
+                                           draw_params.draw_heading_arrow ||
+                                           draw_params.draw_heading_text;
+                if (draw_anything) {
+                    // (void)DrawVehicleSkeletonOnImage(out.drawn, tb, layout, draw_params);
+                    cv::rectangle(out.drawn, tb.box, draw_params.color, 2, cv::LINE_AA);
+                    drawHeadingAnnotation(out.drawn, tb, draw_params);
+                }
+            }
 
-        // draw skeleton on image (needs pixel kpts from history/last)
-        // if (!out.drawn.empty()) {
-        //     (void)DrawVehicleSkeletonOnImage(out.drawn, tb, layout, draw_params);
-        //     // optionally draw bounding box
-        //     cv::rectangle(out.drawn, tb.box, draw_params.color, 2, cv::LINE_AA);
-        //     drawHeadingAnnotation(out.drawn, tb, draw_params);
-        // }
-
-        out.processed_vehicle_count++;
-
+            out.processed_vehicle_count++;
+        }
     }
 
     return out;
 }
 
 } // namespace vehicle_skeleton
-
