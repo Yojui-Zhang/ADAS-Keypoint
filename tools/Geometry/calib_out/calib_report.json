@@ -1,0 +1,982 @@
+{
+  "input": "./Picture/",
+  "board": {
+    "cols": 8,
+    "rows": 6,
+    "square": 0.035
+  },
+  "image_size": {
+    "width": 1280,
+    "height": 720
+  },
+  "used_total": 120,
+  "used_kept": 117,
+  "use_rational_model": false,
+  "reject_outliers": true,
+  "rms": 0.445580169865151,
+  "global_rmse": 0.4455800105004049,
+  "K": [
+    [
+      1266.0386901981599,
+      0.0,
+      662.0105490294332
+    ],
+    [
+      0.0,
+      1272.6210601822647,
+      326.1496260472111
+    ],
+    [
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "D": [
+    -0.5345838424590805,
+    0.46847665859315724,
+    0.0080879693882625,
+    -0.002624830149302885,
+    -0.613578538163101
+  ],
+  "per_view_rmse": [
+    0.6119553446769714,
+    0.4558173716068268,
+    0.373597651720047,
+    0.6585044264793396,
+    0.46148326992988586,
+    0.6001024842262268,
+    0.36338019371032715,
+    0.5756462812423706,
+    0.4251258671283722,
+    0.4214833080768585,
+    0.6167680025100708,
+    0.27387112379074097,
+    0.6629133820533752,
+    0.7267075181007385,
+    0.41322898864746094,
+    0.4640750586986542,
+    0.4882428050041199,
+    0.42690059542655945,
+    0.6363626718521118,
+    0.3493918478488922,
+    0.654324471950531,
+    0.5451562404632568,
+    0.3479919135570526,
+    0.2351006120443344,
+    0.21058490872383118,
+    0.3545585870742798,
+    0.4942915439605713,
+    0.21229681372642517,
+    0.5335129499435425,
+    0.13320811092853546,
+    0.3014073371887207,
+    0.2276872843503952,
+    0.34126004576683044,
+    0.21087977290153503,
+    0.35091060400009155,
+    0.7388043403625488,
+    0.483000248670578,
+    0.3398621678352356,
+    0.24801886081695557,
+    0.24222129583358765,
+    0.38715025782585144,
+    0.5814288854598999,
+    0.5248955488204956,
+    0.2562936544418335,
+    0.2972412109375,
+    0.5443267822265625,
+    0.14248795807361603,
+    0.4228519797325134,
+    0.41892626881599426,
+    0.5098004937171936,
+    0.4527192711830139,
+    0.5096949338912964,
+    0.582384467124939,
+    0.5895780324935913,
+    0.2598901391029358,
+    0.7032102942466736,
+    0.4051438570022583,
+    0.5989091396331787,
+    0.5306878685951233,
+    0.22592681646347046,
+    0.3521340489387512,
+    0.5811127424240112,
+    0.35716482996940613,
+    0.38927707076072693,
+    0.4761635661125183,
+    0.44224831461906433,
+    0.38790297508239746,
+    0.3023812472820282,
+    0.5997185111045837,
+    0.3540906608104706,
+    0.6687242388725281,
+    0.552642285823822,
+    0.6296944618225098,
+    0.5290213227272034,
+    0.2582331597805023,
+    0.4356391131877899,
+    0.2016817182302475,
+    0.47321370244026184,
+    0.44851070642471313,
+    0.4803718030452728,
+    0.43337392807006836,
+    0.6384086608886719,
+    0.2900048494338989,
+    0.4724509119987488,
+    0.42047443985939026,
+    0.521293044090271,
+    0.45543816685676575,
+    0.5244259834289551,
+    0.37376049160957336,
+    0.32902589440345764,
+    0.2521201968193054,
+    0.4961213171482086,
+    0.5902591347694397,
+    0.23241901397705078,
+    0.3798462450504303,
+    0.5000216960906982,
+    0.2314232587814331,
+    0.20041099190711975,
+    0.24792051315307617,
+    0.34647783637046814,
+    0.13798415660858154,
+    0.4387435019016266,
+    0.4651651680469513,
+    0.4764522612094879,
+    0.27957451343536377,
+    0.5119221806526184,
+    0.4867291748523712,
+    0.23016735911369324,
+    0.40822556614875793,
+    0.4467584788799286,
+    0.40013888478279114,
+    0.2030792534351349,
+    0.5826079845428467,
+    0.414379745721817,
+    0.29815515875816345,
+    0.3181784152984619,
+    0.3325157165527344
+  ],
+  "frames": [
+    {
+      "source": "./Picture/RD-2_0267.jpg",
+      "frame_index": -1,
+      "sharpness": 897.1389359554664,
+      "coverage": 0.11991913616657257,
+      "saved_path": "calib_out/used_frames/RD-2_0267_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0354.jpg",
+      "frame_index": -1,
+      "sharpness": 855.6372807734691,
+      "coverage": 0.11884140968322754,
+      "saved_path": "calib_out/used_frames/RD-2_0354_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0331.jpg",
+      "frame_index": -1,
+      "sharpness": 900.9905332370154,
+      "coverage": 0.11729314923286438,
+      "saved_path": "calib_out/used_frames/RD-2_0331_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0346.jpg",
+      "frame_index": -1,
+      "sharpness": 810.4722706363243,
+      "coverage": 0.11690539866685867,
+      "saved_path": "calib_out/used_frames/RD-2_0346_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0330.jpg",
+      "frame_index": -1,
+      "sharpness": 919.6348284596464,
+      "coverage": 0.11501360684633255,
+      "saved_path": "calib_out/used_frames/RD-2_0330_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0268.jpg",
+      "frame_index": -1,
+      "sharpness": 868.4415505458396,
+      "coverage": 0.11448480188846588,
+      "saved_path": "calib_out/used_frames/RD-2_0268_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0355.jpg",
+      "frame_index": -1,
+      "sharpness": 860.1958156029968,
+      "coverage": 0.11391682922840118,
+      "saved_path": "calib_out/used_frames/RD-2_0355_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0353.jpg",
+      "frame_index": -1,
+      "sharpness": 852.7920283263409,
+      "coverage": 0.11365585029125214,
+      "saved_path": "calib_out/used_frames/RD-2_0353_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0322.jpg",
+      "frame_index": -1,
+      "sharpness": 965.7611766600605,
+      "coverage": 0.1134895607829094,
+      "saved_path": "calib_out/used_frames/RD-2_0322_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0323.jpg",
+      "frame_index": -1,
+      "sharpness": 974.015535899179,
+      "coverage": 0.1130714938044548,
+      "saved_path": "calib_out/used_frames/RD-2_0323_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0347.jpg",
+      "frame_index": -1,
+      "sharpness": 821.0877186680499,
+      "coverage": 0.1129683181643486,
+      "saved_path": "calib_out/used_frames/RD-2_0347_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0332.jpg",
+      "frame_index": -1,
+      "sharpness": 882.9255441366302,
+      "coverage": 0.11157092452049255,
+      "saved_path": "calib_out/used_frames/RD-2_0332_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0259.jpg",
+      "frame_index": -1,
+      "sharpness": 1095.8901077369392,
+      "coverage": 0.11074686795473099,
+      "saved_path": "calib_out/used_frames/RD-2_0259_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0260.jpg",
+      "frame_index": -1,
+      "sharpness": 1075.802686173445,
+      "coverage": 0.10881486535072327,
+      "saved_path": "calib_out/used_frames/RD-2_0260_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0368.jpg",
+      "frame_index": -1,
+      "sharpness": 904.1611479694461,
+      "coverage": 0.10822373628616333,
+      "saved_path": "calib_out/used_frames/RD-2_0368_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0321.jpg",
+      "frame_index": -1,
+      "sharpness": 956.8593037778488,
+      "coverage": 0.10661028325557709,
+      "saved_path": "calib_out/used_frames/RD-2_0321_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0324.jpg",
+      "frame_index": -1,
+      "sharpness": 980.4633518826231,
+      "coverage": 0.10647732764482498,
+      "saved_path": "calib_out/used_frames/RD-2_0324_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0367.jpg",
+      "frame_index": -1,
+      "sharpness": 899.9178823150339,
+      "coverage": 0.10620640218257904,
+      "saved_path": "calib_out/used_frames/RD-2_0367_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0266.jpg",
+      "frame_index": -1,
+      "sharpness": 933.129581162964,
+      "coverage": 0.10610320419073105,
+      "saved_path": "calib_out/used_frames/RD-2_0266_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0369.jpg",
+      "frame_index": -1,
+      "sharpness": 901.7176638171998,
+      "coverage": 0.1054055392742157,
+      "saved_path": "calib_out/used_frames/RD-2_0369_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0345.jpg",
+      "frame_index": -1,
+      "sharpness": 808.6499819223746,
+      "coverage": 0.10518674552440643,
+      "saved_path": "calib_out/used_frames/RD-2_0345_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0129.jpg",
+      "frame_index": -1,
+      "sharpness": 775.6191449062017,
+      "coverage": 0.10514821112155914,
+      "saved_path": "calib_out/used_frames/RD-2_0129_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0384.jpg",
+      "frame_index": -1,
+      "sharpness": 855.9586280312428,
+      "coverage": 0.10469232499599457,
+      "saved_path": "calib_out/used_frames/RD-2_0384_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0385.jpg",
+      "frame_index": -1,
+      "sharpness": 860.0209052851064,
+      "coverage": 0.10448414832353592,
+      "saved_path": "calib_out/used_frames/RD-2_0385_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0397.jpg",
+      "frame_index": -1,
+      "sharpness": 678.15440591456,
+      "coverage": 0.10372722893953323,
+      "saved_path": "calib_out/used_frames/RD-2_0397_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0356.jpg",
+      "frame_index": -1,
+      "sharpness": 867.6777723524308,
+      "coverage": 0.10361507534980774,
+      "saved_path": "calib_out/used_frames/RD-2_0356_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0329.jpg",
+      "frame_index": -1,
+      "sharpness": 938.9678964481875,
+      "coverage": 0.10293958336114883,
+      "saved_path": "calib_out/used_frames/RD-2_0329_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0391.jpg",
+      "frame_index": -1,
+      "sharpness": 772.3195543640034,
+      "coverage": 0.1028686910867691,
+      "saved_path": "calib_out/used_frames/RD-2_0391_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0130.jpg",
+      "frame_index": -1,
+      "sharpness": 757.8804196333884,
+      "coverage": 0.10280308127403259,
+      "saved_path": "calib_out/used_frames/RD-2_0130_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0377.jpg",
+      "frame_index": -1,
+      "sharpness": 919.836556242747,
+      "coverage": 0.1016707643866539,
+      "saved_path": "calib_out/used_frames/RD-2_0377_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0370.jpg",
+      "frame_index": -1,
+      "sharpness": 908.6453415842112,
+      "coverage": 0.10110171884298325,
+      "saved_path": "calib_out/used_frames/RD-2_0370_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0333.jpg",
+      "frame_index": -1,
+      "sharpness": 862.3040765183014,
+      "coverage": 0.10092756152153015,
+      "saved_path": "calib_out/used_frames/RD-2_0333_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0392.jpg",
+      "frame_index": -1,
+      "sharpness": 754.3359749378054,
+      "coverage": 0.10064151883125305,
+      "saved_path": "calib_out/used_frames/RD-2_0392_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0398.jpg",
+      "frame_index": -1,
+      "sharpness": 676.9862924992882,
+      "coverage": 0.10038845986127853,
+      "saved_path": "calib_out/used_frames/RD-2_0398_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0378.jpg",
+      "frame_index": -1,
+      "sharpness": 897.9164904328333,
+      "coverage": 0.10018100589513779,
+      "saved_path": "calib_out/used_frames/RD-2_0378_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0251.jpg",
+      "frame_index": -1,
+      "sharpness": 1116.8006337582326,
+      "coverage": 0.09947704523801804,
+      "saved_path": "calib_out/used_frames/RD-2_0251_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0348.jpg",
+      "frame_index": -1,
+      "sharpness": 840.7561378593334,
+      "coverage": 0.09915821254253387,
+      "saved_path": "calib_out/used_frames/RD-2_0348_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0396.jpg",
+      "frame_index": -1,
+      "sharpness": 688.0785714915232,
+      "coverage": 0.09764367341995239,
+      "saved_path": "calib_out/used_frames/RD-2_0396_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0376.jpg",
+      "frame_index": -1,
+      "sharpness": 940.510813334782,
+      "coverage": 0.09698119014501572,
+      "saved_path": "calib_out/used_frames/RD-2_0376_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0383.jpg",
+      "frame_index": -1,
+      "sharpness": 853.459942849011,
+      "coverage": 0.09669115394353867,
+      "saved_path": "calib_out/used_frames/RD-2_0383_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0366.jpg",
+      "frame_index": -1,
+      "sharpness": 905.422149861635,
+      "coverage": 0.09639015048742294,
+      "saved_path": "calib_out/used_frames/RD-2_0366_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0352.jpg",
+      "frame_index": -1,
+      "sharpness": 855.4486823186239,
+      "coverage": 0.09612254798412323,
+      "saved_path": "calib_out/used_frames/RD-2_0352_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0207.jpg",
+      "frame_index": -1,
+      "sharpness": 863.3577614717266,
+      "coverage": 0.09498606622219086,
+      "saved_path": "calib_out/used_frames/RD-2_0207_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0371.jpg",
+      "frame_index": -1,
+      "sharpness": 916.2964094862184,
+      "coverage": 0.09447552263736725,
+      "saved_path": "calib_out/used_frames/RD-2_0371_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0390.jpg",
+      "frame_index": -1,
+      "sharpness": 801.8378046898441,
+      "coverage": 0.0940607488155365,
+      "saved_path": "calib_out/used_frames/RD-2_0390_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0128.jpg",
+      "frame_index": -1,
+      "sharpness": 798.8098531344363,
+      "coverage": 0.09389831870794296,
+      "saved_path": "calib_out/used_frames/RD-2_0128_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0340.jpg",
+      "frame_index": -1,
+      "sharpness": 871.6528530668282,
+      "coverage": 0.0937424749135971,
+      "saved_path": "calib_out/used_frames/RD-2_0340_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0386.jpg",
+      "frame_index": -1,
+      "sharpness": 861.4959505207581,
+      "coverage": 0.09344865381717682,
+      "saved_path": "calib_out/used_frames/RD-2_0386_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0430.jpg",
+      "frame_index": -1,
+      "sharpness": 1062.6519861226388,
+      "coverage": 0.09311355650424957,
+      "saved_path": "calib_out/used_frames/RD-2_0430_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0208.jpg",
+      "frame_index": -1,
+      "sharpness": 849.866534846317,
+      "coverage": 0.09286995977163315,
+      "saved_path": "calib_out/used_frames/RD-2_0208_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0320.jpg",
+      "frame_index": -1,
+      "sharpness": 968.6847138603637,
+      "coverage": 0.09174630790948868,
+      "saved_path": "calib_out/used_frames/RD-2_0320_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0325.jpg",
+      "frame_index": -1,
+      "sharpness": 965.415734893121,
+      "coverage": 0.0915573388338089,
+      "saved_path": "calib_out/used_frames/RD-2_0325_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0252.jpg",
+      "frame_index": -1,
+      "sharpness": 1126.7342883780855,
+      "coverage": 0.09130039066076279,
+      "saved_path": "calib_out/used_frames/RD-2_0252_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0258.jpg",
+      "frame_index": -1,
+      "sharpness": 1098.1467468962444,
+      "coverage": 0.09101951122283936,
+      "saved_path": "calib_out/used_frames/RD-2_0258_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0341.jpg",
+      "frame_index": -1,
+      "sharpness": 854.5648803438917,
+      "coverage": 0.0908890962600708,
+      "saved_path": "calib_out/used_frames/RD-2_0341_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0461.jpg",
+      "frame_index": -1,
+      "sharpness": 740.2802175302568,
+      "coverage": 0.09023366123437881,
+      "saved_path": "calib_out/used_frames/RD-2_0461_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0399.jpg",
+      "frame_index": -1,
+      "sharpness": 683.5264081281452,
+      "coverage": 0.0900418609380722,
+      "saved_path": "calib_out/used_frames/RD-2_0399_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0466.jpg",
+      "frame_index": -1,
+      "sharpness": 686.9504199116922,
+      "coverage": 0.08968217670917511,
+      "saved_path": "calib_out/used_frames/RD-2_0466_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0269.jpg",
+      "frame_index": -1,
+      "sharpness": 839.1280397777372,
+      "coverage": 0.08892695605754852,
+      "saved_path": "calib_out/used_frames/RD-2_0269_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0339.jpg",
+      "frame_index": -1,
+      "sharpness": 862.3972915965709,
+      "coverage": 0.08851353824138641,
+      "saved_path": "calib_out/used_frames/RD-2_0339_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0375.jpg",
+      "frame_index": -1,
+      "sharpness": 933.9588059107169,
+      "coverage": 0.08837927877902985,
+      "saved_path": "calib_out/used_frames/RD-2_0375_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0261.jpg",
+      "frame_index": -1,
+      "sharpness": 1051.0604570244634,
+      "coverage": 0.08826248347759247,
+      "saved_path": "calib_out/used_frames/RD-2_0261_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0431.jpg",
+      "frame_index": -1,
+      "sharpness": 1072.5409125433073,
+      "coverage": 0.08822476118803024,
+      "saved_path": "calib_out/used_frames/RD-2_0431_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0357.jpg",
+      "frame_index": -1,
+      "sharpness": 865.4495462938833,
+      "coverage": 0.08819149434566498,
+      "saved_path": "calib_out/used_frames/RD-2_0357_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0379.jpg",
+      "frame_index": -1,
+      "sharpness": 870.6456631876581,
+      "coverage": 0.08796117454767227,
+      "saved_path": "calib_out/used_frames/RD-2_0379_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0074.jpg",
+      "frame_index": -1,
+      "sharpness": 909.8366134905389,
+      "coverage": 0.08763536065816879,
+      "saved_path": "calib_out/used_frames/RD-2_0074_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0073.jpg",
+      "frame_index": -1,
+      "sharpness": 895.2154622047518,
+      "coverage": 0.08719469606876373,
+      "saved_path": "calib_out/used_frames/RD-2_0073_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0485.jpg",
+      "frame_index": -1,
+      "sharpness": 633.1123148652822,
+      "coverage": 0.08718271553516388,
+      "saved_path": "calib_out/used_frames/RD-2_0485_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0462.jpg",
+      "frame_index": -1,
+      "sharpness": 749.0329860824584,
+      "coverage": 0.08713529258966446,
+      "saved_path": "calib_out/used_frames/RD-2_0462_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0486.jpg",
+      "frame_index": -1,
+      "sharpness": 619.059292534647,
+      "coverage": 0.08705803751945496,
+      "saved_path": "calib_out/used_frames/RD-2_0486_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0480.jpg",
+      "frame_index": -1,
+      "sharpness": 884.776251726273,
+      "coverage": 0.0865337997674942,
+      "saved_path": "calib_out/used_frames/RD-2_0480_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0206.jpg",
+      "frame_index": -1,
+      "sharpness": 856.7144989750428,
+      "coverage": 0.08652029186487198,
+      "saved_path": "calib_out/used_frames/RD-2_0206_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0467.jpg",
+      "frame_index": -1,
+      "sharpness": 687.5525301820917,
+      "coverage": 0.0862005427479744,
+      "saved_path": "calib_out/used_frames/RD-2_0467_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0487.jpg",
+      "frame_index": -1,
+      "sharpness": 659.3422642971037,
+      "coverage": 0.08612621575593948,
+      "saved_path": "calib_out/used_frames/RD-2_0487_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0334.jpg",
+      "frame_index": -1,
+      "sharpness": 858.6347314831719,
+      "coverage": 0.08588621020317078,
+      "saved_path": "calib_out/used_frames/RD-2_0334_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0209.jpg",
+      "frame_index": -1,
+      "sharpness": 835.2567088734086,
+      "coverage": 0.08539574593305588,
+      "saved_path": "calib_out/used_frames/RD-2_0209_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0372.jpg",
+      "frame_index": -1,
+      "sharpness": 928.2170745425325,
+      "coverage": 0.08534722030162811,
+      "saved_path": "calib_out/used_frames/RD-2_0372_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0429.jpg",
+      "frame_index": -1,
+      "sharpness": 1047.2229701514732,
+      "coverage": 0.08479347825050354,
+      "saved_path": "calib_out/used_frames/RD-2_0429_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0455.jpg",
+      "frame_index": -1,
+      "sharpness": 787.3342283167415,
+      "coverage": 0.08466962724924088,
+      "saved_path": "calib_out/used_frames/RD-2_0455_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0328.jpg",
+      "frame_index": -1,
+      "sharpness": 967.3465868405896,
+      "coverage": 0.08436428010463715,
+      "saved_path": "calib_out/used_frames/RD-2_0328_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0454.jpg",
+      "frame_index": -1,
+      "sharpness": 793.9281053127527,
+      "coverage": 0.08399274200201035,
+      "saved_path": "calib_out/used_frames/RD-2_0454_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0250.jpg",
+      "frame_index": -1,
+      "sharpness": 1120.0427292469114,
+      "coverage": 0.08397680521011353,
+      "saved_path": "calib_out/used_frames/RD-2_0250_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0075.jpg",
+      "frame_index": -1,
+      "sharpness": 899.1525943145735,
+      "coverage": 0.08396781235933304,
+      "saved_path": "calib_out/used_frames/RD-2_0075_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0265.jpg",
+      "frame_index": -1,
+      "sharpness": 971.7553865877491,
+      "coverage": 0.08389975130558014,
+      "saved_path": "calib_out/used_frames/RD-2_0265_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0349.jpg",
+      "frame_index": -1,
+      "sharpness": 850.5108370442279,
+      "coverage": 0.08350639045238495,
+      "saved_path": "calib_out/used_frames/RD-2_0349_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0393.jpg",
+      "frame_index": -1,
+      "sharpness": 732.1277103074814,
+      "coverage": 0.08348696678876877,
+      "saved_path": "calib_out/used_frames/RD-2_0393_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0131.jpg",
+      "frame_index": -1,
+      "sharpness": 754.5767615010577,
+      "coverage": 0.08344070613384247,
+      "saved_path": "calib_out/used_frames/RD-2_0131_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0479.jpg",
+      "frame_index": -1,
+      "sharpness": 932.0426145290614,
+      "coverage": 0.08295003324747086,
+      "saved_path": "calib_out/used_frames/RD-2_0479_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0484.jpg",
+      "frame_index": -1,
+      "sharpness": 629.8897948984678,
+      "coverage": 0.08289308845996857,
+      "saved_path": "calib_out/used_frames/RD-2_0484_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0382.jpg",
+      "frame_index": -1,
+      "sharpness": 850.1619672262299,
+      "coverage": 0.08254154771566391,
+      "saved_path": "calib_out/used_frames/RD-2_0382_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0338.jpg",
+      "frame_index": -1,
+      "sharpness": 853.6327691661679,
+      "coverage": 0.08177278935909271,
+      "saved_path": "calib_out/used_frames/RD-2_0338_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0395.jpg",
+      "frame_index": -1,
+      "sharpness": 695.3720222132883,
+      "coverage": 0.08093216270208359,
+      "saved_path": "calib_out/used_frames/RD-2_0395_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0344.jpg",
+      "frame_index": -1,
+      "sharpness": 822.5086116209136,
+      "coverage": 0.08063869923353195,
+      "saved_path": "calib_out/used_frames/RD-2_0344_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0076.jpg",
+      "frame_index": -1,
+      "sharpness": 867.1279597412108,
+      "coverage": 0.0805138498544693,
+      "saved_path": "calib_out/used_frames/RD-2_0076_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0365.jpg",
+      "frame_index": -1,
+      "sharpness": 917.172591120825,
+      "coverage": 0.08036339282989502,
+      "saved_path": "calib_out/used_frames/RD-2_0365_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0465.jpg",
+      "frame_index": -1,
+      "sharpness": 701.5222851560806,
+      "coverage": 0.08009760826826096,
+      "saved_path": "calib_out/used_frames/RD-2_0465_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0374.jpg",
+      "frame_index": -1,
+      "sharpness": 935.4043345978525,
+      "coverage": 0.0798737108707428,
+      "saved_path": "calib_out/used_frames/RD-2_0374_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0404.jpg",
+      "frame_index": -1,
+      "sharpness": 739.278431791513,
+      "coverage": 0.07922833412885666,
+      "saved_path": "calib_out/used_frames/RD-2_0404_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0405.jpg",
+      "frame_index": -1,
+      "sharpness": 721.261685344921,
+      "coverage": 0.07919057458639145,
+      "saved_path": "calib_out/used_frames/RD-2_0405_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0342.jpg",
+      "frame_index": -1,
+      "sharpness": 838.7681347428768,
+      "coverage": 0.07897341251373291,
+      "saved_path": "calib_out/used_frames/RD-2_0342_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0373.jpg",
+      "frame_index": -1,
+      "sharpness": 931.5537572999638,
+      "coverage": 0.07816183567047119,
+      "saved_path": "calib_out/used_frames/RD-2_0373_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0389.jpg",
+      "frame_index": -1,
+      "sharpness": 830.9428380978011,
+      "coverage": 0.07792502641677856,
+      "saved_path": "calib_out/used_frames/RD-2_0389_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0456.jpg",
+      "frame_index": -1,
+      "sharpness": 783.0903341369207,
+      "coverage": 0.0771070122718811,
+      "saved_path": "calib_out/used_frames/RD-2_0456_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0460.jpg",
+      "frame_index": -1,
+      "sharpness": 753.9375748628107,
+      "coverage": 0.07693545520305634,
+      "saved_path": "calib_out/used_frames/RD-2_0460_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0210.jpg",
+      "frame_index": -1,
+      "sharpness": 851.9074576784667,
+      "coverage": 0.07692129164934158,
+      "saved_path": "calib_out/used_frames/RD-2_0210_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0278.jpg",
+      "frame_index": -1,
+      "sharpness": 691.9421720933507,
+      "coverage": 0.07645399868488312,
+      "saved_path": "calib_out/used_frames/RD-2_0278_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0127.jpg",
+      "frame_index": -1,
+      "sharpness": 810.6540412784051,
+      "coverage": 0.07632527500391006,
+      "saved_path": "calib_out/used_frames/RD-2_0127_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0077.jpg",
+      "frame_index": -1,
+      "sharpness": 845.7697816551479,
+      "coverage": 0.07591993361711502,
+      "saved_path": "calib_out/used_frames/RD-2_0077_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0474.jpg",
+      "frame_index": -1,
+      "sharpness": 947.1455454703427,
+      "coverage": 0.07575996220111847,
+      "saved_path": "calib_out/used_frames/RD-2_0474_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0277.jpg",
+      "frame_index": -1,
+      "sharpness": 731.7965945607461,
+      "coverage": 0.07568718492984772,
+      "saved_path": "calib_out/used_frames/RD-2_0277_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0473.jpg",
+      "frame_index": -1,
+      "sharpness": 911.2447992540419,
+      "coverage": 0.07547647505998611,
+      "saved_path": "calib_out/used_frames/RD-2_0473_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0337.jpg",
+      "frame_index": -1,
+      "sharpness": 852.4732817630894,
+      "coverage": 0.07439550757408142,
+      "saved_path": "calib_out/used_frames/RD-2_0337_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0400.jpg",
+      "frame_index": -1,
+      "sharpness": 685.6994567888003,
+      "coverage": 0.07422704249620438,
+      "saved_path": "calib_out/used_frames/RD-2_0400_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0453.jpg",
+      "frame_index": -1,
+      "sharpness": 784.5310140501126,
+      "coverage": 0.07404579222202301,
+      "saved_path": "calib_out/used_frames/RD-2_0453_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0472.jpg",
+      "frame_index": -1,
+      "sharpness": 869.6314742173927,
+      "coverage": 0.07404541969299316,
+      "saved_path": "calib_out/used_frames/RD-2_0472_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0432.jpg",
+      "frame_index": -1,
+      "sharpness": 1076.4420679346717,
+      "coverage": 0.0740295797586441,
+      "saved_path": "calib_out/used_frames/RD-2_0432_used.png"
+    },
+    {
+      "source": "./Picture/RD-2_0319.jpg",
+      "frame_index": -1,
+      "sharpness": 985.2487069540131,
+      "coverage": 0.0740281417965889,
+      "saved_path": "calib_out/used_frames/RD-2_0319_used.png"
+    }
+  ]
+}

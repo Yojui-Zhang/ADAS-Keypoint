@@ -1,7 +1,7 @@
 %YAML:1.0
 ---
 app:
-  run_mode: "video"
+  run_mode: "real_car"
   camera_yaml_path: "../Camera-Config/Sensing-3M.yaml"
   icon_path: "../icon"
   fallback_ego_speed_kmh: 10.0
@@ -17,6 +17,7 @@ app:
   can_tx_master_enable: 0
   can_longitudinal_enable: 0
   can_steering_enable: 0
+  longitudinal_controller: "pid"   # keypad, pid
 
   draw_inference_overlay: 1
   draw_acc_overlay: 1
@@ -26,9 +27,9 @@ app:
 
 input:
   video_path: "../video/1280x720/vecow-demo.mp4"
-  camera_index: -1
-  capture_width: 1280
-  capture_height: 720
+  camera_index: 1
+  capture_width: 1920
+  capture_height: 1080
   window_name: "Screen"
   fullscreen: 1
 
@@ -75,13 +76,13 @@ acc:
   cruise_speed_kmh: 30.0
   time_gap_s: 1.5
   standstill_gap_m: 5.0
-  max_accel_mps2: 2.0
+  max_accel_mps2: 5.0
   comfort_decel_mps2: 2.5
   max_decel_mps2: 6.0
   jerk_limit_mps3: 2.0
   brake_full_decel_mps2: 2.0
   brake_multiplier: 1.0
-  default_fps: 30.0
+  default_fps: 20.0
   use_external_ego_speed: 0
 
 lka:
@@ -98,7 +99,7 @@ lka:
   ff_gain: 1.0
   x_curvature_m: 1.0
   max_ff_deg: 25.0
-  max_steer_deg: 30.0
+  max_steer_deg: 59.0
   max_steer_rate_deg_s: 200.0
   dt_s: 0.02
   use_confidence: 1
@@ -118,12 +119,13 @@ lka:
   enable_prob_lowpass: 1
   prob_alpha: 0.85
   lane_width_m: 3.76
+  lane_center_offset_m: 0.7
   visual_limit_m: 20.0
 
 stability:
   mass_kg: 1350.0
   wheelbase_m: 2.62
-  steering_ratio: 1.0
+  steering_ratio: 2.5
   g: 9.81
   mu_static: 0.90
   mu_dynamic: 0.75

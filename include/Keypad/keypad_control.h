@@ -10,12 +10,19 @@ struct AppRuntimeConfig;
 
 namespace keypad {
 
+enum class LongitudinalControllerKind {
+  Keypad,
+  Pid,
+};
+
 struct RuntimeControlState {
   bool canbus_compiled = false;
 
   bool can_tx_master_enable = false;
   bool can_longitudinal_enable = false;
   bool can_steering_enable = false;
+  LongitudinalControllerKind longitudinal_controller = LongitudinalControllerKind::Keypad;
+  std::string longitudinal_controller_name = "keypad";
 
   bool draw_inference_overlay = true;
   bool draw_acc_overlay = true;

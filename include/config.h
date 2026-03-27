@@ -2,7 +2,7 @@
 #include <opencv2/core.hpp>  // 包含 cv::Scalar 和其他基本類型
 
 // 是否啟動 CANBus 實車控車
-// #define CANBUS__
+#define CANBUS__
 
 // 是否啟用 GPU delegate（TFLite）
 // #define _GPU_delegate
@@ -30,11 +30,11 @@
 // 1920x1536 -> 1920x1080 -> 1280x720
 // 1280x960 -> 1280x720 -> 1280x720
 
-#define input_video_width 1280
-#define input_video_height 720
+#define input_video_width 1920
+#define input_video_height 1080
 
-#define rect_video_width 1280       // 輸入裁切寬度（openCV 路徑）
-#define rect_video_height 720       // 輸入裁切高度（openCV 路徑）
+#define rect_video_width 1920       // 輸入裁切寬度（openCV 路徑）
+#define rect_video_height 1080       // 輸入裁切高度（openCV 路徑）
 
 #define process_video_width 1280    // 演算法處理寬度
 #define process_video_height 720    // 演算法處理高度

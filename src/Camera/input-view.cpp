@@ -13,18 +13,46 @@
     extern cv::Mat v4l2Cam();
 #endif
 
+namespace {
+
+bool OpenCamera(cv::VideoCapture& cap, int camera_index) {
+    if (camera_index < 0) {
+        return false;
+    }
+
+    if (cap.open(camera_index, cv::CAP_V4L2)) {
+        return true;
+    }
+    if (cap.open(camera_index)) {
+        return true;
+    }
+
+    const std::string device_path = "/dev/video" + std::to_string(camera_index);
+    if (cap.open(device_path, cv::CAP_V4L2)) {
+        return true;
+    }
+    return cap.open(device_path);
+}
+
+}  // namespace
+
 
 int InitInputAndDisplay(cv::VideoCapture& cap, cv::Mat& frame, const InputViewConfig& cfg) {
 #ifdef _openCVcap
 
     if (cfg.camera_index >= 0) {
-        cap.open(cfg.camera_index);
+        OpenCamera(cap, cfg.camera_index);
     } else {
         cap.open(cfg.video_path);
     }
 
     if (!cap.isOpened()) {
-        printf("can't open openCV camera\n");
+        if (cfg.camera_index >= 0) {
+            std::cerr << "can't open openCV camera index " << cfg.camera_index
+                      << " (tried CAP_V4L2 / default backend / /dev/videoN)" << std::endl;
+        } else {
+            std::cerr << "can't open input video: " << cfg.video_path << std::endl;
+        }
         return -1;
     }
 

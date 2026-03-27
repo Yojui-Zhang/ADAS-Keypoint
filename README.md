@@ -141,6 +141,7 @@ make -j$(nproc)
 ### 4.8 `acc`
 
 - 目標選擇：`lateral_limit_m`, `min_forward_m`, `max_forward_m`, `lead_hysteresis_m`。
+- `lateral_limit_m` 會優先以 LKA 建出的當前車道中心線為基準做 gate；只有落在本車道前方走廊內的車才會進入 ACC lead 候選。若當幀抓不到車道，才退回到以自車座標 `y=0` 的舊邏輯。
 - 跟車策略：`cruise_speed_kmh`, `time_gap_s`, `standstill_gap_m`。
 - 動態限制：`max_accel_mps2`, `comfort_decel_mps2`, `max_decel_mps2`, `jerk_limit_mps3`。
 - 制動映射：`brake_full_decel_mps2`, `brake_multiplier`。

@@ -146,7 +146,9 @@ float calculate_lane_steering(const TrackingBox& input,
         const double x_r = Clamp(x_ref, x_min, x_max);
         const double x_h = Clamp(x_heading, x_min, x_max);
 
-        out_cte = PolyY(poly, x_r);  // vehicle y=0; path y=cte (left positive)
+        // Shift the target path relative to the lane centerline.
+        // Positive offset means track left of the lane center; negative means right.
+        out_cte = PolyY(poly, x_r) + static_cast<double>(cfg.lane_center_offset_m);
 
         const double slope = PolyDyDx(poly, x_h);
         const double psi_path = std::atan2(slope, 1.0); // atan(dy/dx)
@@ -201,6 +203,7 @@ float calculate_lane_steering(const TrackingBox& input,
             << " p_curve=" << p_curve
             << " mean_kappa=" << mean_kappa
             << " std_kappa=" << std_kappa
+            << " | lane_offset_m=" << cfg.lane_center_offset_m
             << " | cte_s=" << cte_s << " head_s(rad)=" << head_s
             << " | cte_c=" << cte_c << " head_c(rad)=" << head_c
             << " | delta_ff(deg)=" << Rad2Deg(delta_ff)

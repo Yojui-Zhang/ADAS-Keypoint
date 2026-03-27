@@ -1,0 +1,9 @@
+需要修改的地方
+
+1.	inputPath => 要切割的影片路徑
+	outputPath => 輸出圖的資料夾路徑
+	FrameCut => 幾個Frame切割一次
+	FrameName => 每張圖片的前綴名稱
+		ex: 如果FrameName = 'S3_Urban1'，每張圖片名稱就是 S3_Urban1_0001、S3_Urban1_0002...... 到最後一張
+		
+2.以上都確認修改完成即可執行py檔切割影片

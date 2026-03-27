@@ -233,8 +233,9 @@ int main(int argc, char** argv) {
   }
 #endif
   if (run_mode == RunMode::RealCar && runtime_cfg.input.camera_index < 0) {
-    std::cout << "Main: real_car requires live camera. Override input.camera_index -> 0." << std::endl;
-    runtime_cfg.input.camera_index = 0;
+    std::cout << "Main: real_car requires live camera. Override input.camera_index -> "
+              << V4L2_cap_num << " (from config.h V4L2_cap_num)." << std::endl;
+    runtime_cfg.input.camera_index = V4L2_cap_num;
   }
   std::cout << "Main: Run mode -> " << RunModeName(run_mode) << std::endl;
 
@@ -475,20 +476,23 @@ int main(int argc, char** argv) {
       }
     }
 
+    targetAngle = -targetAngle ;
+    target_speed = cmd.speed_kmh;
+
     DrawTargetInfo(output_frame,
                    target_speed_kmh, Targetdistance, target_ttc, 40,
                    "Tg-sped", "Tg-dist", "TTC",
                    " km/h", " m", " s");
 
     DrawTargetInfo(output_frame,
-                   target_speed, targetAngle, deceleration, 80,
+                   CAN.speed, targetAngle, deceleration, 80,
                    "Our-Speed", "Angle", "Dec",
                    " km/h", " m", " s");
 
-    DrawTargetInfo(output_frame,
-                   0, 0, CAN.speed, 120,
-                   "", "", " ",
-                   "", "", " km/h");
+    // DrawTargetInfo(output_frame,
+    //                0, 0, CAN.speed, 120,
+    //                "", "", " ",
+    //                "", "", " km/h");
 
     adas_log::FrameSnapshot log_snapshot;
     log_snapshot.frame_index = frame_index;

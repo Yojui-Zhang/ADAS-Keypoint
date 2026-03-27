@@ -172,29 +172,30 @@ void* S3_speed_v(void* data) {
             _ki = 0.5;
             _kd = 0.28;
         }*/
-
-        if((S3.speed - target_speed) >= target_speed * 0.7){
+        // 
+        // if((target_speed - S3.speed) >= target_speed * 0.7){
+        //     _kp = 0.031666667;
+        //     _ki = 0.1;
+        //     _kd = 0.08;
+        // }
+        // else if((target_speed - S3.speed) >= target_speed * 0.5){
+        //     _kp = 0.031666667;
+        //     _ki = 0.125;
+        //     _kd = 0.12;
+        // }
+        // else if((target_speed - S3.speed) >= target_speed * 0.3){
+        //     _kp = 0.031666667;
+        //     _ki = 0.15;
+        //     _kd = 0.15;
+        // }
+        // else{
             _kp = 0.031666667;
-            _ki = 0.1;
-            _kd = 0.08;
-        }
-        else if((S3.speed - target_speed) >= target_speed * 0.5){
-            _kp = 0.031666667;
-            _ki = 0.125;
-            _kd = 0.12;
-        }
-        else if((S3.speed - target_speed) >= target_speed * 0.3){
-            _kp = 0.031666667;
-            _ki = 0.15;
-            _kd = 0.15;
-        }
-        else{
-            _kp = 0.031666667;
-            _ki = 0.175;
-            _kd = 0.2;
-        }
+            _ki = 0.5;
+            _kd = 0.8;
+        // }
 
         gundata = throttle.pid_control_ACC(target_speed, S3.speed, _kp, _ki, _kd);
+        
         if( gundata <= 0.0f){
             gundata = 0.75f;
         }

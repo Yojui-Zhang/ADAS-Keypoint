@@ -1,7 +1,7 @@
 %YAML:1.0
 ---
-image_width: 1920
-image_height: 1080
+image_width: 1280
+image_height: 720
 rms: 0.44558016986515098
 global_rmse: 0.44558001050040491
 
@@ -26,19 +26,19 @@ D: !!opencv-matrix
 # Runtime conversion in GeometryFunction is:
 #   x_forward_m = raw_Y * 0.01
 #   y_left_m    = -raw_X * 0.01
-# Source intrinsics: ./tools/Geometry/calib_out/camera_intrinsics.yaml
-# Source ground CSV: Camera-Config/單應性1920x1080.csv
+# Source intrinsics: ../Geometry-2025-v0/Geometry/calib_out/camera_intrinsics.yaml
+# Source ground CSV: Camera-Config/單應性1280x720.csv
 # Source resolution filter: 1280x720
 # CSV lateral sign inverted: 0
-# Ground CSV reprojection RMSE (full set): 89.473081 px
+# Ground CSV reprojection RMSE (full set): 60.829241 px
 R_cw: !!opencv-matrix
    rows: 3
    cols: 3
    dt: d
-   data: [ 0.9981629029529364, -0.05616317232843011, 0.02272701569880431, 0.02204909671457866, -0.01266093105821051, -0.9996767168233991, 0.05643276089859322, 0.9983413238460813, -0.0113993244806833 ]
+   data: [ 0.9760972786562933, -0.2132581458400283, 0.04189350585295144, 0.01952471124565119, -0.1059360247555075, -0.994181243189477, 0.2164552800246554, 0.9712355645732261, -0.09924006175720709 ]
 
 t_cw: !!opencv-matrix
    rows: 3
    cols: 1
    dt: d
-   data: [ 11.66526664196134, 132.8305855699437, 189.8276168530349 ]
+   data: [ -86.29509179012847, 89.32416125667251, 497.1437233261246 ]

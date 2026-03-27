@@ -172,7 +172,8 @@ VehicleControlCommand StabilitySupervisor::Update(double ego_speed_mps,
   else                     a_long_need = (v_acc_target - v) / dt_s;
 
   // 8) supervisor target speed (ACC vs curve), smoothing, rate limit (discrete-time)
-  double v_target = std::min(v_acc_target, v_curve_limit);
+  const double v_target_raw = std::min(v_acc_target, v_curve_limit);
+  double v_target = v_target_raw;
 
   const double sp_a = clampd(cfg_.speed_lowpass_alpha, 0.0, 0.999);
   if (last_speed_cmd_mps_ <= 1e-6) last_speed_cmd_mps_ = v_target;
@@ -181,6 +182,16 @@ VehicleControlCommand StabilitySupervisor::Update(double ego_speed_mps,
   const double dv_up   = cfg_.max_speed_rise_mps2 * dt_s;
   const double dv_down = cfg_.max_speed_drop_mps2 * dt_s;
   v_target = clampd(v_target, last_speed_cmd_mps_ - dv_down, last_speed_cmd_mps_ + dv_up);
+
+  // If ACC is not asking for brake and the curve-speed limit is not the active
+  // bottleneck, do not let target smoothing lag behind the current ego speed and
+  // create a false decel request.
+  const bool acc_requests_brake = (a_brake_need > 1e-3);
+  const bool curve_is_bottleneck = (v_curve_limit + 1e-3 < v_acc_target);
+  const bool acc_wants_hold_or_accel = (v_acc_target + 1e-3 >= v);
+  if (!acc_requests_brake && !curve_is_bottleneck && acc_wants_hold_or_accel) {
+    v_target = std::max(v_target, v);
+  }
 
   // nominal along from speed target
   double a_long_nom = (v_target - v) / dt_s;
@@ -285,6 +296,9 @@ VehicleControlCommand StabilitySupervisor::Update(double ego_speed_mps,
         << " | strip=" << alat_strip
         << " | along_left=" << along_left
         << " | a_long_cmd=" << a_long_cmd
+        << " | v_acc_target=" << mps2KmH(v_acc_target) << "kmh"
+        << " | v_target_raw=" << mps2KmH(v_target_raw) << "kmh"
+        << " | v_target_smoothed=" << mps2KmH(v_target) << "kmh"
         << " | mu_eff=" << mu_eff_ << (in_slip_ ? "(dynamic)" : "(static)")
         << " | v_curve_limit=" << mps2KmH(v_curve_limit) << "kmh"
         << " | KE=" << KE << "J"

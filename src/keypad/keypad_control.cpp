@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cctype>
 #include <chrono>
 #include <string>
 #include <thread>
@@ -16,6 +17,16 @@
 #include "canbus_recv.h"
 #endif
 
+#ifdef USE_ITRI_CAN
+#include "pid_controller.h"
+#endif
+
+#ifdef CANBUS__
+extern CAR CAN;
+extern float target_speed;
+extern volatile double deceleration;
+#endif
+
 namespace keypad {
 
 namespace {
@@ -24,15 +35,36 @@ std::string ToggleText(bool enabled) {
   return enabled ? "ON" : "OFF";
 }
 
-#ifdef CANBUS__
-extern CAR CAN;
-extern float target_speed;
-extern double deceleration;
+std::string ToLowerCopy(std::string s) {
+  std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) {
+    return static_cast<char>(std::tolower(c));
+  });
+  return s;
+}
 
+const char* LongitudinalControllerName(LongitudinalControllerKind kind) {
+  switch (kind) {
+    case LongitudinalControllerKind::Pid:
+      return "pid";
+    default:
+      return "keypad";
+  }
+}
+
+LongitudinalControllerKind ParseLongitudinalControllerKind(const std::string& value) {
+  const std::string mode = ToLowerCopy(value);
+  if (mode == "pid" || mode == "itri_pid" || mode == "pid_controller") {
+    return LongitudinalControllerKind::Pid;
+  }
+  return LongitudinalControllerKind::Keypad;
+}
+
+#ifdef CANBUS__
 struct LongitudinalTxState {
   std::atomic<bool> running{false};
   std::thread worker;
   bool brake_sender_started = false;
+  LongitudinalControllerKind controller_kind = LongitudinalControllerKind::Keypad;
 };
 
 LongitudinalTxState& GetLongitudinalTxState() {
@@ -52,24 +84,54 @@ void StopLongitudinalThread() {
   }
 }
 
-void StartLongitudinalThread() {
+void StartLongitudinalThread(LongitudinalControllerKind controller_kind) {
   LongitudinalTxState& state = GetLongitudinalTxState();
   if (state.running.load(std::memory_order_acquire)) {
     return;
   }
 
+  state.controller_kind = controller_kind;
   state.running.store(true, std::memory_order_release);
-  state.worker = std::thread([]() {
+  state.worker = std::thread([controller_kind]() {
+    if (controller_kind == LongitudinalControllerKind::Pid) {
+#ifdef USE_ITRI_CAN
+      PID_incremental throttle(0.031666667f, 0.5f, 0.8f);
+      constexpr float kPidKp = 0.031666667f;
+      constexpr float kPidKi = 0.5f;
+      constexpr float kPidKd = 0.28f;
+
+      while (GetLongitudinalTxState().running.load(std::memory_order_acquire)) {
+        const float desired_speed_kmh = std::max(0.0f, ::target_speed);
+        const float current_speed_kmh = static_cast<float>(std::max(0.0, ::CAN.speed));
+        const bool braking_now = ::deceleration > 0.05;
+
+        double pedal_cmd = 0.75;
+        if (!braking_now && desired_speed_kmh > 0.2f) {
+          pedal_cmd = throttle.pid_control_ACC(desired_speed_kmh,
+                                               current_speed_kmh,
+                                               kPidKp,
+                                               kPidKi,
+                                               kPidKd);
+          pedal_cmd = ClampValue(pedal_cmd, 0.75, 2.8);
+        }
+
+        canbus_ctrl_pedal(pedal_cmd);
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+      }
+      return;
+#endif
+    }
+
     while (GetLongitudinalTxState().running.load(std::memory_order_acquire)) {
-      const double desired_speed_kmh = std::max(0.0f, target_speed);
-      const double current_speed_kmh = std::max(0.0, CAN.speed);
-      const bool braking_now = deceleration > 0.05;
+      const double desired_speed_kmh = std::max(0.0f, ::target_speed);
+      const double current_speed_kmh = std::max(0.0, ::CAN.speed);
+      const bool braking_now = ::deceleration > 0.05;
 
       double pedal_cmd = 0.75;
       if (desired_speed_kmh > 0.2 && braking_now == false) {
         const double speed_error = desired_speed_kmh - current_speed_kmh;
         if (speed_error > 0.2) {
-          pedal_cmd = 0.75 + ClampValue(speed_error * 0.06, 0.0, 2.05);
+          pedal_cmd = 0.75 + ClampValue(speed_error * 0.26, 0.0, 2.05);
         }
       }
 
@@ -79,19 +141,19 @@ void StartLongitudinalThread() {
   });
 }
 
-void ApplyLongitudinalRuntime(bool active) {
+void ApplyLongitudinalRuntime(bool active, LongitudinalControllerKind controller_kind) {
   LongitudinalTxState& state = GetLongitudinalTxState();
   if (active) {
     if (state.brake_sender_started == false) {
       canbus_ctrl_dec(1);
       state.brake_sender_started = true;
     }
-    StartLongitudinalThread();
+    StartLongitudinalThread(controller_kind);
     return;
   }
 
-  deceleration = 0.0;
-  target_speed = 0.0f;
+  ::deceleration = 0.0;
+  ::target_speed = 0.0f;
   canbus_ctrl_pedal(0.75);
   StopLongitudinalThread();
 
@@ -119,6 +181,8 @@ RuntimeControlState MakeInitialRuntimeControlState(const AppRuntimeConfig& cfg,
   state.can_tx_master_enable = canbus_compiled && cfg.can_tx_master_enable;
   state.can_longitudinal_enable = canbus_compiled && cfg.can_longitudinal_enable;
   state.can_steering_enable = canbus_compiled && cfg.can_steering_enable;
+  state.longitudinal_controller = ParseLongitudinalControllerKind(cfg.longitudinal_controller);
+  state.longitudinal_controller_name = LongitudinalControllerName(state.longitudinal_controller);
 
   state.draw_inference_overlay = cfg.draw_inference_overlay;
   state.draw_acc_overlay = cfg.draw_acc_overlay;
@@ -232,7 +296,7 @@ void SyncCanRuntimeState(const RuntimeControlState& state) {
 
   if (longitudinal_active == last_longitudinal) {
   } else {
-    ApplyLongitudinalRuntime(longitudinal_active);
+    ApplyLongitudinalRuntime(longitudinal_active, state.longitudinal_controller);
     last_longitudinal = longitudinal_active;
   }
 
@@ -270,6 +334,7 @@ void DrawRuntimeStatusOverlay(cv::Mat& frame,
   lines.emplace_back("keypad:" + ToggleText(evdev_ready));
   lines.emplace_back("TX master:" + ToggleText(state.can_tx_master_enable));
   lines.emplace_back("speed/brake:" + ToggleText(LongitudinalControlActive(state)));
+  lines.emplace_back("longitudinal ctl:" + state.longitudinal_controller_name);
   lines.emplace_back("steer:" + ToggleText(SteeringControlActive(state)));
   lines.emplace_back("Throttle:" + ToggleText(LongitudinalControlActive(state)));
   lines.emplace_back("Brake:" + ToggleText(LongitudinalControlActive(state)));

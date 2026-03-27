@@ -892,21 +892,6 @@ void canbus_ctrl_pedal(double pedalDst)
 
 /* = = = = = = = = = = = = = = = = = = = = = 方向盤 = = = = = = = = = = = = = = = = = = = = = */
 
-int check_SAS_CAL()
-{
-	bool &SAS_CAL = ptr_car->SAS_CAL;
-	if(SAS_CAL == 1){
-		printf("SAS_CAL: On\n");
-	} 
-	else
-	{
-		printf("SAS_CAL: Off\n");
-	}
-
-	return SAS_CAL;
-
-}
-
 inline void send_V_Rq_EPS_Ctrl()
 {
 	// unsigned char &V_Rq_EPS_Ctrl = canData.V_Rq_EPS_Ctrl;
@@ -1011,15 +996,14 @@ void *pth_canWheel(void *data)
 	double &steer = ptr_car->steer;
 	double controllFactor;
 	controlled = 0;
-restart :
 	t1.getStartTime();
 	t1.getEndTime();
-	check_SAS_CAL();
 
 	while(SteerCtrlSwitch)
 	{
 		send_max_speed();
 		int EPS_Sta_Available = ECU.EPAS1.data[5] & 0xc0;
+
 		switch(EPS_Sta_Available)
 		{
 		case 0x00:
@@ -1092,8 +1076,7 @@ clean_up:
 	controlled = 0;
 	SteerCtrlSwitch = 0;
 	controllFactor = 0.0;
-
-	goto restart;
+	return NULL;
 
 }
 

@@ -128,7 +128,11 @@ public:
     }
 
     // 7.1 outputs
-    float target_speed_kmh = MpsToKmh(v_ego);
+    // Even when ego speed comes from CAN, output a forward-looking speed command
+    // so downstream controllers can request acceleration instead of just mirroring
+    // the current vehicle speed.
+    const float v_cmd_mps = std::max(0.0f, v_ego + accel_cmd * dt);
+    float target_speed_kmh = MpsToKmh(v_cmd_mps);
     const float brake_deadband = 0.2f;
     float brake_level = 0.0f;
 

@@ -91,6 +91,7 @@ void ReadAppConfig(const cv::FileNode& app_node, AppRuntimeConfig& cfg) {
     ReadBoolIfPresent(app_node, "can_tx_master_enable", cfg.can_tx_master_enable);
     ReadBoolIfPresent(app_node, "can_longitudinal_enable", cfg.can_longitudinal_enable);
     ReadBoolIfPresent(app_node, "can_steering_enable", cfg.can_steering_enable);
+    ReadIfPresent(app_node, "longitudinal_controller", cfg.longitudinal_controller);
 
     ReadBoolIfPresent(app_node, "draw_inference_overlay", cfg.draw_inference_overlay);
     ReadBoolIfPresent(app_node, "draw_acc_overlay", cfg.draw_acc_overlay);
@@ -216,6 +217,7 @@ void ReadLkaConfig(const cv::FileNode& lka_node, ControlConfig& cfg) {
     ReadIfPresent(lka_node, "prob_alpha", cfg.prob_alpha);
 
     ReadIfPresent(lka_node, "lane_width_m", cfg.lane_width_m);
+    ReadIfPresent(lka_node, "lane_center_offset_m", cfg.lane_center_offset_m);
     ReadIfPresent(lka_node, "visual_limit_m", cfg.visual_limit_m);
 }
 

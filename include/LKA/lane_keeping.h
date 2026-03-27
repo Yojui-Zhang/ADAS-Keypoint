@@ -68,6 +68,7 @@ struct ControlConfig {
     float prob_alpha = 0.85f;            //【可調】低通係數 alpha（0~1）。越接近 1 越平滑但反應慢；越小越跟隨即時但易跳動。
 
     float lane_width_m = 3.76f;         //【可調】車道寬度（m）。僅在「只偵測到單側車道線」時，用來推估中心線偏移量（± lane_width/2）。
+    float lane_center_offset_m = 0.0f;  //【可調】目標路徑相對車道中心的橫向偏移（m）。正值偏左、負值偏右；例如 +0.10 = 偏左 10 cm。
 
     float visual_limit_m = 20.0f;       // 【設定】您想要繪製的最大長度 (公尺)
 };

@@ -31,6 +31,7 @@ struct AppRuntimeConfig {
     bool can_tx_master_enable = false;
     bool can_longitudinal_enable = false;
     bool can_steering_enable = false;
+    std::string longitudinal_controller = "keypad";
 
     bool draw_inference_overlay = true;
     bool draw_acc_overlay = true;
