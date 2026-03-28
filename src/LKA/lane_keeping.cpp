@@ -28,6 +28,11 @@ void lane_keeping_reset_state() {
     g_lane_keeping_state = ControlState{};
 }
 
+LkaReferenceSnapshot lane_keeping_get_last_reference_snapshot() {
+    std::lock_guard<std::mutex> lk(g_lane_keeping_mtx);
+    return g_lane_keeping_state.reference_snapshot;
+}
+
 float lane_steering_step(const std::vector<TrackingBox>& world_result,
                          float velocity_mps,
                          std::string* out_debug,
@@ -80,6 +85,7 @@ float lane_steering_step(const std::vector<TrackingBox>& world_result,
     state.last_steer_deg = static_cast<float>(lane_keeping::internal::Rad2Deg(cmd_rad));
     state.p_curve = 0.0f;
     state.mode_curve = false;
+    state.reference_snapshot = LkaReferenceSnapshot{};
 
     if (out_debug) {
         std::ostringstream oss;

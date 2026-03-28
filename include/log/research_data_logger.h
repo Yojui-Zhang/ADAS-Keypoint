@@ -26,16 +26,74 @@ struct ResearchLogFrame {
 
   double dt_s = 0.0;
   double ego_speed_kmh = 0.0;
+  double perf_fps = 0.0;
+  double perf_total_ms = 0.0;
+  double perf_input_ms = 0.0;
+  double perf_inference_ms = 0.0;
+  double perf_geometry_ms = 0.0;
+  double perf_acc_scope_ms = 0.0;
+  double perf_acc_ms = 0.0;
+  double perf_lka_ms = 0.0;
+  double perf_stability_ms = 0.0;
+  double perf_control_total_ms = 0.0;
+  double perf_behavior_ms = 0.0;
+  double perf_collision_ms = 0.0;
+  double perf_overlay_ms = 0.0;
 
   double cmd_speed_kmh = 0.0;
   double cmd_steer_deg = 0.0;
   double cmd_brake_0_10 = 0.0;
   double lka_steer_deg_raw = 0.0;
+  bool lka_reference_valid = false;
+  double lka_p_curve = 0.0;
+  double lka_current_x_m = 0.0;
+  double lka_current_y_m = 0.0;
+  bool lka_current_image_valid = false;
+  double lka_current_u_px = 0.0;
+  double lka_current_v_px = 0.0;
+  double lka_target_x_m = 0.0;
+  double lka_target_y_m = 0.0;
+  bool lka_target_image_valid = false;
+  double lka_target_u_px = 0.0;
+  double lka_target_v_px = 0.0;
 
+  bool acc_has_lead = false;
+  bool acc_lead_following_active = false;
+  int acc_lead_state_code = 0;
+  std::string acc_lead_state_text = "remaining";
+  int acc_candidate_count = 0;
+  int acc_follow_count = 0;
+  int acc_lead_count = 0;
+  int acc_remaining_count = 0;
+
+  int acc_target_id = -1;
   double acc_target_speed_kmh = 0.0;
   double acc_target_distance_m = 0.0;
+  double acc_target_lateral_m = 0.0;
+  double acc_target_relative_speed_mps = 0.0;
+  double acc_target_score = 0.0;
+  double acc_target_dist_std_m = 0.0;
+  double acc_target_rel_speed_std_mps = 0.0;
   double acc_target_ttc_s = 0.0;
   double acc_target_ttc_std_s = 0.0;
+  bool acc_target_box_valid = false;
+  int acc_target_box_x_px = 0;
+  int acc_target_box_y_px = 0;
+  int acc_target_box_w_px = 0;
+  int acc_target_box_h_px = 0;
+  double acc_target_bottom_center_u_px = 0.0;
+  double acc_target_bottom_center_v_px = 0.0;
+
+  int acc_longitudinal_phase_code = 0;
+  std::string acc_longitudinal_phase_text = "idle";
+  double acc_control_ego_speed_kmh = 0.0;
+  double acc_control_cruise_speed_kmh = 0.0;
+  double acc_control_speed_cmd_kmh = 0.0;
+  double acc_control_brake_0_10 = 0.0;
+  double acc_control_accel_cmd_mps2 = 0.0;
+  double acc_control_free_accel_nom_mps2 = 0.0;
+  double acc_control_free_accel_limited_mps2 = 0.0;
+  std::string acc_object_state_summary;
 
   bool collision_warning = false;
   int collision_threat_id = -1;

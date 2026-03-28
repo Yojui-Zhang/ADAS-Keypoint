@@ -1,7 +1,49 @@
 #pragma once
+#include <algorithm>
 #include <cstdint>
+#include <vector>
 
 namespace acc {
+
+enum class AccTrackedObjectState : std::uint8_t {
+  Remaining = 0,
+  Candidate = 1,
+  Lead = 2,
+  FollowingLead = 3,
+};
+
+enum class AccLongitudinalPhase : std::uint8_t {
+  MaxHold = 0,
+  Accelerating = 1,
+  Idle = 2,
+  Braking = 3,
+};
+
+inline const char* AccTrackedObjectStateName(AccTrackedObjectState state) {
+  switch (state) {
+    case AccTrackedObjectState::Candidate: return "candidate";
+    case AccTrackedObjectState::Lead: return "lead";
+    case AccTrackedObjectState::FollowingLead: return "following_lead";
+    default: return "remaining";
+  }
+}
+
+inline int AccTrackedObjectStateCode(AccTrackedObjectState state) {
+  return static_cast<int>(state);
+}
+
+inline const char* AccLongitudinalPhaseName(AccLongitudinalPhase phase) {
+  switch (phase) {
+    case AccLongitudinalPhase::MaxHold: return "max_hold";
+    case AccLongitudinalPhase::Accelerating: return "accelerating";
+    case AccLongitudinalPhase::Braking: return "braking";
+    default: return "idle";
+  }
+}
+
+inline int AccLongitudinalPhaseCode(AccLongitudinalPhase phase) {
+  return static_cast<int>(phase);
+}
 
 // ISO 15622 常見採用的控制策略是「固定時距（time headway）」+ 安全限制。
 // 參數需要依車輛動力/煞車特性做標定；這裡給可用的工程預設值。
@@ -123,6 +165,32 @@ struct AccCommand {
   float TargetDistStd = 0.0f;  // sqrt(P00)
   float RelSpeedStd   = 0.0f;  // sqrt(P11)
   float TargetTTCStd  = 0.0f;  // propagated
+
+  bool has_lead = false;
+  bool lead_following_active = false; // 當前 lead 已經實際影響縱向控制
+  float ego_speed_kmh = 0.0f;
+  float cruise_speed_kmh = 0.0f;
+  float accel_cmd_mps2 = 0.0f;
+  float free_accel_nom_mps2 = 0.0f;
+  float free_accel_limited_mps2 = 0.0f;
+  float lead_lateral_m = 0.0f;
+  AccLongitudinalPhase longitudinal_phase = AccLongitudinalPhase::Idle;
+
+  std::vector<int> candidate_ids;     // 本幀通過 ACC 候選篩選的目標 ID
 };
+
+inline bool AccHasCandidateId(const AccCommand& cmd, int id) {
+  return std::find(cmd.candidate_ids.begin(), cmd.candidate_ids.end(), id) != cmd.candidate_ids.end();
+}
+
+inline AccTrackedObjectState ClassifyAccTrackedObjectState(const AccCommand& cmd, int id) {
+  if (id < 0) return AccTrackedObjectState::Remaining;
+  if (id == cmd.target_id) {
+    return cmd.lead_following_active ? AccTrackedObjectState::FollowingLead
+                                     : AccTrackedObjectState::Lead;
+  }
+  if (AccHasCandidateId(cmd, id)) return AccTrackedObjectState::Candidate;
+  return AccTrackedObjectState::Remaining;
+}
 
 } // namespace acc

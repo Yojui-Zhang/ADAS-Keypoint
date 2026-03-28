@@ -7,6 +7,14 @@
 
 namespace stability {
 
+struct VehicleControlPerfStats {
+  double acc_scope_ms = 0.0;
+  double acc_ms = 0.0;
+  double lka_ms = 0.0;
+  double stability_ms = 0.0;
+  double total_ms = 0.0;
+};
+
 struct VehicleControlCommand {
   float steer_deg   = 0.0f;
   float speed_kmh   = 0.0f;
@@ -14,6 +22,7 @@ struct VehicleControlCommand {
 
   acc::AccCommand acc_cmd{};
   float lka_steer_deg_raw = 0.0f;
+  VehicleControlPerfStats perf{};
 
   std::string debug;
 };

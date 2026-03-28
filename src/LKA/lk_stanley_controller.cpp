@@ -59,6 +59,19 @@ double MetricToProbability(double metric,
 // Public API implementation
 // ========================
 
+namespace {
+
+void ClearReferenceSnapshot(ControlState* state) {
+    if (state == nullptr) {
+        return;
+    }
+
+    state->reference_snapshot = LkaReferenceSnapshot{};
+    state->reference_snapshot.p_curve = state->p_curve;
+}
+
+}  // namespace
+
 float calculate_lane_steering(const TrackingBox& input,
                               const ControlConfig& cfg,
                               ControlState* state)
@@ -69,6 +82,7 @@ float calculate_lane_steering(const TrackingBox& input,
 
     // Preserve original safety behavior: invalid class or empty points -> hold last.
     if (input.class_id != 0 || input.kpts.empty()) {
+        ClearReferenceSnapshot(state);
         state->debug = "invalid input: class_id!=0 or empty kpts -> hold last steering.";
         return state->last_steer_deg;
     }
@@ -79,10 +93,12 @@ float calculate_lane_steering(const TrackingBox& input,
     const LanePointStatus status = ExtractLanePointsVehicleM(input, cfg, pts, &extract_dbg);
 
     if (status == LanePointStatus::kNotLane || status == LanePointStatus::kEmpty) {
+        ClearReferenceSnapshot(state);
         state->debug = "invalid input: class_id!=0 or empty kpts -> hold last steering.";
         return state->last_steer_deg;
     }
     if (status != LanePointStatus::kOk) {
+        ClearReferenceSnapshot(state);
         state->debug = "valid pts < 3 after filtering -> hold last steering.";
         return state->last_steer_deg;
     }
@@ -91,6 +107,7 @@ float calculate_lane_steering(const TrackingBox& input,
     cv::Vec3d poly;
     std::string fit_dbg;
     if (!FitQuadraticLeastSquares(pts, poly, fit_dbg)) {
+        ClearReferenceSnapshot(state);
         state->debug = "fit failed: " + fit_dbg + " -> hold last steering.";
         return state->last_steer_deg;
     }
@@ -162,6 +179,29 @@ float calculate_lane_steering(const TrackingBox& input,
 
     compute_cte_heading(cfg.x_ref_straight_m, cfg.x_heading_straight_m, cte_s, head_s);
     compute_cte_heading(cfg.x_ref_curve_m,    cfg.x_heading_curve_m,    cte_c, head_c);
+
+    const double x_ref_s = Clamp(cfg.x_ref_straight_m, x_min, x_max);
+    const double x_ref_c = Clamp(cfg.x_ref_curve_m, x_min, x_max);
+    const double x_heading_s = Clamp(cfg.x_heading_straight_m, x_min, x_max);
+    const double x_heading_c = Clamp(cfg.x_heading_curve_m, x_min, x_max);
+
+    const double target_y_s = PolyY(poly, x_heading_s) + static_cast<double>(cfg.lane_center_offset_m);
+    const double target_y_c = PolyY(poly, x_heading_c) + static_cast<double>(cfg.lane_center_offset_m);
+
+    LkaReferenceSnapshot reference_snapshot;
+    reference_snapshot.valid = true;
+    reference_snapshot.has_lane = true;
+    reference_snapshot.p_curve = static_cast<float>(p_curve);
+    reference_snapshot.current_point.valid = true;
+    reference_snapshot.current_point.x_m =
+        static_cast<float>((1.0 - p_curve) * x_ref_s + p_curve * x_ref_c);
+    reference_snapshot.current_point.y_m = 0.0f;
+    reference_snapshot.target_point.valid = true;
+    reference_snapshot.target_point.x_m =
+        static_cast<float>((1.0 - p_curve) * x_heading_s + p_curve * x_heading_c);
+    reference_snapshot.target_point.y_m =
+        static_cast<float>((1.0 - p_curve) * target_y_s + p_curve * target_y_c);
+    state->reference_snapshot = reference_snapshot;
 
     // 6) Stanley feedback for each model
     const double v = std::max(0.0, static_cast<double>(cfg.velocity_mps));

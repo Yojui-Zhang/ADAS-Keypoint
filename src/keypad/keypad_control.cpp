@@ -186,6 +186,7 @@ RuntimeControlState MakeInitialRuntimeControlState(const AppRuntimeConfig& cfg,
 
   state.draw_inference_overlay = cfg.draw_inference_overlay;
   state.draw_acc_overlay = cfg.draw_acc_overlay;
+  state.draw_lka_overlay = cfg.draw_lka_overlay;
   state.draw_behavior_overlay = cfg.draw_behavior_overlay;
   state.draw_collision_overlay = cfg.draw_collision_overlay;
   state.draw_status_hud = cfg.draw_status_hud;
@@ -252,24 +253,30 @@ bool HandleCommand(user_command_mode_t command,
       set_message("ACC overlay -> " + ToggleText(state->draw_acc_overlay));
       return true;
     case CMD_6:
+      FlipBool(&state->draw_lka_overlay);
+      set_message("LKA overlay -> " + ToggleText(state->draw_lka_overlay));
+      return true;
+    case CMD_7:
       FlipBool(&state->draw_behavior_overlay);
       set_message("Behavior overlay -> " + ToggleText(state->draw_behavior_overlay));
       return true;
-    case CMD_7:
+    case CMD_8:
       FlipBool(&state->draw_collision_overlay);
       set_message("Collision overlay -> " + ToggleText(state->draw_collision_overlay));
       return true;
-    case CMD_8:
+    case CMD_9:
       FlipBool(&state->draw_status_hud);
       set_message("HUD overlay -> " + ToggleText(state->draw_status_hud));
       return true;
     case CMD_0: {
       const bool enable = (state->draw_inference_overlay &&
                            state->draw_acc_overlay &&
+                           state->draw_lka_overlay &&
                            state->draw_behavior_overlay &&
                            state->draw_collision_overlay) == false;
       state->draw_inference_overlay = enable;
       state->draw_acc_overlay = enable;
+      state->draw_lka_overlay = enable;
       state->draw_behavior_overlay = enable;
       state->draw_collision_overlay = enable;
       set_message(std::string("All overlays -> ") + ToggleText(enable));
@@ -329,7 +336,7 @@ void DrawRuntimeStatusOverlay(cv::Mat& frame,
   }
 
   std::vector<std::string> lines;
-  lines.emplace_back("Hotkeys 1:TX 2:Speed/Brake 3:Steer 4:Infer 5:ACC 6:Behavior 7:Collision 8:HUD 0:All Backspace:SafeOff\n\n");
+  lines.emplace_back("Hotkeys 1:TX 2:Speed/Brake 3:Steer 4:Infer 5:ACC 6:LKA 7:Behavior 8:Collision 9:HUD 0:All Backspace:SafeOff\n\n");
   lines.emplace_back("CAN compile:" + ToggleText(state.canbus_compiled));
   lines.emplace_back("keypad:" + ToggleText(evdev_ready));
   lines.emplace_back("TX master:" + ToggleText(state.can_tx_master_enable));
@@ -341,6 +348,7 @@ void DrawRuntimeStatusOverlay(cv::Mat& frame,
   lines.emplace_back("Steering:" + ToggleText(SteeringControlActive(state)));
   lines.emplace_back("Draw infer:" + ToggleText(state.draw_inference_overlay));
   lines.emplace_back("ACC:" + ToggleText(state.draw_acc_overlay));
+  lines.emplace_back("LKA:" + ToggleText(state.draw_lka_overlay));
   lines.emplace_back("Behavior:" + ToggleText(state.draw_behavior_overlay));
   lines.emplace_back("Collision:" + ToggleText(state.draw_collision_overlay));
 

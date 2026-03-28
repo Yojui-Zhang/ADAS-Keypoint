@@ -149,14 +149,70 @@ void ResearchDataLogger::WriteHeader() {
        << ",can_brake_tx_sync_ns"
        << ",dt_s"
        << ",ego_speed_kmh"
+       << ",perf_fps"
+       << ",perf_total_ms"
+       << ",perf_input_ms"
+       << ",perf_inference_ms"
+       << ",perf_geometry_ms"
+       << ",perf_acc_scope_ms"
+       << ",perf_acc_ms"
+       << ",perf_lka_ms"
+       << ",perf_stability_ms"
+       << ",perf_control_total_ms"
+       << ",perf_behavior_ms"
+       << ",perf_collision_ms"
+       << ",perf_overlay_ms"
        << ",cmd_speed_kmh"
        << ",cmd_steer_deg"
        << ",cmd_brake_0_10"
        << ",lka_steer_deg_raw"
+       << ",lka_reference_valid"
+       << ",lka_p_curve"
+       << ",lka_current_x_m"
+       << ",lka_current_y_m"
+       << ",lka_current_image_valid"
+       << ",lka_current_u_px"
+       << ",lka_current_v_px"
+       << ",lka_target_x_m"
+       << ",lka_target_y_m"
+       << ",lka_target_image_valid"
+       << ",lka_target_u_px"
+       << ",lka_target_v_px"
+       << ",acc_has_lead"
+       << ",acc_lead_following_active"
+       << ",acc_lead_state_code"
+       << ",acc_lead_state_text"
+       << ",acc_candidate_count"
+       << ",acc_follow_count"
+       << ",acc_lead_count"
+       << ",acc_remaining_count"
+       << ",acc_target_id"
        << ",acc_target_speed_kmh"
        << ",acc_target_distance_m"
+       << ",acc_target_lateral_m"
+       << ",acc_target_relative_speed_mps"
+       << ",acc_target_score"
+       << ",acc_target_dist_std_m"
+       << ",acc_target_rel_speed_std_mps"
        << ",acc_target_ttc_s"
        << ",acc_target_ttc_std_s"
+       << ",acc_target_box_valid"
+       << ",acc_target_box_x_px"
+       << ",acc_target_box_y_px"
+       << ",acc_target_box_w_px"
+       << ",acc_target_box_h_px"
+       << ",acc_target_bottom_center_u_px"
+       << ",acc_target_bottom_center_v_px"
+       << ",acc_longitudinal_phase_code"
+       << ",acc_longitudinal_phase_text"
+       << ",acc_control_ego_speed_kmh"
+       << ",acc_control_cruise_speed_kmh"
+       << ",acc_control_speed_cmd_kmh"
+       << ",acc_control_brake_0_10"
+       << ",acc_control_accel_cmd_mps2"
+       << ",acc_control_free_accel_nom_mps2"
+       << ",acc_control_free_accel_limited_mps2"
+       << ",acc_object_state_summary"
        << ",collision_warning"
        << ",collision_threat_id"
        << ",collision_threat_ttc_s"
@@ -271,14 +327,70 @@ void ResearchDataLogger::LogFrame(const ResearchLogFrame& frame) {
        << ',' << frame.can_brake_tx_sync_ns
        << ',' << FiniteOrNaN(dt_s)
        << ',' << FiniteOrNaN(frame.ego_speed_kmh)
+       << ',' << FiniteOrNaN(frame.perf_fps)
+       << ',' << FiniteOrNaN(frame.perf_total_ms)
+       << ',' << FiniteOrNaN(frame.perf_input_ms)
+       << ',' << FiniteOrNaN(frame.perf_inference_ms)
+       << ',' << FiniteOrNaN(frame.perf_geometry_ms)
+       << ',' << FiniteOrNaN(frame.perf_acc_scope_ms)
+       << ',' << FiniteOrNaN(frame.perf_acc_ms)
+       << ',' << FiniteOrNaN(frame.perf_lka_ms)
+       << ',' << FiniteOrNaN(frame.perf_stability_ms)
+       << ',' << FiniteOrNaN(frame.perf_control_total_ms)
+       << ',' << FiniteOrNaN(frame.perf_behavior_ms)
+       << ',' << FiniteOrNaN(frame.perf_collision_ms)
+       << ',' << FiniteOrNaN(frame.perf_overlay_ms)
        << ',' << FiniteOrNaN(frame.cmd_speed_kmh)
        << ',' << FiniteOrNaN(frame.cmd_steer_deg)
        << ',' << FiniteOrNaN(frame.cmd_brake_0_10)
        << ',' << FiniteOrNaN(frame.lka_steer_deg_raw)
+       << ',' << (frame.lka_reference_valid ? 1 : 0)
+       << ',' << FiniteOrNaN(frame.lka_p_curve)
+       << ',' << FiniteOrNaN(frame.lka_current_x_m)
+       << ',' << FiniteOrNaN(frame.lka_current_y_m)
+       << ',' << (frame.lka_current_image_valid ? 1 : 0)
+       << ',' << FiniteOrNaN(frame.lka_current_u_px)
+       << ',' << FiniteOrNaN(frame.lka_current_v_px)
+       << ',' << FiniteOrNaN(frame.lka_target_x_m)
+       << ',' << FiniteOrNaN(frame.lka_target_y_m)
+       << ',' << (frame.lka_target_image_valid ? 1 : 0)
+       << ',' << FiniteOrNaN(frame.lka_target_u_px)
+       << ',' << FiniteOrNaN(frame.lka_target_v_px)
+       << ',' << (frame.acc_has_lead ? 1 : 0)
+       << ',' << (frame.acc_lead_following_active ? 1 : 0)
+       << ',' << frame.acc_lead_state_code
+       << ',' << frame.acc_lead_state_text
+       << ',' << frame.acc_candidate_count
+       << ',' << frame.acc_follow_count
+       << ',' << frame.acc_lead_count
+       << ',' << frame.acc_remaining_count
+       << ',' << frame.acc_target_id
        << ',' << FiniteOrNaN(frame.acc_target_speed_kmh)
        << ',' << FiniteOrNaN(frame.acc_target_distance_m)
+       << ',' << FiniteOrNaN(frame.acc_target_lateral_m)
+       << ',' << FiniteOrNaN(frame.acc_target_relative_speed_mps)
+       << ',' << FiniteOrNaN(frame.acc_target_score)
+       << ',' << FiniteOrNaN(frame.acc_target_dist_std_m)
+       << ',' << FiniteOrNaN(frame.acc_target_rel_speed_std_mps)
        << ',' << FiniteOrNaN(frame.acc_target_ttc_s)
        << ',' << FiniteOrNaN(frame.acc_target_ttc_std_s)
+       << ',' << (frame.acc_target_box_valid ? 1 : 0)
+       << ',' << frame.acc_target_box_x_px
+       << ',' << frame.acc_target_box_y_px
+       << ',' << frame.acc_target_box_w_px
+       << ',' << frame.acc_target_box_h_px
+       << ',' << FiniteOrNaN(frame.acc_target_bottom_center_u_px)
+       << ',' << FiniteOrNaN(frame.acc_target_bottom_center_v_px)
+       << ',' << frame.acc_longitudinal_phase_code
+       << ',' << frame.acc_longitudinal_phase_text
+       << ',' << FiniteOrNaN(frame.acc_control_ego_speed_kmh)
+       << ',' << FiniteOrNaN(frame.acc_control_cruise_speed_kmh)
+       << ',' << FiniteOrNaN(frame.acc_control_speed_cmd_kmh)
+       << ',' << FiniteOrNaN(frame.acc_control_brake_0_10)
+       << ',' << FiniteOrNaN(frame.acc_control_accel_cmd_mps2)
+       << ',' << FiniteOrNaN(frame.acc_control_free_accel_nom_mps2)
+       << ',' << FiniteOrNaN(frame.acc_control_free_accel_limited_mps2)
+       << ',' << frame.acc_object_state_summary
        << ',' << (frame.collision_warning ? 1 : 0)
        << ',' << frame.collision_threat_id
        << ',' << FiniteOrNaN(frame.collision_threat_ttc_s)

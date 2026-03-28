@@ -51,13 +51,23 @@ public:
       candidates.push_back({tb.id, forward_m, lateral_m, tb.score});
     }
 
+    out.candidate_ids.reserve(candidates.size());
+    for (const auto& candidate : candidates) {
+      out.candidate_ids.push_back(candidate.id);
+    }
+
     // 2) select lead
     int lead_idx = selector_.Select(candidates, cfg_);
     const bool has_lead = (lead_idx >= 0);
 
     const int   lead_id        = has_lead ? candidates[lead_idx].id : -1;
     const float lead_forward_m = has_lead ? candidates[lead_idx].forward_m : 0.0f;
+    const float lead_lateral_m = has_lead ? candidates[lead_idx].lateral_m : 0.0f;
     const float lead_score     = has_lead ? candidates[lead_idx].score : 0.0f;
+
+    out.has_lead = has_lead;
+    out.cruise_speed_kmh = cfg_.cruise_speed_kmh;
+    out.lead_lateral_m = lead_lateral_m;
 
     // 3) lead filter update (✅ pass score)
     float rel_speed_mps = 0.0f;
@@ -81,13 +91,16 @@ public:
 
     // 4) longitudinal control (same as yours)
     float v_ego = std::max(0.0f, ego_speed_est_mps_);
+    const float ego_speed_input_mps = v_ego;
+    out.ego_speed_kmh = MpsToKmh(ego_speed_input_mps);
     const float v0 = KmhToMps(cfg_.cruise_speed_kmh);
-    float accel_cmd = 0.0f;
+    constexpr float kAccelInfluenceEpsMps2 = 0.05f;
+    const float delta = 4.0f;
+    const float free_accel_nom =
+        cfg_.max_accel_mps2 * (1.0f - std::pow(v_ego / std::max(0.1f, v0), delta));
+    float accel_cmd = free_accel_nom;
 
-    if (!has_lead) {
-      const float delta = 4.0f;
-      accel_cmd = cfg_.max_accel_mps2 * (1.0f - std::pow(v_ego / std::max(0.1f, v0), delta));
-    } else {
+    if (has_lead) {
       const float closing_speed = std::max(0.0f, -rel_speed_mps);
       const float s0 = cfg_.standstill_gap_m;
       const float T  = cfg_.time_gap_s;
@@ -97,7 +110,6 @@ public:
       const float s_star = s0 + v_ego * T + (v_ego * closing_speed) / (2.0f * std::sqrt(a * b));
       const float s = std::max(0.1f, filt_dist_m);
 
-      const float delta = 4.0f;
       const float free_term   = 1.0f - std::pow(v_ego / std::max(0.1f, v0), delta);
       const float follow_term = Sqr(s_star / s);
 
@@ -114,9 +126,19 @@ public:
     // 5) clamp + jerk
     accel_cmd = Clamp(accel_cmd, -cfg_.max_decel_mps2, cfg_.max_accel_mps2);
     const float max_da = cfg_.jerk_limit_mps3 * dt;
+    const float free_accel_limited = Clamp(free_accel_nom,
+                                           last_accel_cmd_mps2_ - max_da,
+                                           last_accel_cmd_mps2_ + max_da);
     accel_cmd = Clamp(accel_cmd,
                       last_accel_cmd_mps2_ - max_da,
                       last_accel_cmd_mps2_ + max_da);
+
+    out.lead_following_active =
+        has_lead && ((free_accel_limited - accel_cmd) > kAccelInfluenceEpsMps2 || accel_cmd < -0.05f);
+    out.accel_cmd_mps2 = accel_cmd;
+    out.free_accel_nom_mps2 = free_accel_nom;
+    out.free_accel_limited_mps2 = free_accel_limited;
+
     last_accel_cmd_mps2_ = accel_cmd;
 
     // 6) update ego speed
@@ -142,6 +164,18 @@ public:
       brake_level = Clamp(brake_level, 0.0f, 10.0f);
       target_speed_kmh = 0.0f;
     }
+
+    const bool braking_phase = (brake_level > 0.05f) || (accel_cmd < -0.10f);
+    const bool accelerating_phase = accel_cmd > 0.10f;
+    const bool max_hold_phase =
+        out.ego_speed_kmh >= (cfg_.cruise_speed_kmh - 0.5f) &&
+        target_speed_kmh >= (cfg_.cruise_speed_kmh - 0.5f) &&
+        !braking_phase && !accelerating_phase;
+
+    if (braking_phase) out.longitudinal_phase = AccLongitudinalPhase::Braking;
+    else if (accelerating_phase) out.longitudinal_phase = AccLongitudinalPhase::Accelerating;
+    else if (max_hold_phase) out.longitudinal_phase = AccLongitudinalPhase::MaxHold;
+    else out.longitudinal_phase = AccLongitudinalPhase::Idle;
 
     out.speed_kmh = target_speed_kmh;
     out.brake_0_10 = brake_level;

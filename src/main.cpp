@@ -3,8 +3,11 @@
 #include <chrono>
 #include <cstdint>
 #include <ctime>
+#include <cmath>
 #include <filesystem>
+#include <iomanip>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -201,6 +204,140 @@ void HandlePendingCommands(keypad::CommandSource& command_source,
   }
 }
 
+struct RuntimePerformanceMetrics {
+  double fps = 0.0;
+  double total_ms = 0.0;
+  double input_ms = 0.0;
+  double inference_ms = 0.0;
+  double geometry_ms = 0.0;
+  double acc_scope_ms = 0.0;
+  double acc_ms = 0.0;
+  double lka_ms = 0.0;
+  double stability_ms = 0.0;
+  double control_total_ms = 0.0;
+  double behavior_ms = 0.0;
+  double collision_ms = 0.0;
+  double overlay_ms = 0.0;
+};
+
+using PerfClock = std::chrono::steady_clock;
+
+double ElapsedMs(const PerfClock::time_point& start,
+                 const PerfClock::time_point& end) {
+  return std::chrono::duration<double, std::milli>(end - start).count();
+}
+
+bool IsPointInsideImage(const cv::Mat& image, const cv::Point2f& point) {
+  return point.x >= 0.0f &&
+         point.y >= 0.0f &&
+         point.x < static_cast<float>(image.cols) &&
+         point.y < static_cast<float>(image.rows);
+}
+
+bool ProjectVehicleGroundPointToPixel(const CameraModel& cam,
+                                      const cv::Mat& image,
+                                      const LkaReferencePoint& point,
+                                      cv::Point2f* out_pixel) {
+  if (out_pixel == nullptr || point.valid == false) {
+    return false;
+  }
+
+  const float raw_x_cm = -point.y_m * 100.0f;
+  const float raw_y_cm = point.x_m * 100.0f;
+  const cv::Point2f pixel = cam.project3dToPixel(cv::Point3f(raw_x_cm, raw_y_cm, 0.0f));
+  *out_pixel = pixel;
+  return IsPointInsideImage(image, pixel);
+}
+
+void DrawOutlinedText(cv::Mat& image,
+                      const std::string& text,
+                      const cv::Point& origin,
+                      const cv::Scalar& color) {
+  cv::putText(image, text, origin, cv::FONT_HERSHEY_SIMPLEX, 0.55, BLACK, 3, cv::LINE_AA);
+  cv::putText(image, text, origin, cv::FONT_HERSHEY_SIMPLEX, 0.55, color, 1, cv::LINE_AA);
+}
+
+void DrawLkaReferenceOverlay(cv::Mat& image,
+                             const cv::Point2f& current_px,
+                             bool current_valid,
+                             const cv::Point2f& target_px,
+                             bool target_valid) {
+  if (image.empty()) {
+    return;
+  }
+
+  if (current_valid && target_valid) {
+    cv::line(image, current_px, target_px, cv::Scalar(255, 255, 255), 2, cv::LINE_AA);
+  }
+
+  if (current_valid) {
+    cv::circle(image, current_px, 8, cv::Scalar(0, 0, 0), cv::FILLED, cv::LINE_AA);
+    cv::circle(image, current_px, 6, cv::Scalar(0, 255, 255), cv::FILLED, cv::LINE_AA);
+    DrawOutlinedText(image,
+                     "LKA current",
+                     cv::Point(cvRound(current_px.x + 10.0f), cvRound(current_px.y - 10.0f)),
+                     cv::Scalar(0, 255, 255));
+  }
+
+  if (target_valid) {
+    cv::circle(image, target_px, 8, cv::Scalar(0, 0, 0), cv::FILLED, cv::LINE_AA);
+    cv::circle(image, target_px, 6, cv::Scalar(255, 255, 0), cv::FILLED, cv::LINE_AA);
+    DrawOutlinedText(image,
+                     "LKA target",
+                     cv::Point(cvRound(target_px.x + 10.0f), cvRound(target_px.y - 10.0f)),
+                     cv::Scalar(255, 255, 0));
+  }
+}
+
+void DrawPerformanceOverlay(cv::Mat& image,
+                            const RuntimePerformanceMetrics& perf) {
+  if (image.empty()) {
+    return;
+  }
+
+  struct PerfLine {
+    const char* label;
+    double value_ms;
+    cv::Scalar color;
+  };
+
+  const std::vector<PerfLine> lines = {
+      {"INPUT", perf.input_ms, WHITE},
+      {"INFER", perf.inference_ms, CYAN},
+      {"GEOM", perf.geometry_ms, ORANGE},
+      {"ACC", perf.acc_ms, GREEN},
+      {"LKA", perf.lka_ms, YELLOW},
+      {"STAB", perf.stability_ms, WHITE},
+      {"BEHAV", perf.behavior_ms, MAGENTA},
+      {"COLL", perf.collision_ms, RED},
+      {"DRAW", perf.overlay_ms, GRAY},
+  };
+
+  const int panel_width = 310;
+  const int panel_height = 54 + static_cast<int>(lines.size()) * 22;
+  const int x = std::max(8, image.cols - panel_width - 20);
+  const int y = std::max(8, image.rows - panel_height - 20);
+  const cv::Rect panel(x, y, panel_width, panel_height);
+
+  cv::rectangle(image, panel, cv::Scalar(24, 24, 24), cv::FILLED, cv::LINE_AA);
+  cv::rectangle(image, panel, WHITE, 1, cv::LINE_AA);
+
+  std::ostringstream header;
+  header << std::fixed << std::setprecision(1)
+         << "PERF FPS:" << perf.fps
+         << " TOTAL:" << std::setprecision(2) << perf.total_ms << "ms";
+  DrawOutlinedText(image, header.str(), cv::Point(x + 12, y + 24), WHITE);
+
+  int line_y = y + 48;
+  for (const auto& line : lines) {
+    std::ostringstream oss;
+    oss << std::left << std::setw(7) << line.label
+        << std::right << std::fixed << std::setprecision(2) << line.value_ms << " ms";
+    DrawOutlinedText(image, oss.str(), cv::Point(x + 12, line_y), line.color);
+    line_y += 22;
+  }
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -347,13 +484,13 @@ int main(int argc, char** argv) {
       keypad::MakeInitialRuntimeControlState(runtime_cfg.app, canbus_compiled);
   keypad::SyncCanRuntimeState(control_state);
 
-  clock_t start, end;
   uint64_t frame_index = 0;
 
   while (1) {
-    start = clock();
+    const auto perf_frame_start = PerfClock::now();
     HandlePendingCommands(keypad_source, control_state);
 
+    RuntimePerformanceMetrics perf_metrics;
     uint64_t frame_sync_ns = 0;
     uint64_t frame_hw_ns = 0;
 
@@ -380,9 +517,13 @@ int main(int argc, char** argv) {
     }
 #endif
 
+    const auto perf_after_input = PerfClock::now();
+    perf_metrics.input_ms = ElapsedMs(perf_frame_start, perf_after_input);
+
     std::vector<TrackingBox> tracking_result;
     std::vector<TrackingBox> world_result;
 
+    const auto inference_start = PerfClock::now();
 #ifdef USE_TFLITE
     tracking_result = tflite_run_frame(frame,
                                        output_frame,
@@ -398,7 +539,13 @@ int main(int argc, char** argv) {
                                         control_state.draw_inference_overlay);
 #endif
 
+    const auto inference_end = PerfClock::now();
+    perf_metrics.inference_ms = ElapsedMs(inference_start, inference_end);
+
+    const auto geometry_start = PerfClock::now();
     world_result = GeometryFunction(output_frame, output_frame, tracking_result, &cam);
+    const auto geometry_end = PerfClock::now();
+    perf_metrics.geometry_ms = ElapsedMs(geometry_start, geometry_end);
 
 #ifdef CANBUS__
     const float ego_vehicle_speed_kmh = CAN.speed;
@@ -416,9 +563,16 @@ int main(int argc, char** argv) {
 
     std::string dbg;
     auto cmd = stability::VehicleControl_Run(world_result, ego_speed_mps, dt_s, &dbg);
+    perf_metrics.acc_scope_ms = cmd.perf.acc_scope_ms;
+    perf_metrics.acc_ms = cmd.perf.acc_ms;
+    perf_metrics.lka_ms = cmd.perf.lka_ms;
+    perf_metrics.stability_ms = cmd.perf.stability_ms;
+    perf_metrics.control_total_ms = cmd.perf.total_ms;
 
+    const auto overlay_start = PerfClock::now();
     if (control_state.draw_acc_overlay) {
       acc::ACC_DrawTrackingBoxes(output_frame, world_result, cmd.acc_cmd);
+      acc::ACC_DrawLongitudinalPhaseHud(output_frame, cmd.acc_cmd);
     }
 
     const float target_speed_kmh = cmd.acc_cmd.TargetSpeedKmh;
@@ -428,6 +582,19 @@ int main(int argc, char** argv) {
     targetAngle = cmd.steer_deg;
     target_speed = cmd.speed_kmh;
     deceleration = cmd.brake_0_10;
+
+    const LkaReferenceSnapshot lka_reference_snapshot =
+        lane_keeping_get_last_reference_snapshot();
+    cv::Point2f lka_current_px;
+    cv::Point2f lka_target_px;
+    const bool lka_current_px_valid =
+        ProjectVehicleGroundPointToPixel(cam, output_frame,
+                                         lka_reference_snapshot.current_point,
+                                         &lka_current_px);
+    const bool lka_target_px_valid =
+        ProjectVehicleGroundPointToPixel(cam, output_frame,
+                                         lka_reference_snapshot.target_point,
+                                         &lka_target_px);
 
     std::vector<TrackingBox> world_before_behavior;
     if (runtime_log_manager.AblationRunning()) {
@@ -439,6 +606,7 @@ int main(int argc, char** argv) {
     behavior_draw_params.draw_heading_arrow = control_state.draw_behavior_overlay;
     behavior_draw_params.draw_heading_text = control_state.draw_behavior_overlay;
 
+    const auto behavior_start = PerfClock::now();
     if (runtime_cfg.behavior.enable) {
       vehicle_skeleton::RunVehicleSkeletonAndHeading(output_frame,
                                                      output_frame,
@@ -447,6 +615,10 @@ int main(int argc, char** argv) {
                                                      behavior_draw_params);
     }
 
+    const auto behavior_end = PerfClock::now();
+    perf_metrics.behavior_ms = ElapsedMs(behavior_start, behavior_end);
+
+    const auto collision_start = PerfClock::now();
     auto ca = collision_assist.Step(
         world_result,
         ego_speed_mps,
@@ -456,6 +628,8 @@ int main(int argc, char** argv) {
         &target_speed,
         &targetAngle,
         &deceleration);
+    const auto collision_end = PerfClock::now();
+    perf_metrics.collision_ms = ElapsedMs(collision_start, collision_end);
     const uint64_t cmd_sync_ns = TimeSyncNowNs();
 
     if (control_state.draw_collision_overlay &&
@@ -494,6 +668,14 @@ int main(int argc, char** argv) {
     //                "", "", " ",
     //                "", "", " km/h");
 
+    if (control_state.draw_lka_overlay) {
+      DrawLkaReferenceOverlay(output_frame,
+                              lka_current_px,
+                              lka_current_px_valid,
+                              lka_target_px,
+                              lka_target_px_valid);
+    }
+
     adas_log::FrameSnapshot log_snapshot;
     log_snapshot.frame_index = frame_index;
     log_snapshot.frame_sync_ns = frame_sync_ns;
@@ -504,6 +686,18 @@ int main(int argc, char** argv) {
     log_snapshot.target_speed_kmh = target_speed;
     log_snapshot.target_distance_m = Targetdistance;
     log_snapshot.target_ttc_s = target_ttc;
+    log_snapshot.lka_reference_valid = lka_reference_snapshot.valid;
+    log_snapshot.lka_p_curve = lka_reference_snapshot.p_curve;
+    log_snapshot.lka_current_x_m = lka_reference_snapshot.current_point.x_m;
+    log_snapshot.lka_current_y_m = lka_reference_snapshot.current_point.y_m;
+    log_snapshot.lka_current_image_valid = lka_current_px_valid;
+    log_snapshot.lka_current_u_px = lka_current_px.x;
+    log_snapshot.lka_current_v_px = lka_current_px.y;
+    log_snapshot.lka_target_x_m = lka_reference_snapshot.target_point.x_m;
+    log_snapshot.lka_target_y_m = lka_reference_snapshot.target_point.y_m;
+    log_snapshot.lka_target_image_valid = lka_target_px_valid;
+    log_snapshot.lka_target_u_px = lka_target_px.x;
+    log_snapshot.lka_target_v_px = lka_target_px.y;
     log_snapshot.world_before_behavior = runtime_log_manager.AblationRunning() ? &world_before_behavior : nullptr;
     log_snapshot.world_result = &world_result;
     log_snapshot.vehicle_cmd = &cmd;
@@ -514,8 +708,6 @@ int main(int argc, char** argv) {
     log_snapshot.can_valid = false;
 #endif
     log_snapshot.can_state = &CAN;
-    runtime_log_manager.LogFrame(log_snapshot);
-    frame_index += 1;
 
 #ifdef Save_infer_raw_data__
     if (SaveOutputTensorToTxt(pose.interpreter.get(),
@@ -527,16 +719,41 @@ int main(int argc, char** argv) {
 
     keypad::DrawRuntimeStatusOverlay(output_frame, control_state, keypad_evdev_ready);
 
+    const auto overlay_end = PerfClock::now();
+    perf_metrics.overlay_ms = ElapsedMs(overlay_start, overlay_end);
+    perf_metrics.total_ms = ElapsedMs(perf_frame_start, overlay_end);
+    perf_metrics.fps = perf_metrics.total_ms > 1e-6 ? (1000.0 / perf_metrics.total_ms) : 0.0;
+
+    if (control_state.draw_status_hud) {
+      DrawPerformanceOverlay(output_frame, perf_metrics);
+    }
+
+    log_snapshot.perf_fps = perf_metrics.fps;
+    log_snapshot.perf_total_ms = perf_metrics.total_ms;
+    log_snapshot.perf_input_ms = perf_metrics.input_ms;
+    log_snapshot.perf_inference_ms = perf_metrics.inference_ms;
+    log_snapshot.perf_geometry_ms = perf_metrics.geometry_ms;
+    log_snapshot.perf_acc_scope_ms = perf_metrics.acc_scope_ms;
+    log_snapshot.perf_acc_ms = perf_metrics.acc_ms;
+    log_snapshot.perf_lka_ms = perf_metrics.lka_ms;
+    log_snapshot.perf_stability_ms = perf_metrics.stability_ms;
+    log_snapshot.perf_control_total_ms = perf_metrics.control_total_ms;
+    log_snapshot.perf_behavior_ms = perf_metrics.behavior_ms;
+    log_snapshot.perf_collision_ms = perf_metrics.collision_ms;
+    log_snapshot.perf_overlay_ms = perf_metrics.overlay_ms;
+
+    runtime_log_manager.LogFrame(log_snapshot);
+    frame_index += 1;
+
 #ifdef Write_Video__
     cv::resize(output_frame, output_frame,
                cv::Size(output_video_width, output_video_height));
     video_writer.write(output_frame);
 #endif
 
-    end = clock();
     if (runtime_cfg.app.show_timing_ms) {
-      const double system_time_used = ((double)(end - start)) / CLOCKS_PER_SEC * 1000;
-      cout << "Time taken: " << system_time_used << " ms" << endl;
+      cout << "Time taken: " << perf_metrics.total_ms
+           << " ms, FPS: " << perf_metrics.fps << endl;
     }
 
 #ifdef _opengl

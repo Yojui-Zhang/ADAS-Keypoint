@@ -95,6 +95,7 @@ void ReadAppConfig(const cv::FileNode& app_node, AppRuntimeConfig& cfg) {
 
     ReadBoolIfPresent(app_node, "draw_inference_overlay", cfg.draw_inference_overlay);
     ReadBoolIfPresent(app_node, "draw_acc_overlay", cfg.draw_acc_overlay);
+    ReadBoolIfPresent(app_node, "draw_lka_overlay", cfg.draw_lka_overlay);
     ReadBoolIfPresent(app_node, "draw_behavior_overlay", cfg.draw_behavior_overlay);
     ReadBoolIfPresent(app_node, "draw_collision_overlay", cfg.draw_collision_overlay);
     ReadBoolIfPresent(app_node, "draw_status_hud", cfg.draw_status_hud);

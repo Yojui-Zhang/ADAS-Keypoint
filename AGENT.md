@@ -685,3 +685,128 @@
 1. 若實際控制與車道分析主要看近中距離，建議新增「近距優先」版本標定，降低遠距 noisy 點對結果的影響。
 2. 建議補拍一組新的驗證影像，人工檢查 lane / ground point 回投影是否與實際路面對齊。
 3. 若後續鏡頭角度還會再微調，建議把 CSV -> 外參更新流程整理成固定腳本，避免每次人工重算。
+
+
+---
+
+## 16. 本輪再追加（LKA 參考點可視化與 research log 透明化）
+
+### 16.1 本輪用戶要求（分類）
+1. 根據 LKA 實際控制邏輯，將「車輛當前點」與「欲前往的目標點」直接畫在影像上。
+2. 該繪圖需可透過 keypad 在執行期開關，不能寫死在畫面上。
+3. 將當前點與目標點同步寫入 log，讓使用者能在當下與後處理時理解 LKA 的運行依據，降低黑盒感。
+
+### 16.2 思考與決策摘要（可公開版本）
+- **決策 Z：直接沿用 LKA 控制內部的 reference snapshot，不另建第二套幾何推估**
+  - 原因：若繪圖點與控制點不是同一份資料，畫面與 log 會變成「看起來像」而不是「實際上就是」。
+  - 做法：在 `lane_keeping` 內保存每幀最新的 `LkaReferenceSnapshot`，由 `main` 讀出後投影到影像與寫入 research log。
+
+- **決策 AA：將 LKA 點位繪圖做成獨立 runtime overlay**
+  - 原因：用戶要求能單獨開關，且不應綁在 inference / behavior / collision 其中之一。
+  - 做法：新增 `draw_lka_overlay` runtime state，並用 keypad 熱鍵獨立切換。
+
+- **決策 AB：同時記錄世界座標與影像座標**
+  - 原因：離線分析時只記 px 不足以理解控制幾何，只記 meter 又無法直接對照畫面。
+  - 做法：research CSV 同步保存 `x/y (m)` 與 `u/v (px)`，並附上 valid flag。
+
+### 16.3 架構概要（本輪新增 / 調整）
+- `include/LKA/lane_keeping.h`, `src/LKA/lane_keeping.cpp`, `src/LKA/lk_stanley_controller.cpp`
+  - 新增 `LkaReferenceSnapshot`。
+  - 每幀保存 LKA 控制正在使用的 current / target reference point。
+- `src/main.cpp`
+  - 將 LKA reference point 投影回影像並繪製。
+  - 把 current / target 的 meter 與 pixel 資訊封裝進 `FrameSnapshot`。
+- `include/Keypad/keypad_control.h`, `src/keypad/keypad_control.cpp`
+  - 新增 `draw_lka_overlay`。
+  - 熱鍵改為：`6=LKA`, `7=Behavior`, `8=Collision`, `9=HUD`。
+- `include/log/runtime_log_manager.h`, `src/log/runtime_log_manager.cpp`
+  - 新增 LKA reference 點位欄位傳遞。
+- `include/log/research_data_logger.h`, `src/log/research_data_logger.cpp`
+  - research CSV 新增：
+    - `lka_reference_valid`
+    - `lka_p_curve`
+    - `lka_current_x_m / lka_current_y_m / lka_current_u_px / lka_current_v_px`
+    - `lka_target_x_m / lka_target_y_m / lka_target_u_px / lka_target_v_px`
+- `include/system_config.h`, `src/system_config.cpp`, `config/system_config.yaml`
+  - 新增 `draw_lka_overlay` 初始配置。
+
+### 16.4 驗證與結果（本輪）
+- 建置驗證：
+  - `cmake --build build-TFlite -j4`：通過
+- 結果：
+  - 畫面可顯示 LKA current / target point。
+  - 可用 keypad 在執行期切換 LKA overlay。
+  - research log 已可回看當幀 LKA 的參考點與投影位置。
+
+### 16.5 已知限制與風險（本輪）
+- `current point` 採用的是 LKA 控制 reference point（ego anchor），`target point` 採用的是控制預覽目標點；這是為了對齊控制邏輯，不是單純畫車頭中心。
+- 當影像投影點落在畫面外或當幀無有效 lane 時，CSV 仍會保留 valid flag 供離線判讀。
+- 目前 research log 是逐幀點位紀錄，尚未額外輸出 LKA 點位的專用 summary / plot。
+
+### 16.6 後續建議（本輪）
+1. 若後續要更完整解釋 LKA，可再增加「當前 path 點」與「preview path 點」的分離欄位。
+2. 可追加離線腳本，直接把 `lka_current_* / lka_target_*` 疊回影片或生成 point trajectory 圖。
+3. 若實車操作人員需要更直觀控制，建議把 HUD 內 hotkey 說明同步更新到 README。
+
+
+---
+
+## 17. 本輪再追加（ACC 候選 / lead / 真正跟車 lead 的分色可視化）
+
+### 17.1 本輪用戶要求（分類）
+1. 將 ACC overlay 從單純的「target / 非 target」二分，提升為多狀態顯示。
+2. 需分別標示：候選車、lead、真正進入跟車的 lead、與剩餘車輛。
+3. 顏色語意需盡量對齊實際 ACC 控制狀態，避免只是在畫面上重算一套近似規則。
+
+### 17.2 思考與決策摘要（可公開版本）
+- **決策 AC：ACC overlay 狀態直接由 `AccCommand` 攜帶，不在 draw 階段重跑第二套判斷**
+  - 原因：若畫面端自己再做 heuristic，容易和實際控制 lead 狀態脫鉤。
+  - 做法：在 `AccCommand` 內新增 `candidate_ids` 與 `lead_following_active`，由 ACC controller 在同一幀控制計算後直接輸出。
+
+- **決策 AD：將「真正進入跟車」定義為前車已實際壓低縱向命令，而非單純被選成 lead**
+  - 原因：被選為 lead 不代表此刻已經進入明顯跟車；遠距離目標可能仍幾乎等同自由巡航。
+  - 做法：以「與 free-road 加速度相比，lead 是否造成足夠顯著的縱向命令下降」作為 `lead_following_active` 判定基準。
+
+### 17.3 架構概要（本輪新增 / 調整）
+- `include/ACC/AccConfig.h`
+  - `AccCommand` 新增：
+    - `candidate_ids`
+    - `lead_following_active`
+- `include/ACC/AccController.h`
+  - ACC controller 每幀輸出候選清單。
+  - 新增 `lead_following_active` 判定，表示 lead 已實際限制縱向控制。
+- `include/ACC/AccDebugDraw.h`
+  - overlay 顏色更新為四類：
+    - `FOLLOW`：真正進入跟車的 lead
+    - `LEAD`：已選為 lead，但尚未明顯進入跟車限制
+    - `CAND`：候選車
+    - `REM`：剩餘車輛
+
+### 17.4 驗證與結果（本輪）
+- 建置驗證：
+  - `cmake --build build-TFlite -j4`：通過
+- 結果：
+  - ACC overlay 不再只有綠 / 紅兩種語意。
+  - 畫面可直接區分「只是候選」與「真正已經影響 ACC 跟車控制」的前車。
+
+### 17.5 已知限制與風險（本輪）
+- `lead_following_active` 目前定義為「lead 已對縱向命令造成足夠顯著影響」；這是控制語意，不是法律或論文標準定義。
+- overlay 仍只顯示 `class_id` 為 1/2/3 的動態目標，不會把其他類別納入 ACC 顏色分級。
+- `candidate_ids` 是本幀結果，未額外做視覺平滑；快速切換場景時顏色仍可能隨感知結果跳動。
+
+### 17.6 後續建議（本輪）
+1. 若後續要做更論文化分析，可把 ACC overlay 狀態同步寫進 research log。
+2. 可追加畫面 legend，直接在 HUD 顯示各顏色代表的 ACC 狀態。
+3. 若要更保守，可把 `lead_following_active` 的門檻配置化，方便實車調整語意敏感度。
+
+## 18. 本輪再追加（ACC 四種車輛狀態落盤 + 縱向 phase HUD / log）
+- 把 ACC 四種視覺狀態 `candidate / lead / following_lead / remaining` 寫進 research log，並加入每幀 `acc_object_state_summary`，摘要包含 `id / class / score / ground(x,y) / image(u,v) / box(x,y,w,h)`。
+- 追加 lead 驗證欄位：`acc_target_id`、`acc_target_distance_m`、`acc_target_lateral_m`、`acc_target_relative_speed_mps`、`acc_target_score`、`acc_target_dist_std_m`、`acc_target_rel_speed_std_mps`、`acc_target_box_*`、`acc_target_bottom_center_*`。
+- 追加 ACC 縱向控制 phase：`max_hold / accelerating / idle / braking`，同時輸出 `acc_control_ego_speed_kmh`、`acc_control_cruise_speed_kmh`、`acc_control_speed_cmd_kmh`、`acc_control_brake_0_10`、`acc_control_accel_cmd_mps2`、`acc_control_free_accel_*`。
+- ACC overlay 右上角新增 `MAX HOLD / ACCEL / IDLE / BRAKE` phase HUD，僅高亮當前 phase，畫面與 log 共用同一份 `AccCommand.longitudinal_phase` 判斷，避免畫面與 CSV 語意漂移。
+
+## 19. 本輪再追加（FPS / 每功能 ms 右下角 HUD + log）
+- 新增主迴圈 performance metrics：`fps`、`total_ms`、`input_ms`、`inference_ms`、`geometry_ms`、`behavior_ms`、`collision_ms`、`overlay_ms`。
+- 新增 VehicleControl 內部分項：`acc_scope_ms`、`acc_ms`、`lka_ms`、`stability_ms`、`control_total_ms`。
+- HUD 模式下在畫面右下角顯示 performance panel，標示各功能耗時與即時 FPS / total frame time。
+- research log 追加對應 perf 欄位，方便事後比對哪一段變慢。

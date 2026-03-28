@@ -25,6 +25,33 @@ struct FrameSnapshot {
   double target_distance_m = 0.0;
   double target_ttc_s = 0.0;
 
+  double perf_fps = 0.0;
+  double perf_total_ms = 0.0;
+  double perf_input_ms = 0.0;
+  double perf_inference_ms = 0.0;
+  double perf_geometry_ms = 0.0;
+  double perf_acc_scope_ms = 0.0;
+  double perf_acc_ms = 0.0;
+  double perf_lka_ms = 0.0;
+  double perf_stability_ms = 0.0;
+  double perf_control_total_ms = 0.0;
+  double perf_behavior_ms = 0.0;
+  double perf_collision_ms = 0.0;
+  double perf_overlay_ms = 0.0;
+
+  bool lka_reference_valid = false;
+  double lka_p_curve = 0.0;
+  double lka_current_x_m = 0.0;
+  double lka_current_y_m = 0.0;
+  bool lka_current_image_valid = false;
+  double lka_current_u_px = 0.0;
+  double lka_current_v_px = 0.0;
+  double lka_target_x_m = 0.0;
+  double lka_target_y_m = 0.0;
+  bool lka_target_image_valid = false;
+  double lka_target_u_px = 0.0;
+  double lka_target_v_px = 0.0;
+
   const std::vector<TrackingBox>* world_before_behavior = nullptr;
   const std::vector<TrackingBox>* world_result = nullptr;
   const stability::VehicleControlCommand* vehicle_cmd = nullptr;

@@ -1,7 +1,7 @@
 %YAML:1.0
 ---
 app:
-  run_mode: "real_car"
+  run_mode: "real_car"      # real_car video virtual_road
   camera_yaml_path: "../Camera-Config/Sensing-3M.yaml"
   icon_path: "../icon"
   fallback_ego_speed_kmh: 10.0
@@ -21,13 +21,14 @@ app:
 
   draw_inference_overlay: 1
   draw_acc_overlay: 1
+  draw_lka_overlay: 1
   draw_behavior_overlay: 1
   draw_collision_overlay: 1
   draw_status_hud: 1
 
 input:
   video_path: "../video/1280x720/vecow-demo.mp4"
-  camera_index: 1
+  camera_index: -1
   capture_width: 1920
   capture_height: 1080
   window_name: "Screen"
@@ -119,7 +120,7 @@ lka:
   enable_prob_lowpass: 1
   prob_alpha: 0.85
   lane_width_m: 3.76
-  lane_center_offset_m: 0.7
+  lane_center_offset_m: 0.0
   visual_limit_m: 20.0
 
 stability:

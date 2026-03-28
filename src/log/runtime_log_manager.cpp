@@ -1,7 +1,11 @@
 #include "runtime_log_manager.h"
 
 #include <algorithm>
+#include <cmath>
 #include <filesystem>
+#include <iomanip>
+#include <limits>
+#include <sstream>
 #include <string>
 #include <system_error>
 
@@ -74,6 +78,82 @@ ResearchLogOptions BuildResearchOptions(const AdasSystemConfig& runtime_cfg) {
   options.time_sync_uses_ptp = TimeSyncUsingPtp();
   options.time_sync_source = TimeSyncClockSource();
   return options;
+}
+
+std::string FormatLogFloat(double value) {
+  if (!std::isfinite(value)) return "nan";
+  std::ostringstream oss;
+  oss << std::fixed << std::setprecision(3) << value;
+  return oss.str();
+}
+
+struct AccObjectLogSummary {
+  int candidate_count = 0;
+  int follow_count = 0;
+  int lead_count = 0;
+  int remaining_count = 0;
+  bool target_box_valid = false;
+  int target_box_x_px = 0;
+  int target_box_y_px = 0;
+  int target_box_w_px = 0;
+  int target_box_h_px = 0;
+  double target_bottom_center_u_px = 0.0;
+  double target_bottom_center_v_px = 0.0;
+  std::string object_state_summary;
+};
+
+AccObjectLogSummary BuildAccObjectLogSummary(const std::vector<TrackingBox>& world_result,
+                                             const acc::AccCommand& acc_cmd) {
+  AccObjectLogSummary summary;
+  std::ostringstream oss;
+  bool first = true;
+
+  for (const auto& tb : world_result) {
+    if (!(tb.class_id == 1 || tb.class_id == 2 || tb.class_id == 3)) {
+      continue;
+    }
+
+    const acc::AccTrackedObjectState state = acc::ClassifyAccTrackedObjectState(acc_cmd, tb.id);
+    switch (state) {
+      case acc::AccTrackedObjectState::Candidate: summary.candidate_count += 1; break;
+      case acc::AccTrackedObjectState::Lead: summary.lead_count += 1; break;
+      case acc::AccTrackedObjectState::FollowingLead: summary.follow_count += 1; break;
+      default: summary.remaining_count += 1; break;
+    }
+
+    cv::Point2f ground_xy;
+    const bool ground_valid = acc::TryGetGroundBottomCenterXY(tb, ground_xy);
+    const double bottom_center_u = tb.box.x + 0.5 * tb.box.width;
+    const double bottom_center_v = tb.box.y + tb.box.height;
+
+    if (!first) oss << ';';
+    first = false;
+    oss << "state=" << acc::AccTrackedObjectStateName(state)
+        << "|id=" << tb.id
+        << "|cls=" << tb.class_id
+        << "|score=" << FormatLogFloat(tb.score)
+        << "|x_m=" << FormatLogFloat(ground_valid ? ground_xy.x : std::numeric_limits<double>::quiet_NaN())
+        << "|y_m=" << FormatLogFloat(ground_valid ? ground_xy.y : std::numeric_limits<double>::quiet_NaN())
+        << "|u_px=" << FormatLogFloat(bottom_center_u)
+        << "|v_px=" << FormatLogFloat(bottom_center_v)
+        << "|box_x=" << tb.box.x
+        << "|box_y=" << tb.box.y
+        << "|box_w=" << tb.box.width
+        << "|box_h=" << tb.box.height;
+
+    if (tb.id == acc_cmd.target_id) {
+      summary.target_box_valid = true;
+      summary.target_box_x_px = tb.box.x;
+      summary.target_box_y_px = tb.box.y;
+      summary.target_box_w_px = tb.box.width;
+      summary.target_box_h_px = tb.box.height;
+      summary.target_bottom_center_u_px = bottom_center_u;
+      summary.target_bottom_center_v_px = bottom_center_v;
+    }
+  }
+
+  summary.object_state_summary = oss.str();
+  return summary;
 }
 
 void FillCanState(ResearchLogFrame* log_frame,
@@ -201,16 +281,76 @@ void RuntimeLogManager::LogFrame(const FrameSnapshot& snapshot) {
 
   log_frame.dt_s = snapshot.dt_s;
   log_frame.ego_speed_kmh = snapshot.ego_speed_kmh;
+  log_frame.perf_fps = snapshot.perf_fps;
+  log_frame.perf_total_ms = snapshot.perf_total_ms;
+  log_frame.perf_input_ms = snapshot.perf_input_ms;
+  log_frame.perf_inference_ms = snapshot.perf_inference_ms;
+  log_frame.perf_geometry_ms = snapshot.perf_geometry_ms;
+  log_frame.perf_acc_scope_ms = snapshot.perf_acc_scope_ms;
+  log_frame.perf_acc_ms = snapshot.perf_acc_ms;
+  log_frame.perf_lka_ms = snapshot.perf_lka_ms;
+  log_frame.perf_stability_ms = snapshot.perf_stability_ms;
+  log_frame.perf_control_total_ms = snapshot.perf_control_total_ms;
+  log_frame.perf_behavior_ms = snapshot.perf_behavior_ms;
+  log_frame.perf_collision_ms = snapshot.perf_collision_ms;
+  log_frame.perf_overlay_ms = snapshot.perf_overlay_ms;
 
   log_frame.cmd_speed_kmh = snapshot.target_speed_kmh;
   log_frame.cmd_steer_deg = snapshot.vehicle_cmd->steer_deg;
   log_frame.cmd_brake_0_10 = snapshot.vehicle_cmd->brake_0_10;
   log_frame.lka_steer_deg_raw = snapshot.vehicle_cmd->lka_steer_deg_raw;
+  log_frame.lka_reference_valid = snapshot.lka_reference_valid;
+  log_frame.lka_p_curve = snapshot.lka_p_curve;
+  log_frame.lka_current_x_m = snapshot.lka_current_x_m;
+  log_frame.lka_current_y_m = snapshot.lka_current_y_m;
+  log_frame.lka_current_image_valid = snapshot.lka_current_image_valid;
+  log_frame.lka_current_u_px = snapshot.lka_current_u_px;
+  log_frame.lka_current_v_px = snapshot.lka_current_v_px;
+  log_frame.lka_target_x_m = snapshot.lka_target_x_m;
+  log_frame.lka_target_y_m = snapshot.lka_target_y_m;
+  log_frame.lka_target_image_valid = snapshot.lka_target_image_valid;
+  log_frame.lka_target_u_px = snapshot.lka_target_u_px;
+  log_frame.lka_target_v_px = snapshot.lka_target_v_px;
 
-  log_frame.acc_target_speed_kmh = snapshot.vehicle_cmd->acc_cmd.TargetSpeedKmh;
+  const auto& acc_cmd = snapshot.vehicle_cmd->acc_cmd;
+  const AccObjectLogSummary acc_summary = BuildAccObjectLogSummary(*snapshot.world_result, acc_cmd);
+  const acc::AccTrackedObjectState lead_state = acc::ClassifyAccTrackedObjectState(acc_cmd, acc_cmd.target_id);
+
+  log_frame.acc_has_lead = acc_cmd.has_lead;
+  log_frame.acc_lead_following_active = acc_cmd.lead_following_active;
+  log_frame.acc_lead_state_code = acc::AccTrackedObjectStateCode(lead_state);
+  log_frame.acc_lead_state_text = acc::AccTrackedObjectStateName(lead_state);
+  log_frame.acc_candidate_count = acc_summary.candidate_count;
+  log_frame.acc_follow_count = acc_summary.follow_count;
+  log_frame.acc_lead_count = acc_summary.lead_count;
+  log_frame.acc_remaining_count = acc_summary.remaining_count;
+  log_frame.acc_target_id = acc_cmd.target_id;
+  log_frame.acc_target_speed_kmh = acc_cmd.TargetSpeedKmh;
   log_frame.acc_target_distance_m = snapshot.target_distance_m;
+  log_frame.acc_target_lateral_m = acc_cmd.lead_lateral_m;
+  log_frame.acc_target_relative_speed_mps = acc_cmd.relative_speed_mps;
+  log_frame.acc_target_score = acc_cmd.TargetScore;
+  log_frame.acc_target_dist_std_m = acc_cmd.TargetDistStd;
+  log_frame.acc_target_rel_speed_std_mps = acc_cmd.RelSpeedStd;
   log_frame.acc_target_ttc_s = snapshot.target_ttc_s;
-  log_frame.acc_target_ttc_std_s = snapshot.vehicle_cmd->acc_cmd.TargetTTCStd;
+  log_frame.acc_target_ttc_std_s = acc_cmd.TargetTTCStd;
+  log_frame.acc_target_box_valid = acc_summary.target_box_valid;
+  log_frame.acc_target_box_x_px = acc_summary.target_box_x_px;
+  log_frame.acc_target_box_y_px = acc_summary.target_box_y_px;
+  log_frame.acc_target_box_w_px = acc_summary.target_box_w_px;
+  log_frame.acc_target_box_h_px = acc_summary.target_box_h_px;
+  log_frame.acc_target_bottom_center_u_px = acc_summary.target_bottom_center_u_px;
+  log_frame.acc_target_bottom_center_v_px = acc_summary.target_bottom_center_v_px;
+  log_frame.acc_longitudinal_phase_code = acc::AccLongitudinalPhaseCode(acc_cmd.longitudinal_phase);
+  log_frame.acc_longitudinal_phase_text = acc::AccLongitudinalPhaseName(acc_cmd.longitudinal_phase);
+  log_frame.acc_control_ego_speed_kmh = acc_cmd.ego_speed_kmh;
+  log_frame.acc_control_cruise_speed_kmh = acc_cmd.cruise_speed_kmh;
+  log_frame.acc_control_speed_cmd_kmh = acc_cmd.speed_kmh;
+  log_frame.acc_control_brake_0_10 = acc_cmd.brake_0_10;
+  log_frame.acc_control_accel_cmd_mps2 = acc_cmd.accel_cmd_mps2;
+  log_frame.acc_control_free_accel_nom_mps2 = acc_cmd.free_accel_nom_mps2;
+  log_frame.acc_control_free_accel_limited_mps2 = acc_cmd.free_accel_limited_mps2;
+  log_frame.acc_object_state_summary = acc_summary.object_state_summary;
 
   log_frame.collision_warning = snapshot.collision_output->warning;
   log_frame.collision_threat_id = snapshot.collision_output->threat_id;

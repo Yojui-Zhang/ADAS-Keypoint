@@ -35,6 +35,7 @@ struct AppRuntimeConfig {
 
     bool draw_inference_overlay = true;
     bool draw_acc_overlay = true;
+    bool draw_lka_overlay = true;
     bool draw_behavior_overlay = true;
     bool draw_collision_overlay = true;
     bool draw_status_hud = true;

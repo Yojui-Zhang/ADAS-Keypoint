@@ -82,7 +82,24 @@ struct ControlState {
     bool  mode_curve = false;
 
     std::string debug;
+
+    struct ReferencePoint {
+        bool valid = false;
+        float x_m = 0.0f;
+        float y_m = 0.0f;
+    };
+
+    struct ReferenceSnapshot {
+        bool valid = false;
+        bool has_lane = false;
+        float p_curve = 0.0f;
+        ReferencePoint current_point;
+        ReferencePoint target_point;
+    } reference_snapshot;
 };
+
+using LkaReferencePoint = ControlState::ReferencePoint;
+using LkaReferenceSnapshot = ControlState::ReferenceSnapshot;
 
 // =========================
 // Public API
@@ -91,6 +108,7 @@ struct ControlState {
 void lane_keeping_set_control_config(const ControlConfig& cfg);
 ControlConfig lane_keeping_get_control_config();
 void lane_keeping_reset_state();
+LkaReferenceSnapshot lane_keeping_get_last_reference_snapshot();
 
 // Input TrackingBox is assumed to be in vehicle ground frame (meters): x-forward, y-left.
 // 重要假設/提醒：
