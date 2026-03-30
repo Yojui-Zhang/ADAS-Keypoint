@@ -98,7 +98,18 @@ void ReadAppConfig(const cv::FileNode& app_node, AppRuntimeConfig& cfg) {
     ReadBoolIfPresent(app_node, "draw_lka_overlay", cfg.draw_lka_overlay);
     ReadBoolIfPresent(app_node, "draw_behavior_overlay", cfg.draw_behavior_overlay);
     ReadBoolIfPresent(app_node, "draw_collision_overlay", cfg.draw_collision_overlay);
+    ReadBoolIfPresent(app_node, "draw_ground_grid_overlay", cfg.draw_ground_grid_overlay);
+    ReadBoolIfPresent(app_node, "draw_lane_detect_overlay", cfg.draw_lane_detect_overlay);
     ReadBoolIfPresent(app_node, "draw_status_hud", cfg.draw_status_hud);
+
+    ReadIfPresent(app_node, "ground_grid_forward_start_m", cfg.ground_grid_forward_start_m);
+    ReadIfPresent(app_node, "ground_grid_forward_end_m", cfg.ground_grid_forward_end_m);
+    ReadIfPresent(app_node, "ground_grid_lateral_min_m", cfg.ground_grid_lateral_min_m);
+    ReadIfPresent(app_node, "ground_grid_lateral_max_m", cfg.ground_grid_lateral_max_m);
+    ReadIfPresent(app_node, "ground_grid_spacing_m", cfg.ground_grid_spacing_m);
+    ReadIfPresent(app_node, "ground_grid_sample_step_m", cfg.ground_grid_sample_step_m);
+    ReadIfPresent(app_node, "ground_grid_major_every_n", cfg.ground_grid_major_every_n);
+    ReadBoolIfPresent(app_node, "ground_grid_draw_labels", cfg.ground_grid_draw_labels);
 }
 
 void ReadInputConfig(const cv::FileNode& input_node, InputViewConfig& cfg) {
@@ -220,6 +231,12 @@ void ReadLkaConfig(const cv::FileNode& lka_node, ControlConfig& cfg) {
     ReadIfPresent(lka_node, "lane_width_m", cfg.lane_width_m);
     ReadIfPresent(lka_node, "lane_center_offset_m", cfg.lane_center_offset_m);
     ReadIfPresent(lka_node, "visual_limit_m", cfg.visual_limit_m);
+    ReadIfPresent(lka_node, "lane_detect_vehicle_half_width_m", cfg.lane_detect_vehicle_half_width_m);
+    ReadIfPresent(lka_node, "lane_detect_forward_range_m", cfg.lane_detect_forward_range_m);
+    ReadIfPresent(lka_node, "lane_detect_draw_end_m", cfg.lane_detect_draw_end_m);
+    ReadIfPresent(lka_node, "lane_detect_bottom_range_m", cfg.lane_detect_bottom_range_m);
+    ReadIfPresent(lka_node, "lane_detect_contact_margin_m", cfg.lane_detect_contact_margin_m);
+    ReadIfPresent(lka_node, "lane_detect_mode", cfg.lane_detect_mode);
 }
 
 void ReadStabilityConfig(const cv::FileNode& s_node, stability::StabilityConfig& cfg) {

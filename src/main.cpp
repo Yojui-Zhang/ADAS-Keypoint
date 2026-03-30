@@ -21,7 +21,10 @@
 
 #include "input-view.h"
 #include "GeometryFunction.h"
+#include "CameraProjectionUtils.h"
+#include "WorldGridOverlay.h"
 #include "lane_keeping.h"
+#include "lk_visualization.h"
 #include "AccApi.h"
 #include "AccConfig.h"
 #include "AccDebugDraw.h"
@@ -227,13 +230,6 @@ double ElapsedMs(const PerfClock::time_point& start,
   return std::chrono::duration<double, std::milli>(end - start).count();
 }
 
-bool IsPointInsideImage(const cv::Mat& image, const cv::Point2f& point) {
-  return point.x >= 0.0f &&
-         point.y >= 0.0f &&
-         point.x < static_cast<float>(image.cols) &&
-         point.y < static_cast<float>(image.rows);
-}
-
 bool ProjectVehicleGroundPointToPixel(const CameraModel& cam,
                                       const cv::Mat& image,
                                       const LkaReferencePoint& point,
@@ -242,11 +238,10 @@ bool ProjectVehicleGroundPointToPixel(const CameraModel& cam,
     return false;
   }
 
-  const float raw_x_cm = -point.y_m * 100.0f;
-  const float raw_y_cm = point.x_m * 100.0f;
-  const cv::Point2f pixel = cam.project3dToPixel(cv::Point3f(raw_x_cm, raw_y_cm, 0.0f));
+  const cv::Point2f pixel =
+      ProjectVehicleGroundPointToImage(cam, image.size(), point.x_m, point.y_m);
   *out_pixel = pixel;
-  return IsPointInsideImage(image, pixel);
+  return IsProjectedPointInsideImage(image.size(), pixel, 0.0f);
 }
 
 void DrawOutlinedText(cv::Mat& image,
@@ -258,6 +253,8 @@ void DrawOutlinedText(cv::Mat& image,
 }
 
 void DrawLkaReferenceOverlay(cv::Mat& image,
+                             const cv::Point2f& ego_px,
+                             bool ego_valid,
                              const cv::Point2f& current_px,
                              bool current_valid,
                              const cv::Point2f& target_px,
@@ -268,6 +265,15 @@ void DrawLkaReferenceOverlay(cv::Mat& image,
 
   if (current_valid && target_valid) {
     cv::line(image, current_px, target_px, cv::Scalar(255, 255, 255), 2, cv::LINE_AA);
+  }
+
+  if (ego_valid) {
+    cv::circle(image, ego_px, 8, cv::Scalar(0, 0, 0), cv::FILLED, cv::LINE_AA);
+    cv::circle(image, ego_px, 5, cv::Scalar(255, 128, 255), cv::FILLED, cv::LINE_AA);
+    DrawOutlinedText(image,
+                     "Ego",
+                     cv::Point(cvRound(ego_px.x + 10.0f), cvRound(ego_px.y + 18.0f)),
+                     cv::Scalar(255, 128, 255));
   }
 
   if (current_valid) {
@@ -317,10 +323,10 @@ void DrawPerformanceOverlay(cv::Mat& image,
   const int panel_height = 54 + static_cast<int>(lines.size()) * 22;
   const int x = std::max(8, image.cols - panel_width - 20);
   const int y = std::max(8, image.rows - panel_height - 20);
-  const cv::Rect panel(x, y, panel_width, panel_height);
+  // const cv::Rect panel(x, y, panel_width, panel_height);
 
-  cv::rectangle(image, panel, cv::Scalar(24, 24, 24), cv::FILLED, cv::LINE_AA);
-  cv::rectangle(image, panel, WHITE, 1, cv::LINE_AA);
+  // cv::rectangle(image, panel, cv::Scalar(24, 24, 24), cv::FILLED, cv::LINE_AA);
+  // cv::rectangle(image, panel, WHITE, 1, cv::LINE_AA);
 
   std::ostringstream header;
   header << std::fixed << std::setprecision(1)
@@ -484,6 +490,17 @@ int main(int argc, char** argv) {
       keypad::MakeInitialRuntimeControlState(runtime_cfg.app, canbus_compiled);
   keypad::SyncCanRuntimeState(control_state);
 
+  WorldGridOverlayConfig world_grid_cfg;
+  world_grid_cfg.enabled = runtime_cfg.app.draw_ground_grid_overlay;
+  world_grid_cfg.forward_start_m = runtime_cfg.app.ground_grid_forward_start_m;
+  world_grid_cfg.forward_end_m = runtime_cfg.app.ground_grid_forward_end_m;
+  world_grid_cfg.lateral_min_m = runtime_cfg.app.ground_grid_lateral_min_m;
+  world_grid_cfg.lateral_max_m = runtime_cfg.app.ground_grid_lateral_max_m;
+  world_grid_cfg.spacing_m = runtime_cfg.app.ground_grid_spacing_m;
+  world_grid_cfg.sample_step_m = runtime_cfg.app.ground_grid_sample_step_m;
+  world_grid_cfg.major_every_n = runtime_cfg.app.ground_grid_major_every_n;
+  world_grid_cfg.draw_labels = runtime_cfg.app.ground_grid_draw_labels;
+
   uint64_t frame_index = 0;
 
   while (1) {
@@ -585,8 +602,12 @@ int main(int argc, char** argv) {
 
     const LkaReferenceSnapshot lka_reference_snapshot =
         lane_keeping_get_last_reference_snapshot();
+    const cv::Point2f lka_ego_px =
+        ProjectVehicleGroundPointToImage(cam, output_frame.size(), 0.0f, 0.0f);
     cv::Point2f lka_current_px;
     cv::Point2f lka_target_px;
+    const bool lka_ego_px_valid =
+        IsProjectedPointInsideImage(output_frame.size(), lka_ego_px, 0.0f);
     const bool lka_current_px_valid =
         ProjectVehicleGroundPointToPixel(cam, output_frame,
                                          lka_reference_snapshot.current_point,
@@ -650,6 +671,9 @@ int main(int argc, char** argv) {
       }
     }
 
+    world_grid_cfg.enabled = control_state.draw_ground_grid_overlay;
+    DrawWorldGridOverlay(output_frame, cam, world_grid_cfg);
+
     targetAngle = -targetAngle ;
     target_speed = cmd.speed_kmh;
 
@@ -669,11 +693,28 @@ int main(int argc, char** argv) {
     //                "", "", " km/h");
 
     if (control_state.draw_lka_overlay) {
+      lane_keeping::internal::DrawLkaLaneSolutionOnImage(
+          world_result,
+          output_frame,
+          cam,
+          lane_keeping_get_control_config(),
+          0.0f,
+          20.0f);
       DrawLkaReferenceOverlay(output_frame,
+                              lka_ego_px,
+                              lka_ego_px_valid,
                               lka_current_px,
                               lka_current_px_valid,
                               lka_target_px,
                               lka_target_px_valid);
+    }
+
+    if (control_state.draw_lane_detect_overlay) {
+      lane_keeping::internal::DrawLaneDetectOverlayOnImage(
+          world_result,
+          output_frame,
+          cam,
+          lane_keeping_get_control_config());
     }
 
     adas_log::FrameSnapshot log_snapshot;

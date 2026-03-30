@@ -29,6 +29,8 @@ struct RuntimeControlState {
   bool draw_lka_overlay = true;
   bool draw_behavior_overlay = true;
   bool draw_collision_overlay = true;
+  bool draw_ground_grid_overlay = false;
+  bool draw_lane_detect_overlay = false;
   bool draw_status_hud = true;
 };
 

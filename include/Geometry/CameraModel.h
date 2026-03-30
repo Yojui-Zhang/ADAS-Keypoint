@@ -13,6 +13,9 @@ public:
     const cv::Mat& D() const { return D_; }
     const cv::Mat& Rcw() const { return Rcw_; }   // p_c = Rcw * p_w + tcw
     const cv::Mat& tcw() const { return tcw_; }
+    int imageWidth() const { return image_width_; }
+    int imageHeight() const { return image_height_; }
+    cv::Size calibrationImageSize() const { return cv::Size(image_width_, image_height_); }
 
     // Derived:
     cv::Mat Rwc() const;              // = Rcw^T
@@ -32,6 +35,8 @@ private:
     cv::Mat D_;    // 1xN, CV_32F
     cv::Mat Rcw_;  // 3x3, CV_32F
     cv::Mat tcw_;  // 3x1, CV_32F
+    int image_width_ = 0;
+    int image_height_ = 0;
 
     bool ready_ = false;
 };

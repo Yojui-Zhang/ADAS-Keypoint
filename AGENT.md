@@ -810,3 +810,340 @@
 - 新增 VehicleControl 內部分項：`acc_scope_ms`、`acc_ms`、`lka_ms`、`stability_ms`、`control_total_ms`。
 - HUD 模式下在畫面右下角顯示 performance panel，標示各功能耗時與即時 FPS / total frame time。
 - research log 追加對應 perf 欄位，方便事後比對哪一段變慢。
+
+## 20. 本輪再追加（地面世界座標 1m 網格 overlay 與 keypad 切換）
+
+### 20.1 本輪用戶要求（分類）
+1. 依 `./Camera-Config/Sensing-3M.yaml` 的內參 / 外參，把地面平面世界座標網格直接投影回影像。
+2. 需顯示縱向 / 橫向每公尺的對應網格線，方便現場確認單應性 / ground projection 是否合理。
+3. 該網格必須能透過 keypad 在執行期開關，不能寫死。
+
+### 20.2 思考與決策摘要（可公開版本）
+- **決策 AE：網格直接使用系統實際載入的 `CameraModel` 投影**
+  - 原因：若另外重算一套簡化 homography，畫面看到的網格不一定等於系統實際使用的相機模型。
+  - 做法：以 `Sensing-3M.yaml` 載入的 `K/D/R_cw/t_cw` 為唯一來源，將地面世界點投影回影像。
+
+- **決策 AF：補上「標定解析度 -> 當前影像解析度」縮放投影**
+  - 原因：目前執行期畫面可能是 1280x720，但相機 YAML 仍保存 1920x1080 標定尺寸；若直接用原始 `K` 投影，overlay 可能整體縮放錯位。
+  - 做法：`CameraModel` 額外保存 `image_width/image_height`，投影後依當前影像尺寸做等比例縮放。
+
+- **決策 AG：地面網格做成獨立 runtime overlay，不綁在 LKA / Behavior / Collision**
+  - 原因：使用者要拿它做標定/實驗確認，語意上是相機幾何檢查工具，不應綁進其他演算法圖層。
+  - 做法：新增獨立 `draw_ground_grid_overlay` 狀態與 `G` 熱鍵切換。
+
+### 20.3 架構概要（本輪新增 / 調整）
+- `include/Geometry/CameraProjectionUtils.h`, `src/Geometry/CameraProjectionUtils.cpp`
+  - 功能：統一處理 vehicle meter -> raw world cm -> image pixel 的投影，並自動處理標定尺寸與當前畫面尺寸的縮放。
+- `include/Geometry/WorldGridOverlay.h`, `src/Geometry/WorldGridOverlay.cpp`
+  - 功能：把地面 `forward / lateral` 每 1m 網格線投影到影像，並以不同顏色畫 major/minor line。
+- `include/Geometry/CameraModel.h`, `src/Geometry/CameraModel.cpp`
+  - 功能：保存 `image_width / image_height`，供縮放投影使用。
+- `include/Keypad/keypad_control.h`, `src/keypad/keypad_control.cpp`
+  - 功能：新增 `draw_ground_grid_overlay` runtime state 與 `G` 熱鍵切換。
+- `src/main.cpp`
+  - 功能：在主流程 overlay 階段呼叫 `DrawWorldGridOverlay(...)`。
+- `src/LKA/lk_visualization.cpp`
+  - 功能：LKA 視覺化也改走同一套縮放投影 helper，避免與 ground grid 使用不同座標映射。
+
+### 20.4 本輪主要改動檔案
+- Geometry / overlay：
+  - `include/Geometry/CameraProjectionUtils.h`
+  - `src/Geometry/CameraProjectionUtils.cpp`
+  - `include/Geometry/WorldGridOverlay.h`
+  - `src/Geometry/WorldGridOverlay.cpp`
+  - `include/Geometry/CameraModel.h`
+  - `src/Geometry/CameraModel.cpp`
+- Runtime control / main：
+  - `include/Keypad/keypad_control.h`
+  - `src/keypad/keypad_control.cpp`
+  - `include/system_config.h`
+  - `src/system_config.cpp`
+  - `config/system_config.yaml`
+  - `src/main.cpp`
+- 對齊投影邏輯：
+  - `src/LKA/lk_visualization.cpp`
+
+### 20.5 使用方式（本輪）
+1. 預設可透過 `app.draw_ground_grid_overlay` 控制啟動時是否顯示。
+2. 執行期可按 `G` 切換 world grid overlay。
+3. `app.ground_grid_*` 可調整：
+   - 前向範圍
+   - 左右範圍
+   - 網格間距
+   - 採樣步距
+   - major line 間隔
+   - 是否顯示文字標籤
+
+### 20.6 驗證與結果（本輪）
+- 建置驗證：
+  - `cmake -S . -B build-TFlite`：通過
+  - `cmake --build build-TFlite -j4`：通過
+  - `cmake -S . -B build-TensorRT`：通過
+  - `cmake --build build-TensorRT -j4`：通過
+- 結果：
+  - 影像可顯示依 `Sensing-3M.yaml` 投影的地面世界座標網格。
+  - 可用 `G` 熱鍵即時開關。
+  - 投影 helper 已考慮標定解析度與當前畫面解析度不同的情況。
+
+### 20.7 已知限制與風險（本輪）
+- 網格畫的是地面 `Z=0` 平面；若實際路面有坡度、起伏或攝影機姿態再變動，仍會出現局部偏差。
+- 現在的 major/minor 標籤偏向人工檢視用途，還不是完整標定診斷工具。
+- 若輸入影像又被額外裁切或非等比例縮放，仍需重新檢查相機模型與實際顯示畫面的對應關係。
+
+### 20.8 後續建議（本輪）
+1. 若要做更嚴格驗證，可再加「滑鼠點像素 -> 反投影世界座標」的互動診斷工具。
+2. 可把 grid overlay 的顏色、字體大小、標籤密度再配置化。
+3. 若後續要做論文化附圖，可加上 ego origin、車體寬度與 lane width reference 線。
+
+## 21. 本輪再追加（LKA 左右車道線 / 中線 0~20m overlay + ego / reference point）
+
+### 21.1 本輪用戶要求（分類）
+1. 在現有 `draw_lka_overlay` 路徑中，加入 LKA 實際計算出的左右車道線與中線。
+2. 上述線條需以世界座標 `0m -> 20m` 的前向範圍投影回影像。
+3. 保留既有的 LKA current / target point，並額外畫出當前車輛點（ego origin）。
+
+### 21.2 思考與決策摘要（可公開版本）
+- **決策 AH：沿用 LKA 現有 lane selection / centerline 邏輯，不在主畫面重建另一套規則**
+  - 原因：若畫面上的左右線 / 中線和控制實際使用的資料不是同一條鏈，會再次產生黑盒感。
+  - 做法：直接重用 `FindBestLaneCandidates(...)` 與 `BuildCenterlineFromWorldResult(...)`。
+
+- **決策 AI：左右線與中線以固定 `0~20m` 世界座標區間可視化**
+  - 原因：用戶明確要看從車前 `0m` 到 `20m` 的幾何線形，而不是只看目前可用點的重疊區間。
+  - 做法：visualization helper 將擬合曲線投影到固定前向範圍；若缺少 polynomial，則回退到可用點區間內的線性插值。
+
+- **決策 AJ：ego origin 和 current / target point 同時顯示**
+  - 原因：使用者要同時確認「車輛當前位置」、「LKA 控制 reference current point」與「preview target point」三者相對關係。
+  - 做法：保留既有 `current/target`，並新增 `ego` 點位與文字標示。
+
+### 21.3 架構概要（本輪新增 / 調整）
+- `include/LKA/lk_visualization.h`, `src/LKA/lk_visualization.cpp`
+  - 新增 `DrawLkaLaneSolutionOnImage(...)`。
+  - 功能：繪製：
+    - 左車道線
+    - 右車道線
+    - 中線
+  - 前向範圍固定為 `0~20m`。
+- `src/main.cpp`
+  - 在 `draw_lka_overlay` 路徑中呼叫 `DrawLkaLaneSolutionOnImage(...)`。
+  - `DrawLkaReferenceOverlay(...)` 新增 `ego` 點位繪製。
+
+### 21.4 本輪主要改動檔案
+- `include/LKA/lk_visualization.h`
+- `src/LKA/lk_visualization.cpp`
+- `src/main.cpp`
+
+### 21.5 驗證與結果（本輪）
+- 建置驗證：
+  - `cmake --build build-TFlite -j4`：通過
+  - `cmake --build build-TensorRT -j4`：通過
+- 結果：
+  - 啟用 `draw_lka_overlay` 時，畫面可同時顯示：
+    - 左右車道線
+    - 中線
+    - ego origin
+    - LKA current point
+    - LKA target point
+
+### 21.6 已知限制與風險（本輪）
+- 固定畫到 `20m` 代表在某些幀會有外插；若當幀有效 lane 點只集中在近距或中距，遠端線段可信度會較低。
+- 當左右車道 polynomial 不可用時，會退回線性插值，因此畫面上不同幀的線條語意可能在「quadratic fit」與「linear fallback」之間切換。
+- ego origin 若投影落在畫面外，該點不會出現；這取決於相機姿態與畫面裁切範圍。
+
+### 21.7 後續建議（本輪）
+1. 若要讓使用者更容易判讀，可再加 legend，標明 `L / R / Center / Ego / Current / Target` 顏色語意。
+2. 若後續要與論文圖一致，可把 `0~20m` 改成 YAML 配置而非寫死。
+3. 若想區分「控制實際使用的中心線」與「純視覺化的外插線」，可再額外疊加 observed-range 標記。
+
+## 22. 本輪再追加（Lane detect 偏移 / 壓線世界座標檢測 + H 熱鍵）
+
+### 22.1 本輪用戶要求（分類）
+1. 新增一項獨立的 Lane detect 功能與 keypad 按鍵。
+2. 偏移/壓線判斷需直接使用世界座標，不要透過二次曲線公式做判定。
+3. 平常先把原始車道線畫成綠色。
+4. 當變換車道或車道線碰到車輛邊緣時，將對應車道線改成紅色，並在畫面下方額外加粗標示那一條偏移的車道線。
+
+### 22.2 思考與決策摘要（可公開版本）
+- **決策 AK：Lane detect 與 LKA curve fit 分離**
+  - 原因：用戶明確要求「不要透過二次曲線公式轉成曲線判斷」。
+  - 做法：另外建立 direct world-coordinate lane detection 路徑，只使用：
+    - `ExtractLanePointsVehicleM(...)`
+    - `EstimateLaneYAtX(...)`
+    - `SampleYLinear(...)`
+
+- **決策 AL：壓線判定採近距離車道線與車身半寬比較**
+  - 原因：用戶要的是「車道線碰到車輛邊緣」與變換車道時的即時判斷。
+  - 做法：在近距離前向範圍內，以左/右車道線的世界座標 `y` 與 `vehicle_half_width_m` 比較；若左線進入左車身邊界或右線進入右車身邊界，即視為偏移/壓線。
+
+- **決策 AM：新增獨立 `H` 熱鍵與 overlay state**
+  - 原因：此功能與 LKA overlay、grid overlay 語意不同，需可單獨開關。
+  - 做法：新增 `draw_lane_detect_overlay` 與 `H:LaneDet`。
+
+### 22.3 架構概要（本輪新增 / 調整）
+- `include/LKA/lk_visualization.h`, `src/LKA/lk_visualization.cpp`
+  - 新增 `DrawLaneDetectOverlayOnImage(...)`。
+  - 功能：
+    - 用原始世界座標線性插值選左右車道
+    - 畫綠色原始車道線
+    - 壓線/偏移時改畫紅色
+    - 在畫面下方額外加粗標示偏移那一條線
+- `include/LKA/lane_keeping.h`
+  - 新增 lane detect 參數：
+    - `lane_detect_vehicle_half_width_m`
+    - `lane_detect_forward_range_m`
+    - `lane_detect_draw_end_m`
+    - `lane_detect_bottom_range_m`
+    - `lane_detect_contact_margin_m`
+- `include/Keypad/keypad_control.h`, `src/keypad/keypad_control.cpp`
+  - 新增 `draw_lane_detect_overlay`
+  - 新增 `H` 熱鍵
+  - HUD 顯示 `LaneDet`
+- `include/system_config.h`, `src/system_config.cpp`, `config/system_config.yaml`
+  - 新增 app-level `draw_lane_detect_overlay`
+  - 新增 lka-level lane detect 參數
+- `src/main.cpp`
+  - 在主畫面 overlay 階段呼叫 `DrawLaneDetectOverlayOnImage(...)`
+
+### 22.4 使用方式（本輪）
+1. `H`：開關 `Lane detect overlay`
+2. 預設啟動由 `app.draw_lane_detect_overlay` 控制
+3. 以下參數可在 `lka:` 區塊調整：
+   - `lane_detect_vehicle_half_width_m`
+   - `lane_detect_forward_range_m`
+   - `lane_detect_draw_end_m`
+   - `lane_detect_bottom_range_m`
+   - `lane_detect_contact_margin_m`
+
+### 22.5 驗證與結果（本輪）
+- 建置驗證：
+  - `cmake --build build-TFlite -j4`：通過
+  - `cmake --build build-TensorRT -j4`：通過
+- 結果：
+  - 平時左右車道線以綠色顯示。
+  - 當左/右車道線進入車身邊界判定時，對應線條改為紅色。
+  - 偏移那一條線會在畫面下方額外加粗標示。
+  - 可透過 `H` 即時開關。
+
+### 22.6 已知限制與風險（本輪）
+- 此功能刻意不使用 quadratic fit，所以遠距離或點稀疏時，線性插值顯示會較保守。
+- 左右車道候選仍需先有足夠的原始 lane world points；若某一側點太少，該側不會畫也不會判斷。
+- 若畫面裁切導致近距離 lane points 缺失，壓線偵測可能變得延後或不穩定。
+
+### 22.7 後續建議（本輪）
+1. 若要更像車道偏移警示系統，可再加入時間去抖動與連續幀 hysteresis。
+2. 可把左/右壓線狀態同步寫入 research log，方便事後統計偏移事件。
+3. 若實車車寬與感知原點不同，建議再實測校正 `lane_detect_vehicle_half_width_m`。
+
+## 23. 本輪再追加（Lane detect 改為 YAML-only 模式切換：direct_world / quadratic_curve）
+
+### 23.1 本輪用戶要求（分類）
+1. Lane detect 不再使用 keypad 控制。
+2. 改為以 YAML 變數決定是否啟用與判定模式。
+3. 需支援兩種模式：
+   - `direct_world`
+   - `quadratic_curve`
+
+### 23.2 思考與決策摘要（可公開版本）
+- **決策 AN：Lane detect 顯示開關改回靜態配置，不走 runtime hotkey**
+  - 原因：用戶明確要求不用 keypad 控制。
+  - 做法：保留 `app.draw_lane_detect_overlay` 作為 YAML-only 開關，移除 `H` 熱鍵對 Lane detect 的切換語意。
+
+- **決策 AO：把「判定來源」抽成 mode，而不是再加第二套 overlay**
+  - 原因：使用者要比較的是同一個 Lane detect 視覺功能，但其偏移判定依據不同。
+  - 做法：新增 `lka.lane_detect_mode`，支援：
+    - `direct_world`：原始世界座標點 + 線性插值
+    - `quadratic_curve`：左右車道二次擬合後再做偏移判定
+
+- **決策 AP：模式切換只影響偏移判定與 lane sampling，不改紅/綠視覺語意**
+  - 原因：避免模式改變時，操作者還要重新學一套顏色規則。
+  - 做法：兩種模式都維持：
+    - 正常：綠線
+    - 偏移/壓線：紅線
+    - 下方加粗標示偏移那一側
+
+### 23.3 架構概要（本輪新增 / 調整）
+- `include/LKA/lane_keeping.h`
+  - 新增 `lane_detect_mode`
+- `src/LKA/lk_visualization.cpp`
+  - 新增 mode parsing 與 `BuildLaneDetectPair(...)`
+  - `direct_world`：走 raw points + `SampleYLinear(...)`
+  - `quadratic_curve`：走 `FindBestLaneCandidates(...)` 的 quadratic fit 結果
+- `src/keypad/keypad_control.cpp`
+  - 移除 Lane detect 的 runtime hotkey 處理與 HUD 顯示
+- `src/main.cpp`
+  - Lane detect 是否繪製改由 `runtime_cfg.app.draw_lane_detect_overlay` 直接控制
+- `src/system_config.cpp`, `config/system_config.yaml`
+  - 新增 `lka.lane_detect_mode`
+
+### 23.4 使用方式（本輪）
+1. 是否顯示 Lane detect：
+   - `app.draw_lane_detect_overlay: 0|1`
+2. 判定模式：
+   - `lka.lane_detect_mode: "direct_world"`
+   - `lka.lane_detect_mode: "quadratic_curve"`
+
+### 23.5 驗證與結果（本輪）
+- 建置驗證：
+  - `cmake --build build-TFlite -j4`：通過
+  - `cmake --build build-TensorRT -j4`：通過
+- 結果：
+  - Lane detect 已改為 YAML-only 控制。
+  - `H` 不再切換 Lane detect。
+  - 可用 YAML 在 direct world 與 quadratic curve 間切換。
+
+### 23.6 已知限制與風險（本輪）
+- `quadratic_curve` 模式在 lane polynomial 不可用時，仍會退回原始點線性插值，避免當幀完全失效。
+- 若後續有人只看舊版對話紀錄，可能還會以為 `H` 能切 Lane detect；以本節為最新準則。
+
+### 23.7 後續建議（本輪）
+1. 若要做模式比較，建議把目前生效的 `lane_detect_mode` 也畫到 HUD 或寫進 log。
+2. 若後續要完全禁止 Lane detect 與 keypad 互動，可連 `CMD_H` 在 legacy keypad 路徑中的歷史映射一起清掉。
+
+## 24. 本輪再修正（Lane detect 改為 keypad 控制顯示，YAML 僅控制判定模式）
+
+### 24.1 本輪用戶要求（分類）
+1. Lane detect 的繪圖顯示要恢復成 keypad 控制。
+2. 左右車道線偏移判斷方式仍由 YAML 決定。
+3. 需保留兩種判定模式：
+   - `direct_world`
+   - `quadratic_curve`
+
+### 24.2 思考與決策摘要（可公開版本）
+- **決策 AQ：把 Lane detect 拆成「顯示開關」與「判定模式」兩層控制**
+  - 原因：使用者要的是 runtime 視覺切換方便，但研究判定邏輯仍需固定可重現。
+  - 做法：
+    - 顯示開關：恢復為 keypad `H`
+    - 判定模式：維持 `lka.lane_detect_mode`
+
+- **決策 AR：保留 `app.draw_lane_detect_overlay` 作為啟動預設值**
+  - 原因：讓系統開機時可預設顯示或不顯示，但執行期間仍可立即用 keypad 覆寫。
+  - 做法：初始化 `RuntimeControlState.draw_lane_detect_overlay` 時沿用 YAML 值，之後由 `H` 切換。
+
+### 24.3 架構概要（本輪新增 / 調整）
+- `include/Keypad/keypad_control.h`
+  - 恢復 `draw_lane_detect_overlay` runtime state
+- `src/keypad/keypad_control.cpp`
+  - 初始化 lane detect overlay 狀態
+  - 恢復 `CMD_H` 切換
+  - `CMD_0` 全 overlay 開關重新納入 Lane detect
+  - HUD 熱鍵與狀態列恢復顯示 `LaneDet`
+- `src/main.cpp`
+  - Lane detect 是否繪製改回讀 `control_state.draw_lane_detect_overlay`
+- `config/system_config.yaml`
+  - `app.draw_lane_detect_overlay` 改註解為「啟動預設值」
+
+### 24.4 使用方式（本輪）
+1. 顯示開關：
+   - 啟動預設值：`app.draw_lane_detect_overlay`
+   - 執行期切換：keypad `H`
+2. 判定模式：
+   - `lka.lane_detect_mode: "direct_world"`
+   - `lka.lane_detect_mode: "quadratic_curve"`
+
+### 24.5 驗證與結果（本輪）
+- 建置驗證：
+  - `cmake --build build-TFlite -j4`：通過
+  - `cmake --build build-TensorRT -j4`：通過
+- 結果：
+  - Lane detect overlay 可由 `H` 即時開關。
+  - `app.draw_lane_detect_overlay` 現在作為啟動預設值，進入執行期後由 keypad 接手。
+  - 偏移判定仍由 YAML 的 `lane_detect_mode` 決定，不受 keypad 影響。

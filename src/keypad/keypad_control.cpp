@@ -189,6 +189,8 @@ RuntimeControlState MakeInitialRuntimeControlState(const AppRuntimeConfig& cfg,
   state.draw_lka_overlay = cfg.draw_lka_overlay;
   state.draw_behavior_overlay = cfg.draw_behavior_overlay;
   state.draw_collision_overlay = cfg.draw_collision_overlay;
+  state.draw_ground_grid_overlay = cfg.draw_ground_grid_overlay;
+  state.draw_lane_detect_overlay = cfg.draw_lane_detect_overlay;
   state.draw_status_hud = cfg.draw_status_hud;
   return state;
 }
@@ -268,17 +270,29 @@ bool HandleCommand(user_command_mode_t command,
       FlipBool(&state->draw_status_hud);
       set_message("HUD overlay -> " + ToggleText(state->draw_status_hud));
       return true;
+    case CMD_G:
+      FlipBool(&state->draw_ground_grid_overlay);
+      set_message("Ground grid overlay -> " + ToggleText(state->draw_ground_grid_overlay));
+      return true;
+    case CMD_H:
+      FlipBool(&state->draw_lane_detect_overlay);
+      set_message("Lane detect overlay -> " + ToggleText(state->draw_lane_detect_overlay));
+      return true;
     case CMD_0: {
       const bool enable = (state->draw_inference_overlay &&
                            state->draw_acc_overlay &&
                            state->draw_lka_overlay &&
                            state->draw_behavior_overlay &&
-                           state->draw_collision_overlay) == false;
+                           state->draw_collision_overlay &&
+                           state->draw_ground_grid_overlay &&
+                           state->draw_lane_detect_overlay) == false;
       state->draw_inference_overlay = enable;
       state->draw_acc_overlay = enable;
       state->draw_lka_overlay = enable;
       state->draw_behavior_overlay = enable;
       state->draw_collision_overlay = enable;
+      state->draw_ground_grid_overlay = enable;
+      state->draw_lane_detect_overlay = enable;
       set_message(std::string("All overlays -> ") + ToggleText(enable));
       return true;
     }
@@ -336,7 +350,7 @@ void DrawRuntimeStatusOverlay(cv::Mat& frame,
   }
 
   std::vector<std::string> lines;
-  lines.emplace_back("Hotkeys 1:TX 2:Speed/Brake 3:Steer 4:Infer 5:ACC 6:LKA 7:Behavior 8:Collision 9:HUD 0:All Backspace:SafeOff\n\n");
+  lines.emplace_back("Hotkeys 1:TX 2:Speed/Brake 3:Steer 4:Infer 5:ACC 6:LKA 7:Behavior 8:Collision 9:HUD G:Grid H:LaneDet 0:All Backspace:SafeOff\n\n");
   lines.emplace_back("CAN compile:" + ToggleText(state.canbus_compiled));
   lines.emplace_back("keypad:" + ToggleText(evdev_ready));
   lines.emplace_back("TX master:" + ToggleText(state.can_tx_master_enable));
@@ -351,14 +365,14 @@ void DrawRuntimeStatusOverlay(cv::Mat& frame,
   lines.emplace_back("LKA:" + ToggleText(state.draw_lka_overlay));
   lines.emplace_back("Behavior:" + ToggleText(state.draw_behavior_overlay));
   lines.emplace_back("Collision:" + ToggleText(state.draw_collision_overlay));
+  lines.emplace_back("Grid:" + ToggleText(state.draw_ground_grid_overlay));
+  lines.emplace_back("LaneDet:" + ToggleText(state.draw_lane_detect_overlay));
 
-  int baseline = 0;
   const int font = cv::FONT_HERSHEY_SIMPLEX;
   const double scale = 0.55;
   const int thickness = 1;
   const int left = 20;
   const int top = 380;
-  const int padding = 10;
 
   // int panel_width = 0;
   // int panel_height = padding;

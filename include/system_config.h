@@ -38,7 +38,18 @@ struct AppRuntimeConfig {
     bool draw_lka_overlay = true;
     bool draw_behavior_overlay = true;
     bool draw_collision_overlay = true;
+    bool draw_ground_grid_overlay = false;
+    bool draw_lane_detect_overlay = false;
     bool draw_status_hud = true;
+
+    float ground_grid_forward_start_m = 1.0f;
+    float ground_grid_forward_end_m = 40.0f;
+    float ground_grid_lateral_min_m = -8.0f;
+    float ground_grid_lateral_max_m = 8.0f;
+    float ground_grid_spacing_m = 1.0f;
+    float ground_grid_sample_step_m = 0.25f;
+    int ground_grid_major_every_n = 5;
+    bool ground_grid_draw_labels = true;
 };
 
 struct TensorRtRuntimeConfig {

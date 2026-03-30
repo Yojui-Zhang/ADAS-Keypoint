@@ -25,5 +25,19 @@ void DrawFittedLeftRightLanesOnImage(const std::vector<TrackingBox>& world_resul
                                     const CameraModel& cam,
                                     const ControlConfig& cfg);
 
+// Draw the selected left/right lane solutions and the derived centerline over a
+// fixed forward range in vehicle ground coordinates.
+void DrawLkaLaneSolutionOnImage(const std::vector<TrackingBox>& world_result,
+                                cv::Mat& output_img,
+                                const CameraModel& cam,
+                                const ControlConfig& cfg,
+                                float x_start_m = 0.0f,
+                                float x_end_m = 20.0f);
+
+void DrawLaneDetectOverlayOnImage(const std::vector<TrackingBox>& world_result,
+                                  cv::Mat& output_img,
+                                  const CameraModel& cam,
+                                  const ControlConfig& cfg);
+
 } // namespace internal
 } // namespace lane_keeping

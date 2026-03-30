@@ -24,7 +24,18 @@ app:
   draw_lka_overlay: 1
   draw_behavior_overlay: 1
   draw_collision_overlay: 1
+  draw_ground_grid_overlay: 1
+  draw_lane_detect_overlay: 1   # Lane detect overlay startup default; runtime toggle uses keypad H
   draw_status_hud: 1
+
+  ground_grid_forward_start_m: 1.0
+  ground_grid_forward_end_m: 40.0
+  ground_grid_lateral_min_m: -8.0
+  ground_grid_lateral_max_m: 8.0
+  ground_grid_spacing_m: 1.0
+  ground_grid_sample_step_m: 0.25
+  ground_grid_major_every_n: 5
+  ground_grid_draw_labels: 1
 
 input:
   video_path: "../video/1280x720/vecow-demo.mp4"
@@ -122,6 +133,12 @@ lka:
   lane_width_m: 3.76
   lane_center_offset_m: 0.0
   visual_limit_m: 20.0
+  lane_detect_vehicle_half_width_m: 0.90
+  lane_detect_forward_range_m: 3.0
+  lane_detect_draw_end_m: 20.0
+  lane_detect_bottom_range_m: 3.0
+  lane_detect_contact_margin_m: 0.0
+  lane_detect_mode: "quadratic_curve"   # direct_world, quadratic_curve
 
 stability:
   mass_kg: 1350.0

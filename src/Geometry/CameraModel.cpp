@@ -16,6 +16,10 @@ bool CameraModel::loadFromYaml(const std::string& yaml_path)
     if (!fs.isOpened()) return false;
 
     cv::Mat K, D, Rcw, tcw;
+    int image_width = 0;
+    int image_height = 0;
+    fs["image_width"] >> image_width;
+    fs["image_height"] >> image_height;
     fs["K"] >> K;
     fs["D"] >> D;
     fs["R_cw"] >> Rcw;
@@ -32,6 +36,8 @@ bool CameraModel::loadFromYaml(const std::string& yaml_path)
 
     if (tcw.rows == 1 && tcw.cols == 3) tcw = tcw.t();
     tcw_ = toMat32F(tcw);
+    image_width_ = image_width;
+    image_height_ = image_height;
 
     ready_ = true;
     return true;

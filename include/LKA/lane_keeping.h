@@ -71,6 +71,13 @@ struct ControlConfig {
     float lane_center_offset_m = 0.0f;  //【可調】目標路徑相對車道中心的橫向偏移（m）。正值偏左、負值偏右；例如 +0.10 = 偏左 10 cm。
 
     float visual_limit_m = 20.0f;       // 【設定】您想要繪製的最大長度 (公尺)
+
+    float lane_detect_vehicle_half_width_m = 0.90f;  //【可調】自車半車寬（m），用於判斷車道線是否碰到車輛邊緣。
+    float lane_detect_forward_range_m = 3.0f;        //【可調】世界座標直接判斷壓線/偏移的近距離範圍（m）。
+    float lane_detect_draw_end_m = 20.0f;            //【可調】Lane detect overlay 的前向繪製終點（m）。
+    float lane_detect_bottom_range_m = 3.0f;         //【可調】偏移時要在畫面下方加粗標示的近距離線段範圍（m）。
+    float lane_detect_contact_margin_m = 0.0f;       //【可調】壓線判定的額外容許值（m）。正值代表提早視為碰線。
+    std::string lane_detect_mode = "direct_world";   //【可調】Lane detect 判定模式：direct_world 或 quadratic_curve。
 };
 
 // Controller state (persistent across frames)
