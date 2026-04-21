@@ -36,3 +36,7 @@
   3. 若只是目標速度太低，調高 cruise_speed_kmh
 
   另外實車還要確認 Speed/Brake 與 TX master 都有開，否則 ACC 算出速度命令也不一定會真的送到車上。
+  
+  再調
+  stability.max_speed_rise_mps2、stability.max_jerk_acc_mps3、stability.speed_lowpass_alpha，或把油門 mapping 改成直接吃 acc_control_accel_cmd_mps2，否則單純加大
+  acc.max_accel_mps2 效果會有限。
