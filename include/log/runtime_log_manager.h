@@ -52,6 +52,7 @@ struct FrameSnapshot {
   double lka_target_u_px = 0.0;
   double lka_target_v_px = 0.0;
 
+  const std::vector<TrackingBox>* tracking_result = nullptr;
   const std::vector<TrackingBox>* world_before_behavior = nullptr;
   const std::vector<TrackingBox>* world_result = nullptr;
   const stability::VehicleControlCommand* vehicle_cmd = nullptr;

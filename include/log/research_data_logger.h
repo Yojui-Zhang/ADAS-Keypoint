@@ -14,6 +14,11 @@ struct ResearchLogOptions {
   int flush_every_n = 30;
   bool time_sync_uses_ptp = false;
   std::string time_sync_source = "CLOCK_REALTIME";
+  std::string run_mode = "unknown";
+  std::string input_source = "unknown";
+  bool can_tx_master_enable = false;
+  bool can_longitudinal_enable = false;
+  bool can_steering_enable = false;
 };
 
 struct ResearchLogFrame {
@@ -23,6 +28,11 @@ struct ResearchLogFrame {
   uint64_t cmd_sync_ns = 0;
   uint64_t can_steer_tx_sync_ns = 0;
   uint64_t can_brake_tx_sync_ns = 0;
+  double latency_frame_to_cmd_ms = 0.0;
+  double latency_cmd_to_can_steer_tx_ms = 0.0;
+  double latency_cmd_to_can_brake_tx_ms = 0.0;
+  double latency_frame_to_can_steer_tx_ms = 0.0;
+  double latency_frame_to_can_brake_tx_ms = 0.0;
 
   double dt_s = 0.0;
   double ego_speed_kmh = 0.0;
@@ -56,6 +66,16 @@ struct ResearchLogFrame {
   bool lka_target_image_valid = false;
   double lka_target_u_px = 0.0;
   double lka_target_v_px = 0.0;
+  int tracking_object_count = 0;
+  int tracking_lane_count = 0;
+  int tracking_car_count = 0;
+  int tracking_rider_count = 0;
+  int tracking_person_count = 0;
+  int tracking_light_count = 0;
+  int tracking_signc_count = 0;
+  int tracking_signt_count = 0;
+  int tracking_other_count = 0;
+  std::string tracking_object_summary;
 
   bool acc_has_lead = false;
   bool acc_lead_following_active = false;
@@ -105,11 +125,31 @@ struct ResearchLogFrame {
   double collision_threat_pos_y_m = 0.0;
 
   int world_object_count = 0;
+  int world_lane_count = 0;
   int world_car_count = 0;
   int world_person_count = 0;
   int world_rider_count = 0;
+  int world_light_count = 0;
+  int world_signc_count = 0;
+  int world_signt_count = 0;
+  int world_other_count = 0;
+  std::string world_object_summary;
 
   bool can_valid = false;
+  uint64_t can_last_rx_sync_ns = 0;
+  uint64_t can_powertrain_rx_sync_ns = 0;
+  uint64_t can_speed_rx_sync_ns = 0;
+  uint64_t can_yaw_rx_sync_ns = 0;
+  uint64_t can_steer_rx_sync_ns = 0;
+  uint64_t can_steering_torque_rx_sync_ns = 0;
+  uint64_t can_turn_signal_rx_sync_ns = 0;
+  double can_last_rx_age_at_cmd_ms = 0.0;
+  double can_powertrain_age_at_cmd_ms = 0.0;
+  double can_speed_age_at_cmd_ms = 0.0;
+  double can_yaw_age_at_cmd_ms = 0.0;
+  double can_steer_age_at_cmd_ms = 0.0;
+  double can_steering_torque_age_at_cmd_ms = 0.0;
+  double can_turn_signal_age_at_cmd_ms = 0.0;
   double can_speed_kmh = 0.0;
   double can_speed_raw_kmh = 0.0;
   double can_steer_deg = 0.0;
@@ -122,6 +162,8 @@ struct ResearchLogFrame {
   int can_throttle = 0;
   int can_gear = 0;
   int can_turn_signal = 0;
+  std::string can_gear_text = "unknown";
+  std::string can_turn_signal_text = "unknown";
 };
 
 class ResearchDataLogger {

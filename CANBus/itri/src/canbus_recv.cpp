@@ -484,8 +484,8 @@ void* pth_canRecv(void *data) {
 				msg.msg_controllen = sizeof(ctrlmsg);
 				msg.msg_flags = 0;
 
-				nbytes = recvmsg(s, &msg, 0);
-				idx = idx2dindex(ECU.addr.can_ifindex, s);
+					nbytes = recvmsg(s, &msg, 0);
+					idx = idx2dindex(ECU.addr.can_ifindex, s);
 
 
 				if ((size_t)nbytes == CAN_MTU)
@@ -498,28 +498,34 @@ void* pth_canRecv(void *data) {
 				}
 
 
-				for (cmsg = CMSG_FIRSTHDR(&msg);
-				cmsg && (cmsg->cmsg_level == SOL_SOCKET);
-					cmsg = CMSG_NXTHDR(&msg, cmsg)) {
-					if (cmsg->cmsg_type == SO_TIMESTAMP)
-						memcpy(&tv, CMSG_DATA(cmsg), sizeof(tv));
-					else if (cmsg->cmsg_type == SO_RXQ_OVFL)
-						memcpy(&dropcnt[0], CMSG_DATA(cmsg), sizeof(__u32));
-				}
+					for (cmsg = CMSG_FIRSTHDR(&msg);
+					cmsg && (cmsg->cmsg_level == SOL_SOCKET);
+						cmsg = CMSG_NXTHDR(&msg, cmsg)) {
+						if (cmsg->cmsg_type == SO_TIMESTAMP)
+							memcpy(&tv, CMSG_DATA(cmsg), sizeof(tv));
+						else if (cmsg->cmsg_type == SO_RXQ_OVFL)
+							memcpy(&dropcnt[0], CMSG_DATA(cmsg), sizeof(__u32));
+					}
 
-				/* once we detected a EFF frame indent SFF frames accordingly */
-				switch (canFrame.can_id)
-				{
-				case 0x300:
-					canData.gear = (canFrame.data[5]&0xe0) >> 5;
-					gear = canData.gear;
-					motorTorque = int(canFrame.data[2])*2-160;
-					throttle = int(canFrame.data[6]);
-					break;
+					const uint64_t rx_sync_ns = TimeSyncNowNs();
 
-				case 0x302:
-					t_meterage.getEndTime();
-					ECU.ABS1=canFrame;
+					/* once we detected a EFF frame indent SFF frames accordingly */
+					switch (canFrame.can_id)
+					{
+					case 0x300:
+						ptr_car->can_last_rx_sync_ns = rx_sync_ns;
+						ptr_car->can_powertrain_rx_sync_ns = rx_sync_ns;
+						canData.gear = (canFrame.data[5]&0xe0) >> 5;
+						gear = canData.gear;
+						motorTorque = int(canFrame.data[2])*2-160;
+						throttle = int(canFrame.data[6]);
+						break;
+
+					case 0x302:
+						ptr_car->can_last_rx_sync_ns = rx_sync_ns;
+						ptr_car->can_speed_rx_sync_ns = rx_sync_ns;
+						t_meterage.getEndTime();
+						ECU.ABS1=canFrame;
 
 					{
 						canData.speed = (canFrame.data[0] << 4) | (canFrame.data[1] >> 4);
@@ -548,9 +554,11 @@ void* pth_canRecv(void *data) {
 					// gettimeofday(&tv_Meterage[0], NULL);
 					break;
 
-				case 0x303:
-					t_yaw.getEndTime();
-					ECU.ABS4 = canFrame;
+					case 0x303:
+						ptr_car->can_last_rx_sync_ns = rx_sync_ns;
+						ptr_car->can_yaw_rx_sync_ns = rx_sync_ns;
+						t_yaw.getEndTime();
+						ECU.ABS4 = canFrame;
 
 					canData.yaw = (ECU.ABS4.data[1]<<8) | (ECU.ABS4.data[2]);
 					canData.latAccel = ECU.ABS4.data[3];
@@ -568,9 +576,11 @@ void* pth_canRecv(void *data) {
 					t_yaw.getStartTime();
 					break;
 
-				case 0x307:
-					t_wheelRecv.getEndTime();
-					ECU.EPAS1 = canFrame;
+					case 0x307:
+						ptr_car->can_last_rx_sync_ns = rx_sync_ns;
+						ptr_car->can_steer_rx_sync_ns = rx_sync_ns;
+						t_wheelRecv.getEndTime();
+						ECU.EPAS1 = canFrame;
 
 					SAS_CAL = (ECU.EPAS1.data[3] & 0x02)>>1;
 					canData.EPS_Sta_Available = ECU.EPAS1.data[5] & 0xc0;
@@ -592,17 +602,21 @@ void* pth_canRecv(void *data) {
 					t_wheelRecv.getStartTime();
 					break;
 
-				case 0x308:
-					ECU.EPAS2 = canFrame;
+					case 0x308:
+						ptr_car->can_last_rx_sync_ns = rx_sync_ns;
+						ptr_car->can_steering_torque_rx_sync_ns = rx_sync_ns;
+						ECU.EPAS2 = canFrame;
 
 					canData.steeringTorque = ECU.EPAS2.data[2];
 					steeringTorque = (double)(canData.steeringTorque - 127)*0.1794;
 					break;
 
-				case 0x309:
-					canData.turningSignal = (canFrame.data[3]&0x30)>>4;
-					turningSignal = canData.turningSignal;
-					break;
+					case 0x309:
+						ptr_car->can_last_rx_sync_ns = rx_sync_ns;
+						ptr_car->can_turn_signal_rx_sync_ns = rx_sync_ns;
+						canData.turningSignal = (canFrame.data[3]&0x30)>>4;
+						turningSignal = canData.turningSignal;
+						break;
 
 				//case 0xC1:
 				//	turn_num = canFrame.data[0];  //

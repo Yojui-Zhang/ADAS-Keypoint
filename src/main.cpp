@@ -734,14 +734,15 @@ int main(int argc, char** argv) {
     log_snapshot.lka_current_image_valid = lka_current_px_valid;
     log_snapshot.lka_current_u_px = lka_current_px.x;
     log_snapshot.lka_current_v_px = lka_current_px.y;
-    log_snapshot.lka_target_x_m = lka_reference_snapshot.target_point.x_m;
-    log_snapshot.lka_target_y_m = lka_reference_snapshot.target_point.y_m;
-    log_snapshot.lka_target_image_valid = lka_target_px_valid;
-    log_snapshot.lka_target_u_px = lka_target_px.x;
-    log_snapshot.lka_target_v_px = lka_target_px.y;
-    log_snapshot.world_before_behavior = runtime_log_manager.AblationRunning() ? &world_before_behavior : nullptr;
-    log_snapshot.world_result = &world_result;
-    log_snapshot.vehicle_cmd = &cmd;
+	    log_snapshot.lka_target_x_m = lka_reference_snapshot.target_point.x_m;
+	    log_snapshot.lka_target_y_m = lka_reference_snapshot.target_point.y_m;
+	    log_snapshot.lka_target_image_valid = lka_target_px_valid;
+	    log_snapshot.lka_target_u_px = lka_target_px.x;
+	    log_snapshot.lka_target_v_px = lka_target_px.y;
+	    log_snapshot.tracking_result = &tracking_result;
+	    log_snapshot.world_before_behavior = runtime_log_manager.AblationRunning() ? &world_before_behavior : nullptr;
+	    log_snapshot.world_result = &world_result;
+	    log_snapshot.vehicle_cmd = &cmd;
     log_snapshot.collision_output = &ca;
 #ifdef CANBUS__
     log_snapshot.can_valid = true;

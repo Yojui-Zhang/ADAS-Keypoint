@@ -1,6 +1,7 @@
 #ifndef CANBUS_RECV_H
 #define CANBUS_RECV_H
 
+#include <cstdint>
 #include <string>
 #include <vector>
 #include <net/if.h>
@@ -76,6 +77,13 @@ typedef struct CAR
 	bool SAS_CAL;
 	unsigned char turningSignal;
 	int motorTorque;
+	uint64_t can_last_rx_sync_ns;
+	uint64_t can_powertrain_rx_sync_ns;
+	uint64_t can_speed_rx_sync_ns;
+	uint64_t can_yaw_rx_sync_ns;
+	uint64_t can_steer_rx_sync_ns;
+	uint64_t can_steering_torque_rx_sync_ns;
+	uint64_t can_turn_signal_rx_sync_ns;
 
 	/*receive from Radar CAN bus. */
 	int packageID;

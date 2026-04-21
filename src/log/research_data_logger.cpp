@@ -243,6 +243,43 @@ void ResearchDataLogger::WriteHeader() {
        << ",route_x_m"
        << ",route_y_m"
        << ",route_distance_m"
+       << ",tracking_object_count"
+       << ",tracking_lane_count"
+       << ",tracking_car_count"
+       << ",tracking_rider_count"
+       << ",tracking_person_count"
+       << ",tracking_light_count"
+       << ",tracking_signc_count"
+       << ",tracking_signt_count"
+       << ",tracking_other_count"
+       << ",tracking_object_summary"
+       << ",world_lane_count"
+       << ",world_light_count"
+       << ",world_signc_count"
+       << ",world_signt_count"
+       << ",world_other_count"
+       << ",world_object_summary"
+       << ",can_last_rx_sync_ns"
+       << ",can_powertrain_rx_sync_ns"
+       << ",can_speed_rx_sync_ns"
+       << ",can_yaw_rx_sync_ns"
+       << ",can_steer_rx_sync_ns"
+       << ",can_steering_torque_rx_sync_ns"
+       << ",can_turn_signal_rx_sync_ns"
+       << ",latency_frame_to_cmd_ms"
+       << ",latency_cmd_to_can_steer_tx_ms"
+       << ",latency_cmd_to_can_brake_tx_ms"
+       << ",latency_frame_to_can_steer_tx_ms"
+       << ",latency_frame_to_can_brake_tx_ms"
+       << ",can_last_rx_age_at_cmd_ms"
+       << ",can_powertrain_age_at_cmd_ms"
+       << ",can_speed_age_at_cmd_ms"
+       << ",can_yaw_age_at_cmd_ms"
+       << ",can_steer_age_at_cmd_ms"
+       << ",can_steering_torque_age_at_cmd_ms"
+       << ",can_turn_signal_age_at_cmd_ms"
+       << ",can_gear_text"
+       << ",can_turn_signal_text"
        << '\n';
 }
 
@@ -421,6 +458,43 @@ void ResearchDataLogger::LogFrame(const ResearchLogFrame& frame) {
        << ',' << FiniteOrNaN(route_x_m_)
        << ',' << FiniteOrNaN(route_y_m_)
        << ',' << FiniteOrNaN(route_distance_m_)
+       << ',' << frame.tracking_object_count
+       << ',' << frame.tracking_lane_count
+       << ',' << frame.tracking_car_count
+       << ',' << frame.tracking_rider_count
+       << ',' << frame.tracking_person_count
+       << ',' << frame.tracking_light_count
+       << ',' << frame.tracking_signc_count
+       << ',' << frame.tracking_signt_count
+       << ',' << frame.tracking_other_count
+       << ',' << frame.tracking_object_summary
+       << ',' << frame.world_lane_count
+       << ',' << frame.world_light_count
+       << ',' << frame.world_signc_count
+       << ',' << frame.world_signt_count
+       << ',' << frame.world_other_count
+       << ',' << frame.world_object_summary
+       << ',' << frame.can_last_rx_sync_ns
+       << ',' << frame.can_powertrain_rx_sync_ns
+       << ',' << frame.can_speed_rx_sync_ns
+       << ',' << frame.can_yaw_rx_sync_ns
+       << ',' << frame.can_steer_rx_sync_ns
+       << ',' << frame.can_steering_torque_rx_sync_ns
+       << ',' << frame.can_turn_signal_rx_sync_ns
+       << ',' << FiniteOrNaN(frame.latency_frame_to_cmd_ms)
+       << ',' << FiniteOrNaN(frame.latency_cmd_to_can_steer_tx_ms)
+       << ',' << FiniteOrNaN(frame.latency_cmd_to_can_brake_tx_ms)
+       << ',' << FiniteOrNaN(frame.latency_frame_to_can_steer_tx_ms)
+       << ',' << FiniteOrNaN(frame.latency_frame_to_can_brake_tx_ms)
+       << ',' << FiniteOrNaN(frame.can_last_rx_age_at_cmd_ms)
+       << ',' << FiniteOrNaN(frame.can_powertrain_age_at_cmd_ms)
+       << ',' << FiniteOrNaN(frame.can_speed_age_at_cmd_ms)
+       << ',' << FiniteOrNaN(frame.can_yaw_age_at_cmd_ms)
+       << ',' << FiniteOrNaN(frame.can_steer_age_at_cmd_ms)
+       << ',' << FiniteOrNaN(frame.can_steering_torque_age_at_cmd_ms)
+       << ',' << FiniteOrNaN(frame.can_turn_signal_age_at_cmd_ms)
+       << ',' << frame.can_gear_text
+       << ',' << frame.can_turn_signal_text
        << '\n';
 
   flush_counter_ += 1;
@@ -461,6 +535,11 @@ void ResearchDataLogger::WriteSummaryFile() {
   summary << "output_csv=" << output_path_ << '\n';
   summary << "time_sync_source=" << options_.time_sync_source << '\n';
   summary << "time_sync_uses_ptp=" << (options_.time_sync_uses_ptp ? 1 : 0) << '\n';
+  summary << "run_mode=" << options_.run_mode << '\n';
+  summary << "input_source=" << options_.input_source << '\n';
+  summary << "can_tx_master_enable=" << (options_.can_tx_master_enable ? 1 : 0) << '\n';
+  summary << "can_longitudinal_enable=" << (options_.can_longitudinal_enable ? 1 : 0) << '\n';
+  summary << "can_steering_enable=" << (options_.can_steering_enable ? 1 : 0) << '\n';
   summary << "samples=" << summary_.sample_count << '\n';
   summary << "duration_s=" << duration_s << '\n';
   summary << "route_distance_est_m=" << route_distance_m_ << '\n';

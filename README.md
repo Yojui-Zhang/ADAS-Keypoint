@@ -9,28 +9,6 @@
 **熱鍵**
 熱鍵目前是 1 總 TX、2 油門煞車、3 方向盤、4 推論繪圖、5 ACC、6 Behavior、7 Collision、8 HUD、0 全部繪圖、Backspace 強制關閉所有車控輸出
 
-  你如果要調整「加速增加的數值」，最直接的是這幾個：
-
-  - 想讓加速更快：
-    stability.long_accel_comfort_mps2
-    stability.max_speed_rise_mps2
-    stability.max_jerk_acc_mps3
-    把 stability.speed_lowpass_alpha 降低也會更快跟上
-  - 想讓 ACC 本身更積極追巡航：
-    acc.max_accel_mps2
-    acc.jerk_limit_mps3
-    acc.cruise_speed_kmh
-  - 想讓跟車更保守、比較不容易進加速：
-    acc.time_gap_s
-    acc.standstill_gap_m
-
-  最務實的判斷是：
-  現在系統的「實際加速感」主要不是被 acc.max_accel_mps2 = 5.0 決定，而是更常被 supervisor 的
-  long_accel_comfort_mps2 = 1.8
-  max_speed_rise_mps2 = 2.0
-  max_jerk_acc_mps3 = 2.0
-  這三個值決定。
-
 ## 1. 專案模組結構
 
 - `src/main.cpp`
