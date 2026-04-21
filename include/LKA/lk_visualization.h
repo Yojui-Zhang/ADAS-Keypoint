@@ -25,8 +25,9 @@ void DrawFittedLeftRightLanesOnImage(const std::vector<TrackingBox>& world_resul
                                     const CameraModel& cam,
                                     const ControlConfig& cfg);
 
-// Draw the selected left/right lane solutions and the derived centerline over a
-// fixed forward range in vehicle ground coordinates.
+// Draw the selected left/right lane solutions and the derived centerline using
+// only the current frame's valid keypoint x positions within the requested
+// forward range. This avoids extrapolating fitted curves beyond detected points.
 void DrawLkaLaneSolutionOnImage(const std::vector<TrackingBox>& world_result,
                                 cv::Mat& output_img,
                                 const CameraModel& cam,

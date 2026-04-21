@@ -1,10 +1,15 @@
 #include "lk_lane_points.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <cmath>
 
 namespace lane_keeping {
 namespace internal {
+
+namespace {
+constexpr std::size_t kMaxLaneKeypointsPerDetection = 15;
+}  // namespace
 
 LanePointStatus ExtractLanePointsVehicleM(const TrackingBox& box,
                                          const ControlConfig& cfg,
@@ -22,7 +27,10 @@ LanePointStatus ExtractLanePointsVehicleM(const TrackingBox& box,
         return LanePointStatus::kEmpty;
     }
 
-    for (const auto& kp : box.kpts) {
+    const std::size_t kpt_count =
+        std::min(box.kpts.size(), kMaxLaneKeypointsPerDetection);
+    for (std::size_t i = 0; i < kpt_count; ++i) {
+        const auto& kp = box.kpts[i];
         if (cfg.use_confidence && kp.z < cfg.conf_threshold) continue;
 
         const float x = kp.x;
@@ -44,7 +52,8 @@ LanePointStatus ExtractLanePointsVehicleM(const TrackingBox& box,
               [](const cv::Point2f& a, const cv::Point2f& b) { return a.x < b.x; });
 
     if (debug) {
-        *debug = "ok pts=" + std::to_string(out_pts.size());
+        *debug = "ok pts=" + std::to_string(out_pts.size()) +
+                 " used_raw_kpts=" + std::to_string(kpt_count);
     }
     return LanePointStatus::kOk;
 }

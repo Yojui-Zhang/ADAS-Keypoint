@@ -40,8 +40,8 @@ app:
 input:
   video_path: "../video/1280x720/vecow-demo.mp4"
   camera_index: -1
-  capture_width: 1920
-  capture_height: 1080
+  capture_width: 1280
+  capture_height: 720
   window_name: "Screen"
   fullscreen: 1
 
@@ -101,8 +101,8 @@ lka:
   wheel_base_m: 2.62
   velocity_mps: 5.0
   softening: 0.5
-  k_straight: 0.7
-  k_curve: 3.0
+  k_straight: 1.0
+  k_curve: 3.5
   x_ref_straight_m: 0.3
   x_heading_straight_m: 1.5
   x_ref_curve_m: 0.3
@@ -112,7 +112,7 @@ lka:
   x_curvature_m: 1.0
   max_ff_deg: 25.0
   max_steer_deg: 59.0
-  max_steer_rate_deg_s: 200.0
+  max_steer_rate_deg_s: 300.0
   dt_s: 0.02
   use_confidence: 1
   conf_threshold: 0.5

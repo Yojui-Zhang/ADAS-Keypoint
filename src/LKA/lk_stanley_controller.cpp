@@ -1,6 +1,7 @@
 #include "lk_stanley_controller.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <cmath>
 #include <numeric>
 #include <sstream>
@@ -70,6 +71,36 @@ void ClearReferenceSnapshot(ControlState* state) {
     state->reference_snapshot.p_curve = state->p_curve;
 }
 
+std::vector<double> BuildCurvatureSampleXs(const std::vector<cv::Point2f>& pts,
+                                           const ControlConfig& cfg) {
+    std::vector<double> xs;
+    if (pts.empty()) {
+        return xs;
+    }
+
+    const int requested = std::max(3, cfg.curvature_samples);
+    const std::size_t sample_count =
+        std::min<std::size_t>(pts.size(), static_cast<std::size_t>(requested));
+    xs.reserve(sample_count);
+
+    if (sample_count >= pts.size()) {
+        for (const auto& p : pts) {
+            xs.push_back(static_cast<double>(p.x));
+        }
+        return xs;
+    }
+
+    for (std::size_t i = 0; i < sample_count; ++i) {
+        const double t = (sample_count == 1)
+                             ? 0.0
+                             : static_cast<double>(i) / static_cast<double>(sample_count - 1);
+        const std::size_t idx = static_cast<std::size_t>(
+            std::llround(t * static_cast<double>(pts.size() - 1)));
+        xs.push_back(static_cast<double>(pts[std::min(idx, pts.size() - 1)].x));
+    }
+    return xs;
+}
+
 }  // namespace
 
 float calculate_lane_steering(const TrackingBox& input,
@@ -112,19 +143,15 @@ float calculate_lane_steering(const TrackingBox& input,
         return state->last_steer_deg;
     }
 
-    // 3) Curvature sampling: mean/std over path interval
-    const int M = std::max(3, cfg.curvature_samples);
-
+    // 3) Curvature sampling: use only actual centerline keypoint x positions.
     const double x_min = pts.front().x;
     const double x_max = pts.back().x;
-    const double span = std::max(1e-3, x_max - x_min);
 
     std::vector<double> kappas;
-    kappas.reserve(M);
+    const std::vector<double> curvature_xs = BuildCurvatureSampleXs(pts, cfg);
+    kappas.reserve(curvature_xs.size());
 
-    for (int i = 0; i < M; ++i) {
-        const double t = (M == 1) ? 0.0 : static_cast<double>(i) / static_cast<double>(M - 1);
-        const double xq = x_min + t * span;
+    for (const double xq : curvature_xs) {
         kappas.push_back(CurvatureKappa(poly, xq));
     }
 
@@ -243,6 +270,8 @@ float calculate_lane_steering(const TrackingBox& input,
             << " p_curve=" << p_curve
             << " mean_kappa=" << mean_kappa
             << " std_kappa=" << std_kappa
+            << " keypoint_pts=" << pts.size()
+            << " curvature_samples=" << curvature_xs.size()
             << " | lane_offset_m=" << cfg.lane_center_offset_m
             << " | cte_s=" << cte_s << " head_s(rad)=" << head_s
             << " | cte_c=" << cte_c << " head_c(rad)=" << head_c

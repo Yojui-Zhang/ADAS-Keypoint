@@ -3,6 +3,7 @@
 #include <vector>
 #include <algorithm>
 #include <cctype>
+#include <cstddef>
 #include <cmath>
 #include <functional>
 #include <string>
@@ -19,6 +20,8 @@ namespace lane_keeping {
 namespace internal {
 
 namespace {
+
+constexpr std::size_t kMaxVisualKeypointSamples = 15;
 
 struct DirectLaneCandidate {
     bool valid = false;
@@ -51,28 +54,68 @@ void DrawOutlinedText(cv::Mat& output_img,
     cv::putText(output_img, text, origin, cv::FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv::LINE_AA);
 }
 
-bool DrawProjectedCurve(cv::Mat& output_img,
-                        const CameraModel& cam,
-                        float x_start_m,
-                        float x_end_m,
-                        int sample_count,
-                        const std::function<bool(float, float&)>& sampler,
-                        const cv::Scalar& color,
-                        int thickness,
-                        const std::string& label) {
-    if (output_img.empty() || x_end_m <= x_start_m || sample_count < 2) {
+std::vector<float> DownsampleXsToMax(const std::vector<float>& xs,
+                                     std::size_t max_count) {
+    if (xs.size() <= max_count || max_count == 0) {
+        return xs;
+    }
+
+    std::vector<float> out;
+    out.reserve(max_count);
+    for (std::size_t i = 0; i < max_count; ++i) {
+        const double t = (max_count == 1)
+                             ? 0.0
+                             : static_cast<double>(i) / static_cast<double>(max_count - 1);
+        const std::size_t idx = static_cast<std::size_t>(
+            std::llround(t * static_cast<double>(xs.size() - 1)));
+        out.push_back(xs[std::min(idx, xs.size() - 1)]);
+    }
+    return out;
+}
+
+std::vector<float> CollectPointXsInRange(const std::vector<cv::Point2f>& pts,
+                                         float x_start_m,
+                                         float x_end_m) {
+    const float lo = std::min(x_start_m, x_end_m);
+    const float hi = std::max(x_start_m, x_end_m);
+    std::vector<float> xs;
+    xs.reserve(std::min<std::size_t>(pts.size(), kMaxVisualKeypointSamples));
+
+    for (const auto& p : pts) {
+        if (!std::isfinite(p.x) || !std::isfinite(p.y)) {
+            continue;
+        }
+        if (p.x < lo || p.x > hi) {
+            continue;
+        }
+        xs.push_back(p.x);
+    }
+
+    std::sort(xs.begin(), xs.end());
+    xs.erase(std::unique(xs.begin(), xs.end(), [](float a, float b) {
+                 return std::fabs(a - b) <= 1e-3f;
+             }),
+             xs.end());
+    return DownsampleXsToMax(xs, kMaxVisualKeypointSamples);
+}
+
+bool DrawProjectedKeypointPolyline(cv::Mat& output_img,
+                                   const CameraModel& cam,
+                                   const std::vector<float>& x_samples,
+                                   const std::function<bool(float, float&)>& sampler,
+                                   const cv::Scalar& color,
+                                   int thickness,
+                                   const std::string& label) {
+    if (output_img.empty() || x_samples.size() < 2) {
         return false;
     }
 
     std::vector<cv::Point> draw_pts;
-    draw_pts.reserve(sample_count);
+    draw_pts.reserve(x_samples.size());
     cv::Point label_pt;
     bool label_valid = false;
 
-    for (int i = 0; i < sample_count; ++i) {
-        const float t = static_cast<float>(i) / static_cast<float>(sample_count - 1);
-        const float xq = x_start_m + t * (x_end_m - x_start_m);
-
+    for (const float xq : x_samples) {
         float yq = 0.0f;
         if (!sampler(xq, yq)) {
             continue;
@@ -345,36 +388,35 @@ void DrawFittedLeftRightLanesOnImage(const std::vector<TrackingBox>& world_resul
     x_max = std::min(x_max, cfg.visual_limit_m);
     if (x_max - x_min < 0.3f) return;
 
-    const int kSamples = 60;
+    auto draw_lane = [&](const LaneCandidate& lane,
+                         const cv::Scalar& color,
+                         int thickness) {
+        if (!lane.valid || lane.pts.size() < 2) return;
 
-    // Helper: 畫單一條多項式曲線
-    auto draw_poly = [&](const cv::Vec3d& c, const cv::Scalar& color, int thickness) {
-        // 如果係數全為0 (表示擬合失敗但有點)，不畫曲線 (或者你可以選擇畫 raw points)
-        if (c == cv::Vec3d(0,0,0)) return;
-
-        std::vector<cv::Point> draw_pts;
-        draw_pts.reserve(kSamples);
-
-        for (int i = 0; i < kSamples; ++i) {
-            const float t = (kSamples == 1) ? 0.0f
-                                            : static_cast<float>(i) / static_cast<float>(kSamples - 1);
-            const float x = x_min + t * (x_max - x_min);
-            const float y = static_cast<float>(PolyY(c, static_cast<double>(x)));
-
-            const cv::Point2f uv = ProjectVehicleGroundPointToImage(cam, output_img.size(), x, y);
-            if (uv.x >= 0 && uv.x < output_img.cols && uv.y >= 0 && uv.y < output_img.rows) {
-                draw_pts.push_back(uv);
-            }
-        }
-
-        if (draw_pts.size() >= 2) {
-            cv::polylines(output_img, draw_pts, false, color, thickness, cv::LINE_AA);
-        }
+        const bool poly_ok = lane.poly != cv::Vec3d(0.0, 0.0, 0.0);
+        const std::vector<float> xs = CollectPointXsInRange(lane.pts, x_min, x_max);
+        DrawProjectedKeypointPolyline(
+            output_img,
+            cam,
+            xs,
+            [&](float xq, float& yq) {
+                if (xq < lane.pts.front().x || xq > lane.pts.back().x) {
+                    return false;
+                }
+                if (poly_ok) {
+                    yq = static_cast<float>(PolyY(lane.poly, static_cast<double>(xq)));
+                    return true;
+                }
+                return SampleYLinear(lane.pts, xq, yq);
+            },
+            color,
+            thickness,
+            "");
     };
 
     // Left: Green, Right: Blue
-    if (lanes.left.valid)  draw_poly(lanes.left.poly,  cv::Scalar(0, 255, 0), 2);
-    if (lanes.right.valid) draw_poly(lanes.right.poly, cv::Scalar(255, 0, 0), 2);
+    draw_lane(lanes.left, cv::Scalar(0, 255, 0), 2);
+    draw_lane(lanes.right, cv::Scalar(255, 0, 0), 2);
 }
 
 void DrawLkaLaneSolutionOnImage(const std::vector<TrackingBox>& world_result,
@@ -389,7 +431,6 @@ void DrawLkaLaneSolutionOnImage(const std::vector<TrackingBox>& world_result,
 
     const float draw_x_start_m = std::max(0.0f, std::min(x_start_m, x_end_m));
     const float draw_x_end_m = std::max(draw_x_start_m, std::max(x_start_m, x_end_m));
-    const int kSampleCount = 100;
 
     const LanePair lanes = FindBestLaneCandidates(world_result, cfg);
 
@@ -402,24 +443,24 @@ void DrawLkaLaneSolutionOnImage(const std::vector<TrackingBox>& world_result,
         }
 
         const bool poly_ok = lane.poly != cv::Vec3d(0.0, 0.0, 0.0);
-        const float lane_x_min = lane.pts.empty() ? draw_x_start_m : lane.pts.front().x;
-        const float lane_x_max = lane.pts.empty() ? draw_x_end_m : lane.pts.back().x;
+        const std::vector<float> xs =
+            CollectPointXsInRange(lane.pts, draw_x_start_m, draw_x_end_m);
 
-        return DrawProjectedCurve(
+        return DrawProjectedKeypointPolyline(
             output_img,
             cam,
-            draw_x_start_m,
-            draw_x_end_m,
-            kSampleCount,
+            xs,
             [&](float xq, float& yq) {
+                if (xq < lane.pts.front().x || xq > lane.pts.back().x) {
+                    return false;
+                }
                 if (poly_ok) {
                     yq = static_cast<float>(PolyY(lane.poly, static_cast<double>(xq))) + lateral_offset_m;
                     return true;
                 }
-                if (xq < lane_x_min || xq > lane_x_max) {
-                    return false;
-                }
-                return SampleYLinear(lane.pts, xq, yq);
+                const bool ok = SampleYLinear(lane.pts, xq, yq);
+                yq += lateral_offset_m;
+                return ok;
             },
             color,
             2,
@@ -453,21 +494,21 @@ void DrawLkaLaneSolutionOnImage(const std::vector<TrackingBox>& world_result,
     const bool center_poly_ok = FitQuadraticLeastSquares(center_pts, center_poly, center_fit_debug);
     (void)center_fit_debug;
 
-    DrawProjectedCurve(
+    const std::vector<float> center_xs =
+        CollectPointXsInRange(center_pts, draw_x_start_m, draw_x_end_m);
+    DrawProjectedKeypointPolyline(
         output_img,
         cam,
-        draw_x_start_m,
-        draw_x_end_m,
-        kSampleCount,
+        center_xs,
         [&](float xq, float& yq) {
-            if (center_poly_ok) {
-                yq = static_cast<float>(PolyY(center_poly, static_cast<double>(xq)));
-                return true;
-            }
             const float center_x_min = center_pts.front().x;
             const float center_x_max = center_pts.back().x;
             if (xq < center_x_min || xq > center_x_max) {
                 return false;
+            }
+            if (center_poly_ok) {
+                yq = static_cast<float>(PolyY(center_poly, static_cast<double>(xq)));
+                return true;
             }
             return SampleYLinear(center_pts, xq, yq);
         },

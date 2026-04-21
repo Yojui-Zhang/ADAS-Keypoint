@@ -1147,3 +1147,149 @@
   - Lane detect overlay 可由 `H` 即時開關。
   - `app.draw_lane_detect_overlay` 現在作為啟動預設值，進入執行期後由 keypad 接手。
   - 偏移判定仍由 YAML 的 `lane_detect_mode` 決定，不受 keypad 影響。
+
+## 25. 本輪再追加（相機 overlay 尺度修正、LKA keypoint 範圍限制與調參問答）
+
+### 25.1 本輪用戶要求（分類）
+1. 修正 keypad 繪圖功能中 LKA overlay 與單應性 / ground grid overlay 顯示尺度錯誤問題。
+2. LKA 繪製出的車道線與控制使用的線段不可超出模型實際 keypoints 範圍。
+3. keypoints 最多 15 個，也需正確處理 13 或 11 個點等較少點數。
+4. 確認方向盤控制用 LKA 是否也不使用沒出現的 keypoints。
+5. 檢查 LKA 是否依時速調整前方目標點，並確認目前世界座標正負號語意。
+6. 回答 research log 是否記錄車身速度等資訊。
+7. 回答 ACC 加速度不足時應調整哪些參數。
+
+### 25.2 思考與決策摘要（可公開版本）
+- **決策 AS：修正相機 YAML 解析度 metadata，而不改投影程式邏輯**
+  - 原因：`Camera-Config/Sensing-3M.yaml` 的 `K/D` 實際為 1280x720 座標系，但 `image_width/image_height` 曾寫成 1920x1080，導致 overlay helper 又套用一次 1920 -> 1280 縮放。
+  - 做法：將 `Sensing-3M.yaml` 的 `image_width/image_height` 改回 `1280/720`，保留既有 `K/D/R_cw/t_cw` 與 Geometry 反投影流程。
+
+- **決策 AT：LKA 控制與 overlay 都只使用當幀有效 keypoints**
+  - 原因：固定補滿 15 點或固定畫 0~20m 會讓曲線超出實際 keypoints 範圍，造成不需要或錯誤的外插曲線。
+  - 做法：
+    - lane keypoint 抽取層最多讀前 15 個 keypoints。
+    - 若當幀只有 13、11 或其他較少有效點，中心線與控制只用實際有效點。
+    - LKA overlay 左右線 / 中線只在有效 keypoint x 範圍內繪製。
+    - 曲率取樣改為使用實際 centerline keypoint 的 x 位置。
+
+- **決策 AU：目前不改 LKA 世界座標正負號，只先明確記錄現況**
+  - 原因：使用者目前要求先不用改程式，只需判斷現況與調參方向。
+  - 結論：目前 LKA 內部世界座標語意為 `x+` 前方、`y+` 左側、`y-` 右側；這與使用者提出的「左側 y-、右側 y+」定義相反，但目前 Geometry、LKA lane selection、projection helper 內部是自洽的。
+
+### 25.3 本輪實際修改
+- `Camera-Config/Sensing-3M.yaml`
+  - `image_width: 1920 -> 1280`
+  - `image_height: 1080 -> 720`
+  - 修正 LKA / ground grid overlay 被二次縮放後偏到畫面右上方的問題。
+
+- `src/LKA/lk_lane_points.cpp`
+  - 新增最多 15 個 keypoints 的限制。
+  - debug 字串新增 `used_raw_kpts`，方便確認實際讀取點數。
+
+- `src/LKA/lk_centerline.cpp`
+  - 中心線生成不再固定產生 15 個 sample。
+  - 改為依左右車道有效 keypoints 的 x 位置產生 centerline。
+  - 雙側車道都存在時，採用有效點數較少的一側作為 sample x 來源，避免中心線比任一側 keypoints 更長。
+
+- `src/LKA/lk_visualization.cpp`
+  - LKA overlay 不再用固定 0~20m / 100 samples 繪製。
+  - 左右車道線與中心線改為只用有效 keypoint x 範圍內的點繪製。
+  - 超出最前 / 最後 keypoint 的區段不畫。
+
+- `src/LKA/lk_stanley_controller.cpp`
+  - curvature sampling 改為使用實際 centerline keypoint 的 x 位置。
+  - debug 字串新增 `keypoint_pts` 與 `curvature_samples`。
+
+- `include/LKA/lk_visualization.h`
+  - 更新註解，說明 LKA overlay 僅在有效 keypoint 範圍內繪製，避免 fitted curve 外插。
+
+### 25.4 LKA 控制與 keypoints 現況結論
+- 方向盤控制路徑：
+  - `VehicleControl_Run(...)`
+  - `lane_steering_step(...)`
+  - `BuildCenterlineFromWorldResult(...)`
+  - `calculate_lane_steering(...)`
+- 目前控制端不會使用「沒出現的 keypoints」：
+  - 每條 lane 最多使用前 15 個 keypoints。
+  - 若當幀有效點只有 13 或 11 個，就只用該數量。
+  - 控制仍允許在有效 keypoints 範圍內用 polynomial fit 估算 `target_y`，但不應超出最前 / 最後 keypoint 做外插。
+
+### 25.5 LKA 前方目標點與速度關係
+- 目前 LKA 尚未依時速動態調整前方目標點距離。
+- 目前速度只影響 Stanley 橫向修正項：
+  - `atan2(k * cte_m, velocity_mps + softening)`
+- 前方參考點仍由 YAML 固定參數決定：
+  - `lka.x_ref_straight_m`
+  - `lka.x_heading_straight_m`
+  - `lka.x_ref_curve_m`
+  - `lka.x_heading_curve_m`
+- 若高速控制力道偏低，優先調整：
+  - 直線 / 微彎：`lka.k_straight`
+  - 彎道：`lka.k_curve`
+  - 方向盤反應速度：`lka.max_steer_rate_deg_s`
+  - 低速與高速 Stanley 分母柔化：`lka.softening`
+  - 若接近高速度限制，檢查 `stability.steer_high_speed_guard_kmh`
+
+### 25.6 世界座標語意現況
+- 使用者期望世界座標：
+  - 自身為原點
+  - 前方 `x+`
+  - 後方 `x-`
+  - 左側 `y-`
+  - 右側 `y+`
+- 目前程式內部 LKA 實際語意：
+  - 前方 `x+`
+  - 後方 `x-`
+  - 左側 `y+`
+  - 右側 `y-`
+- 主要依據：
+  - `GeometryFunction.cpp` 內 `y_left_m = -(p.x * world_scale)`
+  - `lane_keeping.h` 註解為 `x=前方、y=左方`
+  - `FindBestLaneCandidates(...)` 中 `y_eval > 0` 被歸類為左車道，`y_eval < 0` 被歸類為右車道
+- 結論：
+  - 目前內部左右正負號與使用者描述相反。
+  - 但現有 Geometry、LKA lane selection、projection helper 目前彼此自洽。
+  - 若未來要改成「左 y- / 右 y+」，需整體統一修改，不宜只改單一正負號。
+
+### 25.7 Research log 車速欄位整理
+- research CSV 已記錄車速與多種車態資訊。
+- 主要速度欄位：
+  - `ego_speed_kmh`：主流程使用的自車速度；CAN 模式來自 `CAN.speed`，非 CAN 模式來自 `app.fallback_ego_speed_kmh`。
+  - `can_speed_kmh`：CAN 解出的車身速度，來源為 `can_state->speed`。
+  - `can_speed_raw_kmh`：CAN 原始速度值，來源為 `can_state->speedOri`。
+  - `acc_control_ego_speed_kmh`：ACC 控制器內部使用的 ego speed。
+  - `cmd_speed_kmh`：系統輸出的目標速度命令，不代表實際車速。
+- 建議實車分析優先看：
+  - `ego_speed_kmh`
+  - `can_speed_kmh`
+  - `can_speed_raw_kmh`
+  - `can_speed_age_at_cmd_ms`
+
+### 25.8 ACC 加速度不足調參建議
+- 優先調整：
+  - `acc.max_accel_mps2`
+    - 目前若為 `5.0`，可先試 `6.0` 或 `7.0`。
+- 若加速度上升太慢：
+  - 調整 `acc.jerk_limit_mps3`
+    - 例如 `2.0 -> 3.0` 或 `4.0`。
+- 若只是目標速度太低：
+  - 調整 `acc.cruise_speed_kmh`。
+- 實車輸出條件仍需確認：
+  - `TX master=ON`
+  - `Speed/Brake=ON`
+  - CAN TX 與縱向控制未被 runtime safety toggle 關閉。
+
+### 25.9 驗證與結果（本輪）
+- 投影檢查：
+  - `Sensing-3M.yaml` 目前讀到 `calibration_size=1280x720`。
+  - LKA / ground grid overlay 不再套用錯誤的 1920 -> 1280 二次縮放。
+- 建置驗證：
+  - `cmake --build build -j4`：通過
+- 注意：
+  - 本工作區目前存在 `build` 目錄，未找到 `build-TFlite` 目錄。
+  - 編譯時仍有既有 ACC HUD `panel_height` unused variable warning，非本輪修改引入。
+
+### 25.10 已知限制與後續建議
+1. LKA 目前仍以 polynomial fit 在有效 keypoint 範圍內估算控制點；若希望控制完全只取離散 keypoint、不做曲線擬合，需另行改成純 polyline / lookahead interpolation 控制。
+2. 若要讓 LKA 目標點距離隨速度變化，可新增速度排程，例如 `x_heading = base + speed_gain * v`，並需限制在有效 keypoint x 範圍內。
+3. 若未來要統一成使用者描述的世界座標 `左 y- / 右 y+`，需同步改 Geometry 輸出語意、LKA 左右 lane 判定、overlay projection 與 steering sign 驗證。
