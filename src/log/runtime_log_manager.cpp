@@ -85,7 +85,12 @@ ResearchLogOptions BuildResearchOptions(const AdasSystemConfig& runtime_cfg) {
   options.input_source = "openCVcap";
 #endif
   options.can_tx_master_enable = runtime_cfg.app.can_tx_master_enable;
-  options.can_longitudinal_enable = runtime_cfg.app.can_longitudinal_enable;
+  options.can_throttle_enable =
+      runtime_cfg.app.can_throttle_enable || runtime_cfg.app.can_longitudinal_enable;
+  options.can_brake_enable =
+      runtime_cfg.app.can_brake_enable || runtime_cfg.app.can_longitudinal_enable;
+  options.can_longitudinal_enable =
+      options.can_throttle_enable || options.can_brake_enable;
   options.can_steering_enable = runtime_cfg.app.can_steering_enable;
   return options;
 }

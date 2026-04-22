@@ -135,6 +135,42 @@ struct AccConfig {
   // 若車輛煞車較軟，可將此值設為 1.2 或 1.5 來增強輸出。
   float brake_multiplier      = 1.0f;  
 
+  // ==========================================
+  // 4.1 怠速滑行 / 提前減速 (Coast & Early Brake)
+  // ==========================================
+
+  // 油門死區：加速度需求低於此值時輸出 speed=0, brake=0，代表放油門滑行。
+  float throttle_accel_deadband_mps2 = 0.15f;
+
+  // 煞車死區：減速度需求超過此值才轉成 brake_0_10。
+  float brake_accel_deadband_mps2 = 0.20f;
+
+  // 當前車進入「期望距離 + 這段額外距離」時，先禁止繼續加油門。
+  float coast_gap_margin_m = 3.0f;
+
+  // 額外提前滑行時距。速度越高，越早進入放油門滑行。
+  float coast_time_gap_margin_s = 0.8f;
+
+  // 當前車距離低於「期望距離 + 這段 margin」時，提前建立煞車需求。
+  float brake_gap_margin_m = 0.0f;
+
+  // 距離不足時，每少 1m 對應多少減速度需求。
+  float gap_error_decel_gain_mps2_per_m = 0.35f;
+
+  // 進入提前煞車區時的最小減速度需求，避免只輸出太小的煞車值。
+  float min_brake_decel_mps2 = 0.35f;
+
+  // TTC 低於此值開始提前煞車；低於 hard guard 時直接允許最大減速度。
+  float ttc_soft_brake_s = 3.0f;
+  float ttc_hard_brake_s = 1.5f;
+
+  // 高速跟車放寬：高速下若前車沒有明顯接近，先滑行，不因 time_gap 不足直接煞車。
+  bool high_speed_relax_enable = true;
+  float high_speed_relax_min_kmh = 40.0f;
+  float high_speed_brake_time_gap_s = 0.55f;
+  float high_speed_brake_gap_margin_m = 2.0f;
+  float high_speed_brake_closing_mps = 1.0f;
+
 
   // ==========================================
   // 5. 系統與更新 (System)

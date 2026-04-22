@@ -99,6 +99,9 @@ public:
     const float free_accel_nom =
         cfg_.max_accel_mps2 * (1.0f - std::pow(v_ego / std::max(0.1f, v0), delta));
     float accel_cmd = free_accel_nom;
+    bool lead_coast_guard = false;
+    bool lead_brake_guard = false;
+    bool lead_hard_brake_guard = false;
 
     if (has_lead) {
       const float closing_speed = std::max(0.0f, -rel_speed_mps);
@@ -109,6 +112,16 @@ public:
 
       const float s_star = s0 + v_ego * T + (v_ego * closing_speed) / (2.0f * std::sqrt(a * b));
       const float s = std::max(0.1f, filt_dist_m);
+      const float desired_gap = s0 + v_ego * T;
+      const bool high_speed_relax =
+          cfg_.high_speed_relax_enable &&
+          MpsToKmh(v_ego) >= std::max(0.0f, cfg_.high_speed_relax_min_kmh);
+      const bool closing_fast =
+          closing_speed >= std::max(0.0f, cfg_.high_speed_brake_closing_mps);
+      const float high_speed_brake_gap =
+          s0 +
+          v_ego * std::max(0.0f, cfg_.high_speed_brake_time_gap_s) +
+          std::max(0.0f, cfg_.high_speed_brake_gap_margin_m);
 
       const float free_term   = 1.0f - std::pow(v_ego / std::max(0.1f, v0), delta);
       const float follow_term = Sqr(s_star / s);
@@ -121,6 +134,56 @@ public:
       if (closing_speed > 0.5f && s < (s0 + v_ego * T)) {
         accel_cmd = std::min(accel_cmd, -required_decel);
       }
+
+      const float coast_gap =
+          desired_gap +
+          std::max(0.0f, cfg_.coast_gap_margin_m) +
+          v_ego * std::max(0.0f, cfg_.coast_time_gap_margin_s);
+      const bool suppress_gap_brake =
+          high_speed_relax && !closing_fast && s > high_speed_brake_gap;
+
+      if (suppress_gap_brake) {
+        if (s <= coast_gap) {
+          lead_coast_guard = true;
+          accel_cmd = 0.0f;
+        } else {
+          accel_cmd = free_accel_nom;
+        }
+      } else if (s <= coast_gap) {
+        lead_coast_guard = true;
+        accel_cmd = std::min(accel_cmd, 0.0f);
+      }
+
+      const float brake_gap = desired_gap + std::max(0.0f, cfg_.brake_gap_margin_m);
+      if (!suppress_gap_brake && s <= brake_gap) {
+        const float gap_deficit_m = std::max(0.0f, brake_gap - s);
+        float gap_decel = gap_deficit_m *
+            std::max(0.0f, cfg_.gap_error_decel_gain_mps2_per_m);
+        gap_decel = Clamp(gap_decel,
+                          std::max(0.0f, cfg_.min_brake_decel_mps2),
+                          std::max(0.1f, cfg_.comfort_decel_mps2));
+        lead_brake_guard = true;
+        accel_cmd = std::min(accel_cmd, -gap_decel);
+      }
+
+      if (!suppress_gap_brake && closing_speed > 0.5f) {
+        const float ttc_s = s / closing_speed;
+        const float soft_ttc = std::max(0.1f, cfg_.ttc_soft_brake_s);
+        const float hard_ttc = std::max(0.1f, cfg_.ttc_hard_brake_s);
+        if (ttc_s <= soft_ttc) {
+          const float span = std::max(0.1f, soft_ttc - hard_ttc);
+          const float alpha = Clamp((soft_ttc - ttc_s) / span, 0.0f, 1.0f);
+          const float min_decel = std::max(0.0f, cfg_.min_brake_decel_mps2);
+          const float ttc_decel =
+              min_decel + alpha * (std::max(min_decel, cfg_.comfort_decel_mps2) - min_decel);
+          lead_brake_guard = true;
+          accel_cmd = std::min(accel_cmd, -ttc_decel);
+        }
+        if (ttc_s <= hard_ttc) {
+          lead_hard_brake_guard = true;
+          accel_cmd = std::min(accel_cmd, -std::max(0.1f, cfg_.max_decel_mps2));
+        }
+      }
     }
 
     // 5) clamp + jerk
@@ -132,6 +195,16 @@ public:
     accel_cmd = Clamp(accel_cmd,
                       last_accel_cmd_mps2_ - max_da,
                       last_accel_cmd_mps2_ + max_da);
+    if (lead_coast_guard) {
+      accel_cmd = std::min(accel_cmd, 0.0f);
+    }
+    if (lead_brake_guard) {
+      accel_cmd = std::min(accel_cmd, -std::max(0.0f, cfg_.min_brake_decel_mps2));
+    }
+    if (lead_hard_brake_guard) {
+      accel_cmd = std::min(accel_cmd, -std::max(0.1f, cfg_.max_decel_mps2));
+    }
+    accel_cmd = Clamp(accel_cmd, -cfg_.max_decel_mps2, cfg_.max_accel_mps2);
 
     out.lead_following_active =
         has_lead && ((free_accel_limited - accel_cmd) > kAccelInfluenceEpsMps2 || accel_cmd < -0.05f);
@@ -154,8 +227,9 @@ public:
     // so downstream controllers can request acceleration instead of just mirroring
     // the current vehicle speed.
     const float v_cmd_mps = std::max(0.0f, v_ego + accel_cmd * dt);
-    float target_speed_kmh = MpsToKmh(v_cmd_mps);
-    const float brake_deadband = 0.2f;
+    float target_speed_kmh = 0.0f;
+    const float throttle_deadband = std::max(0.0f, cfg_.throttle_accel_deadband_mps2);
+    const float brake_deadband = std::max(0.0f, cfg_.brake_accel_deadband_mps2);
     float brake_level = 0.0f;
 
     if (accel_cmd < -brake_deadband) {
@@ -163,10 +237,12 @@ public:
       brake_level = (decel_need / std::max(0.1f, cfg_.brake_full_decel_mps2)) * cfg_.brake_multiplier;
       brake_level = Clamp(brake_level, 0.0f, 10.0f);
       target_speed_kmh = 0.0f;
+    } else if (accel_cmd > throttle_deadband) {
+      target_speed_kmh = MpsToKmh(v_cmd_mps);
     }
 
     const bool braking_phase = (brake_level > 0.05f) || (accel_cmd < -0.10f);
-    const bool accelerating_phase = accel_cmd > 0.10f;
+    const bool accelerating_phase = target_speed_kmh > 0.2f && accel_cmd > throttle_deadband;
     const bool max_hold_phase =
         out.ego_speed_kmh >= (cfg_.cruise_speed_kmh - 0.5f) &&
         target_speed_kmh >= (cfg_.cruise_speed_kmh - 0.5f) &&

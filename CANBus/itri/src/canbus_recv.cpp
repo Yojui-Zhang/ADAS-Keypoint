@@ -880,9 +880,9 @@ void canbus_ctrl_pedal(double pedalDst)
 	{
 		pedalDst = 0.75;
 	}
-	else if(pedalDst>4.3)
+	else if(pedalDst>20.3)
 	{
-		pedalDst = 4.3;
+		pedalDst = 20.3;
 	}
     int pedal_v = int(pedalDst* (4095.0 / 4.96)); 
     int data0 = (pedal_v & 0xf00) >> 8;

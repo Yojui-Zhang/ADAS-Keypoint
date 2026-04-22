@@ -89,6 +89,8 @@ void ReadAppConfig(const cv::FileNode& app_node, AppRuntimeConfig& cfg) {
     ReadIfPresent(app_node, "keypad_device_path", cfg.keypad_device_path);
 
     ReadBoolIfPresent(app_node, "can_tx_master_enable", cfg.can_tx_master_enable);
+    ReadBoolIfPresent(app_node, "can_throttle_enable", cfg.can_throttle_enable);
+    ReadBoolIfPresent(app_node, "can_brake_enable", cfg.can_brake_enable);
     ReadBoolIfPresent(app_node, "can_longitudinal_enable", cfg.can_longitudinal_enable);
     ReadBoolIfPresent(app_node, "can_steering_enable", cfg.can_steering_enable);
     ReadIfPresent(app_node, "longitudinal_controller", cfg.longitudinal_controller);
@@ -180,6 +182,20 @@ void ReadAccConfig(const cv::FileNode& acc_node, acc::AccConfig& cfg) {
 
     ReadIfPresent(acc_node, "brake_full_decel_mps2", cfg.brake_full_decel_mps2);
     ReadIfPresent(acc_node, "brake_multiplier", cfg.brake_multiplier);
+    ReadIfPresent(acc_node, "throttle_accel_deadband_mps2", cfg.throttle_accel_deadband_mps2);
+    ReadIfPresent(acc_node, "brake_accel_deadband_mps2", cfg.brake_accel_deadband_mps2);
+    ReadIfPresent(acc_node, "coast_gap_margin_m", cfg.coast_gap_margin_m);
+    ReadIfPresent(acc_node, "coast_time_gap_margin_s", cfg.coast_time_gap_margin_s);
+    ReadIfPresent(acc_node, "brake_gap_margin_m", cfg.brake_gap_margin_m);
+    ReadIfPresent(acc_node, "gap_error_decel_gain_mps2_per_m", cfg.gap_error_decel_gain_mps2_per_m);
+    ReadIfPresent(acc_node, "min_brake_decel_mps2", cfg.min_brake_decel_mps2);
+    ReadIfPresent(acc_node, "ttc_soft_brake_s", cfg.ttc_soft_brake_s);
+    ReadIfPresent(acc_node, "ttc_hard_brake_s", cfg.ttc_hard_brake_s);
+    ReadBoolIfPresent(acc_node, "high_speed_relax_enable", cfg.high_speed_relax_enable);
+    ReadIfPresent(acc_node, "high_speed_relax_min_kmh", cfg.high_speed_relax_min_kmh);
+    ReadIfPresent(acc_node, "high_speed_brake_time_gap_s", cfg.high_speed_brake_time_gap_s);
+    ReadIfPresent(acc_node, "high_speed_brake_gap_margin_m", cfg.high_speed_brake_gap_margin_m);
+    ReadIfPresent(acc_node, "high_speed_brake_closing_mps", cfg.high_speed_brake_closing_mps);
 
     ReadIfPresent(acc_node, "default_fps", cfg.default_fps);
     ReadBoolIfPresent(acc_node, "use_external_ego_speed", cfg.use_external_ego_speed);

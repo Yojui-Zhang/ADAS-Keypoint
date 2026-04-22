@@ -1293,3 +1293,285 @@
 1. LKA 目前仍以 polynomial fit 在有效 keypoint 範圍內估算控制點；若希望控制完全只取離散 keypoint、不做曲線擬合，需另行改成純 polyline / lookahead interpolation 控制。
 2. 若要讓 LKA 目標點距離隨速度變化，可新增速度排程，例如 `x_heading = base + speed_gain * v`，並需限制在有效 keypoint x 範圍內。
 3. 若未來要統一成使用者描述的世界座標 `左 y- / 右 y+`，需同步改 Geometry 輸出語意、LKA 左右 lane 判定、overlay projection 與 steering sign 驗證。
+
+## 26. 本輪再追加（ACC 油門 / 煞車 keypad 拆分）
+
+### 26.1 本輪用戶要求（分類）
+1. 將原本 ACC 縱向控制的單一 `Speed/Brake` keypad 開關拆成兩項。
+2. 拆分後需能分別控制油門與煞車 CAN TX。
+
+### 26.2 思考與決策摘要（可公開版本）
+- **決策 AV：保留 TX master，縱向子開關拆成 Throttle / Brake**
+  - 原因：`TX master` 仍應作為控車總允許權，避免單一子功能開關誤觸就直接送 CAN。
+  - 做法：新增 `can_throttle_enable` 與 `can_brake_enable`，實際啟用條件分別為：
+    - 油門：`CANBUS__` + `TX master=ON` + `Throttle=ON`
+    - 煞車：`CANBUS__` + `TX master=ON` + `Brake=ON`
+
+- **決策 AW：保留舊 `can_longitudinal_enable` 作相容**
+  - 原因：避免舊 YAML 或舊流程直接失效。
+  - 做法：`can_longitudinal_enable=1` 時，啟動預設會同時打開 throttle / brake；新設定建議改用 `can_throttle_enable` 與 `can_brake_enable`。
+
+### 26.3 架構概要（本輪新增 / 調整）
+- `include/system_config.h`, `src/system_config.cpp`, `config/system_config.yaml`
+  - 新增 `app.can_throttle_enable`
+  - 新增 `app.can_brake_enable`
+  - 保留 legacy `app.can_longitudinal_enable`
+- `include/Keypad/keypad_control.h`, `src/keypad/keypad_control.cpp`
+  - `RuntimeControlState` 拆成 `can_throttle_enable` / `can_brake_enable`
+  - 油門 pedal sender thread 只受 throttle 開關控制
+  - 煞車 `canbus_ctrl_dec(...)` sender 只受 brake 開關控制
+  - HUD 顯示改為獨立 `Throttle` / `Brake`
+- `include/log/research_data_logger.h`, `src/log/runtime_log_manager.cpp`, `src/log/research_data_logger.cpp`
+  - summary 追加 throttle / brake 啟動預設狀態
+
+### 26.4 熱鍵語意（本輪最新）
+- `1`：`TX master`
+- `2` 或 `+`：`Throttle`
+- `-` 或 `B`：`Brake`
+- `3`：`Steer`
+- `Backspace`：強制關閉所有控車輸出
+
+### 26.5 結論（本輪）
+- ACC 縱向輸出已拆為油門與煞車兩個 runtime 控制項。
+- 只打開油門不會啟動煞車 sender；只打開煞車也不會啟動油門 pedal sender。
+
+## 27. 本輪再追加（ACC 怠速滑行 / 提前減速修正）
+
+### 27.1 本輪用戶要求（分類）
+1. 指出目前 ACC 縱向控制很少輸出「不加油門、不踩煞車」的怠速滑行狀態。
+2. 實車現象是前方車距已變近時仍繼續提速，直到約 5m 才突然煞車，偶爾煞不住。
+3. 需要讓 ACC 能更早放油門、再依距離不足程度逐步煞車。
+
+### 27.2 思考與決策摘要（可公開版本）
+- **決策 AX：ACC 明確輸出 coast / idle，而不是用低加速度 speed command 代替**
+  - 原因：原本只要不進入 brake deadband，就會輸出 forward-looking speed command，油門 PID 會繼續追速度。
+  - 做法：新增油門加速度死區，當加速度需求不夠明確時輸出 `speed=0, brake=0`，表示放油門滑行。
+
+- **決策 AY：前車進入 coast zone 立即切掉正加速度**
+  - 原因：若上一幀仍在加速，jerk limit 會讓加速度慢慢降，車子可能在接近前車時還繼續加速。
+  - 做法：新增 `coast_gap_margin_m` 與 `coast_time_gap_margin_s`，進入提前滑行區後直接限制 `accel_cmd <= 0`。
+
+- **決策 AZ：距離不足 / TTC 過低時繞過正向 jerk 遲滯建立煞車需求**
+  - 原因：安全上不能等 jerk 慢慢從加速降到煞車。
+  - 做法：新增 gap/TTC guard；當距離低於期望距離或 TTC 過低時，至少輸出 `min_brake_decel_mps2`，hard TTC 時允許最大減速度。
+
+### 27.3 架構概要（本輪新增 / 調整）
+- `include/ACC/AccConfig.h`
+  - 新增：
+    - `throttle_accel_deadband_mps2`
+    - `brake_accel_deadband_mps2`
+    - `coast_gap_margin_m`
+    - `coast_time_gap_margin_s`
+    - `brake_gap_margin_m`
+    - `gap_error_decel_gain_mps2_per_m`
+    - `min_brake_decel_mps2`
+    - `ttc_soft_brake_s`
+    - `ttc_hard_brake_s`
+- `include/ACC/AccController.h`
+  - 前車進入 coast zone 時輸出 idle/coast。
+  - 距離不足或 TTC 過低時提前建立 brake 需求。
+- `src/StabilityControl/StabilitySupervisor.cpp`
+  - 將 ACC `Idle` phase 解讀為「coast」，不再把 `speed=0, brake=0` 誤解成要煞到 0 km/h。
+- `config/system_config.yaml`
+  - `max_accel_mps2: 7.0 -> 3.0`
+  - `use_external_ego_speed: 30 -> 1`
+  - 新增 coast / early brake 參數。
+
+### 27.4 實車注意事項
+- 若只開 `Throttle`、沒開 `Brake`，ACC 進入煞車 phase 時油門會放掉，但煞車 CAN 不會送出。
+- 真正允許煞車介入需同時滿足：
+  - `TX master=ON`
+  - `Brake=ON`
+  - ACC / Stability 最終輸出 `brake_0_10 > 0`
+
+### 27.5 驗證與結果
+- 建置驗證：
+  - `cmake --build build -j4`：通過
+- 結果：
+  - ACC 現在可輸出 `Idle` 作為怠速滑行。
+  - 前車進入提前滑行距離時不再繼續要求油門加速。
+  - 距離不足或 TTC 太低時會更早產生煞車需求。
+
+## 28. 本輪再追加（高速 ACC 過度煞車修正）
+
+### 28.1 本輪用戶要求（分類）
+1. 高速測試時，只要前方有物件就很容易進入煞車模式。
+2. 物件接近消失或距離變得很遠後，系統才恢復怠速與加速。
+3. 低速與紅綠燈 / 壅塞停止效果目前良好，因此修正需以高速行為為主，不破壞低速停車。
+
+### 28.2 Research log 分析摘要
+- 主要檢查檔案：
+  - `build/research_logs/research_drive_20260422_123318.csv`
+- 該檔特徵：
+  - 平均車速約 `60.07 km/h`
+  - 最高車速約 `104.50 km/h`
+  - braking ratio 約 `57.43%`
+  - `acc_control_cruise_speed_kmh=120`
+- 觀察結果：
+  - 高速有 lead 且煞車的樣本中，許多目標距離約 `20~25m`，相對速度約 `0` 或正值。
+  - 原本 ACC 使用固定 `time_gap_s=1.5`，在 `90 km/h` 時期望距離約為 `5 + 25*1.5 = 42.5m`。
+  - 因此即使前車沒有接近，只要距離小於 1.5s headway，就會進入煞車。
+  - 另有一部分 `acc_target_id=-1` 但仍短暫煞車，原因是 Stability supervisor 的 jerk limit 讓前一段煞車命令釋放較慢。
+
+### 28.3 思考與決策摘要（可公開版本）
+- **決策 BA：高速跟車與低速停車拆分**
+  - 原因：低速停車效果已符合需求，不應用同一組放寬規則破壞 stop-and-go。
+  - 做法：新增高速 relax gate，只有車速高於門檻才啟用。
+
+- **決策 BB：高速、非接近目標先 coast，不因 1.5s headway 不足直接煞車**
+  - 原因：高速測試時，前方同速或非接近物件會造成長時間不必要煞車。
+  - 做法：若 `ego_speed >= high_speed_relax_min_kmh` 且 closing speed 小於門檻，且距離大於硬煞車 gap，則把原本煞車改成 `Idle/coast`。
+
+- **決策 BC：真正危險仍保留煞車**
+  - 原因：高速安全邊界不能完全放寬。
+  - 做法：若 closing speed 明顯、TTC 過低，或距離低於高速硬 gap，仍進入煞車。
+
+- **決策 BD：ACC 釋放煞車時 Stability 不再長時間殘留煞車**
+  - 原因：目標消失後仍短暫煞車，會讓操作者覺得系統恢復過慢。
+  - 做法：當 ACC 已非 braking phase、沒有曲率限速瓶頸，也沒有煞車要求時，Stability 直接釋放負縱向加速度。
+
+### 28.4 架構概要（本輪新增 / 調整）
+- `include/ACC/AccConfig.h`
+  - 新增：
+    - `high_speed_relax_enable`
+    - `high_speed_relax_min_kmh`
+    - `high_speed_brake_time_gap_s`
+    - `high_speed_brake_gap_margin_m`
+    - `high_speed_brake_closing_mps`
+- `include/ACC/AccController.h`
+  - 高速非接近 lead 進入 coast，不再直接 brake。
+  - 高速硬 gap / closing speed / TTC 危險仍保留煞車。
+- `src/StabilityControl/StabilitySupervisor.cpp`
+  - ACC 已釋放煞車時，Stability 不再因 jerk limit 長時間殘留 brake。
+- `config/system_config.yaml`
+  - 新增高速 relax 參數。
+
+### 28.5 本輪預估效果
+- 以 `research_drive_20260422_123318.csv` 離線估算：
+  - 高速有 target 且原本煞車的樣本約 `1835` 筆。
+  - 新高速 relax 規則約可將 `1060` 筆（約 `57.8%`）改為 coast。
+  - 保留煞車的樣本多為距離更近或 closing speed 明顯的情境。
+
+### 28.6 驗證與結果
+- 建置驗證：
+  - `cmake --build build -j4`：通過
+- 注意：
+  - 仍有既有 ACC HUD `panel_height` unused variable warning，非本輪修改引入。
+
+## 29. 本輪再追加（PID 高速維速不足 / 目標速度語意修正）
+
+### 29.1 本輪用戶要求（分類）
+1. 使用 PID 控制車速時，車輛若不人工介入最多只上升到約 `30 km/h`。
+2. 人工拉到 `40/60/80 km/h` 後，車速會緩慢下降。
+3. 用戶懷疑可能是積分飽和、Ki 不足或沒有持續加速。
+4. 指出 `20260421` 高速測試使用 `Ki=30` 可維持約 `80 km/h`，但 `20260422` 高速會往下掉。
+
+### 29.2 Research log / 程式分析摘要
+- 對比檔案：
+  - `build/research_logs/20260421/research_drive_20260421_221006.csv`
+  - `build/research_logs/hight-speed-ACCandLKA_Mix/research_drive_20260422_123318.csv`
+  - `build/research_logs/hight-speed-ACCandLKA_Mix/research_drive_20260422_125020.csv`
+- 發現：
+  - `cmd_speed_kmh` 常不是長期巡航目標，而是 Stability 出來的單步速度命令，常常只比當前車速高不到 `0.5 km/h`，甚至在 coast / brake 時為 `0`。
+  - 原本 main 直接把 `target_speed = cmd.speed_kmh` 給 PID，因此 PID 沒有持續追 `cruise_speed_kmh=120` 的誤差。
+  - `src/keypad/keypad_control.cpp` 原本在 throttle thread 啟動瞬間依 `CAN.speed` 選一次 PID 係數；若低速時開啟油門，可能長時間使用低速 `Ki=3.5`，不會切到高速需要的 `Ki=30+`。
+  - `PID_incremental::pid_control_ACC(...)` 實際回傳的是當次計算輸出，呼叫端未累加輸出；所以問題不是典型 integral windup，而是 setpoint 太近 / 係數固定在低速區，導致油門命令不足。
+
+### 29.3 思考與決策摘要（可公開版本）
+- **決策 BE：PID 係數改為每輪依目前車速排程**
+  - 原因：高速維速需要較大的 Ki；只在 thread 啟動時選係數會讓低速啟動後無法適應高速。
+  - 做法：新增 `SelectSpeedPidGains(...)`，每次 pedal 計算前依 `CAN.speed` 更新 `kp/ki/kd`。
+
+- **決策 BF：PID 速度 setpoint 與 Stability 單步 speed command 分離**
+  - 原因：PID 控速器需要長期速度目標，不適合直接追 `v + a*dt` 這類單步速度。
+  - 做法：新增 `SelectActuatorSpeedTargetKmh(...)`：
+    - `Braking` / `Idle` / final brake > 0：`target_speed=0`，釋放油門或交給煞車。
+    - PID 模式且可加速：追 ACC `cruise_speed_kmh`。
+    - 若 lead 明顯比自車慢：用 lead speed 限制，避免硬追巡航。
+
+- **決策 BG：釋放油門時清掉 PID 歷史誤差**
+  - 原因：coast / brake 後再恢復油門時，舊誤差不應造成突兀輸出。
+  - 做法：在無油門需求時重置 `e_pre_1/e_pre_2`。
+
+### 29.4 本輪主要改動檔案
+- `src/keypad/keypad_control.cpp`
+  - 新增速度排程 PID gains。
+  - PID loop 每輪重新選 `kp/ki/kd`。
+  - 無油門需求時重置 PID 歷史誤差。
+- `src/main.cpp`
+  - 新增 `SelectActuatorSpeedTargetKmh(...)`。
+  - PID 模式下 `target_speed` 不再直接等於 `cmd.speed_kmh`。
+
+### 29.5 驗證與結果
+- 建置驗證：
+  - `cmake --build build -j4`：通過
+- 預期效果：
+  - 低速啟動油門後，高速區會自動切到較高 Ki，不再卡在低速 Ki。
+  - 高速無煞車 / 非 idle 時，PID 會持續追巡航目標，應可避免 40/60/80 km/h 人工拉上去後又慢慢掉速。
+
+## 30. 本輪再追加（低速 PID 起步暴衝抑制）
+
+### 30.1 本輪用戶要求（分類）
+1. 詢問目前低速 PID 參數是多少。
+2. 指出目前 `20 km/h` 以下啟動後會直接飆升到 `40 km/h` 以上。
+
+### 30.2 現況分析摘要
+- 目前 `20 km/h` 以下 PID gains：
+  - `kp=1.25`
+  - `ki=1.05`
+  - `kd=1.88`
+- `20~30 km/h`：
+  - `kp=1.8`
+  - `ki=2.0`
+  - `kd=1.9`
+- `30~40 km/h`：
+  - `kp=2.25`
+  - `ki=2.5`
+  - `kd=1.95`
+- 起步暴衝主因不是低速 `Ki` 過大，而是 PID 模式下 `target_speed` 會直接追 `acc.cruise_speed_kmh`。
+- 當 `cruise_speed_kmh=40` 且車速低於 `20 km/h` 時，PID 看到的速度誤差可達 `20~40 km/h`，pedal 命令會被 clamp 到上限。
+
+### 30.3 本輪修改
+- `src/keypad/keypad_control.cpp`
+  - 新增 `SelectSpeedPidPedalUpperLimit(...)`
+  - PID pedal 上限依目前車速分段：
+    - `0~20 km/h`：上限 `1.20`
+    - `20~30 km/h`：上限 `1.55`
+    - `30~40 km/h`：上限 `2.00`
+    - `>40 km/h`：上限 `2.80`
+
+### 30.4 驗證與結果
+- 建置驗證：
+  - `cmake --build build -j4`：通過
+- 預期效果：
+  - 起步與低速段不再因巡航目標為 `40 km/h` 而直接打滿油門。
+  - 高速段仍保留較大的 pedal 上限，避免再次犧牲高速維速能力。
+
+## 31. 本輪再修正（低速 cap 過低導致速度上不去）
+
+### 31.1 本輪用戶要求（分類）
+1. 指出上一輪低速起步暴衝抑制後，速度變成上不去。
+2. 需要在「不暴衝」與「能加速」之間重新平衡 PID 輸出。
+
+### 31.2 思考與決策摘要（可公開版本）
+- **決策 BH：不再只靠 pedal hard cap 抑制暴衝**
+  - 原因：`0~20 km/h` cap 設為 `1.20` 太保守，可能不足以讓實車持續加速。
+  - 做法：把 pedal cap 調高，並額外限制 PID 可見速度誤差，讓 PID 不會一次看到 `40 - 0` 的大誤差。
+
+### 31.3 本輪修改
+- `src/keypad/keypad_control.cpp`
+  - `SelectSpeedPidPedalUpperLimit(...)` 調整：
+    - `0~20 km/h`：`1.20 -> 1.60`
+    - `20~30 km/h`：`1.55 -> 2.05`
+    - `30~40 km/h`：`2.00 -> 2.40`
+    - `>40 km/h`：維持 `2.80`
+  - 新增 `LimitSpeedPidTarget(...)`
+    - 依目前車速限制 PID 可見速度誤差。
+    - 低速最多先讓 PID 看到約 `+8 km/h` 的目標差，不直接用完整巡航誤差。
+
+### 31.4 驗證與結果
+- 建置驗證：
+  - `cmake --build build -j4`：通過
+- 預期效果：
+  - 低速應恢復加速能力。
+  - 起步不會再因 cruise target 過高而直接看到完整大誤差。

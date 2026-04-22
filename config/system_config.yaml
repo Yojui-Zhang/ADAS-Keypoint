@@ -15,7 +15,9 @@ app:
   keypad_device_path: "/dev/input/event1"
 
   can_tx_master_enable: 0
-  can_longitudinal_enable: 0
+  can_throttle_enable: 0
+  can_brake_enable: 0
+  can_longitudinal_enable: 0   # legacy startup default: enables both throttle and brake when set to 1
   can_steering_enable: 0
   longitudinal_controller: "pid"   # keypad, pid
 
@@ -39,7 +41,7 @@ app:
 
 input:
   video_path: "../video/1280x720/vecow-demo.mp4"
-  camera_index: -1
+  camera_index: 1
   capture_width: 1280
   capture_height: 720
   window_name: "Screen"
@@ -83,19 +85,33 @@ sort_keypoint:
 acc:
   lateral_limit_m: 1.0
   min_forward_m: 0.5
-  max_forward_m: 40.0
+  max_forward_m: 60.0
   lead_hysteresis_m: 1.0
-  cruise_speed_kmh: 30.0
+  cruise_speed_kmh: 40.0
   time_gap_s: 1.5
   standstill_gap_m: 5.0
-  max_accel_mps2: 5.0
+  max_accel_mps2: 3.0
   comfort_decel_mps2: 2.5
   max_decel_mps2: 6.0
-  jerk_limit_mps3: 2.0
+  jerk_limit_mps3: 4.0
   brake_full_decel_mps2: 2.0
   brake_multiplier: 1.0
+  throttle_accel_deadband_mps2: 0.15
+  brake_accel_deadband_mps2: 0.20
+  coast_gap_margin_m: 3.0
+  coast_time_gap_margin_s: 0.8
+  brake_gap_margin_m: 0.0
+  gap_error_decel_gain_mps2_per_m: 0.35
+  min_brake_decel_mps2: 0.35
+  ttc_soft_brake_s: 3.0
+  ttc_hard_brake_s: 1.5
+  high_speed_relax_enable: 1
+  high_speed_relax_min_kmh: 40.0
+  high_speed_brake_time_gap_s: 0.55
+  high_speed_brake_gap_margin_m: 2.0
+  high_speed_brake_closing_mps: 1.0
   default_fps: 20.0
-  use_external_ego_speed: 0
+  use_external_ego_speed: 1
 
 lka:
   wheel_base_m: 2.62

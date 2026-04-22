@@ -157,9 +157,16 @@ VehicleControlCommand StabilitySupervisor::Update(double ego_speed_mps,
   // 7) parse ACC longitudinal need (speed/brake)
   const acc::AccConfig acc_cfg = acc::ACC_GetConfig();
 
-  double v_acc_target = KmH2mps(std::max(0.0f, acc_cmd.speed_kmh));
-
   const double brake = clampd(acc_cmd.brake_0_10, 0.0, 10.0);
+  const bool acc_idle_request =
+      acc_cmd.longitudinal_phase == acc::AccLongitudinalPhase::Idle &&
+      brake <= 1e-3 &&
+      acc_cmd.speed_kmh <= 0.2f;
+
+  double v_acc_target = acc_idle_request
+      ? v
+      : KmH2mps(std::max(0.0f, acc_cmd.speed_kmh));
+
   double a_brake_need = 0.0;
   if (brake > 1e-3) {
     const double mult = std::max(1e-3f, acc_cfg.brake_multiplier);
@@ -169,6 +176,7 @@ VehicleControlCommand StabilitySupervisor::Update(double ego_speed_mps,
 
   double a_long_need = 0.0;
   if (a_brake_need > 1e-3) a_long_need = -a_brake_need;
+  else if (acc_idle_request) a_long_need = 0.0;
   else                     a_long_need = (v_acc_target - v) / dt_s;
 
   // 8) supervisor target speed (ACC vs curve), smoothing, rate limit (discrete-time)
@@ -248,6 +256,14 @@ VehicleControlCommand StabilitySupervisor::Update(double ego_speed_mps,
     u_proj.alat = u2.alat;
   }
 
+  const bool acc_released_brake =
+      !acc_requests_brake &&
+      !curve_is_bottleneck &&
+      acc_cmd.longitudinal_phase != acc::AccLongitudinalPhase::Braking;
+  if (acc_released_brake && a_long_cmd < 0.0) {
+    a_long_cmd = 0.0;
+  }
+
   last_a_long_cmd_mps2_ = a_long_cmd;
 
   // 13) convert to speed command
@@ -276,6 +292,9 @@ VehicleControlCommand StabilitySupervisor::Update(double ego_speed_mps,
     brake_out = clampd(brake_out, 0.0, 10.0);
 
     // keep your convention: braking -> speed=0
+    speed_out_kmh = 0.0;
+  } else if (acc_idle_request && !curve_is_bottleneck) {
+    // ACC idle means coast: do not ask the throttle PID to hold current speed.
     speed_out_kmh = 0.0;
   }
 

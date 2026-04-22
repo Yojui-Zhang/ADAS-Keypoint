@@ -19,7 +19,8 @@ struct RuntimeControlState {
   bool canbus_compiled = false;
 
   bool can_tx_master_enable = false;
-  bool can_longitudinal_enable = false;
+  bool can_throttle_enable = false;
+  bool can_brake_enable = false;
   bool can_steering_enable = false;
   LongitudinalControllerKind longitudinal_controller = LongitudinalControllerKind::Keypad;
   std::string longitudinal_controller_name = "keypad";
@@ -49,5 +50,7 @@ void DrawRuntimeStatusOverlay(cv::Mat& frame,
 
 bool LongitudinalControlActive(const RuntimeControlState& state);
 bool SteeringControlActive(const RuntimeControlState& state);
+bool ThrottleControlActive(const RuntimeControlState& state);
+bool BrakeControlActive(const RuntimeControlState& state);
 
 }  // namespace keypad

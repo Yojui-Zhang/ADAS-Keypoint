@@ -538,6 +538,8 @@ void ResearchDataLogger::WriteSummaryFile() {
   summary << "run_mode=" << options_.run_mode << '\n';
   summary << "input_source=" << options_.input_source << '\n';
   summary << "can_tx_master_enable=" << (options_.can_tx_master_enable ? 1 : 0) << '\n';
+  summary << "can_throttle_enable=" << (options_.can_throttle_enable ? 1 : 0) << '\n';
+  summary << "can_brake_enable=" << (options_.can_brake_enable ? 1 : 0) << '\n';
   summary << "can_longitudinal_enable=" << (options_.can_longitudinal_enable ? 1 : 0) << '\n';
   summary << "can_steering_enable=" << (options_.can_steering_enable ? 1 : 0) << '\n';
   summary << "samples=" << summary_.sample_count << '\n';

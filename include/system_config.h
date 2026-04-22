@@ -29,6 +29,9 @@ struct AppRuntimeConfig {
     std::string keypad_device_path = "/dev/input/event1";
 
     bool can_tx_master_enable = false;
+    bool can_throttle_enable = false;
+    bool can_brake_enable = false;
+    // Legacy startup default. If true, both throttle and brake are enabled.
     bool can_longitudinal_enable = false;
     bool can_steering_enable = false;
     std::string longitudinal_controller = "keypad";

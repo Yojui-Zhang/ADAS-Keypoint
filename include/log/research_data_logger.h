@@ -17,6 +17,8 @@ struct ResearchLogOptions {
   std::string run_mode = "unknown";
   std::string input_source = "unknown";
   bool can_tx_master_enable = false;
+  bool can_throttle_enable = false;
+  bool can_brake_enable = false;
   bool can_longitudinal_enable = false;
   bool can_steering_enable = false;
 };
