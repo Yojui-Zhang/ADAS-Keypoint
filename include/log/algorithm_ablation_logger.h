@@ -50,6 +50,15 @@ struct VirtualRoadSimulationOptions {
   double raw_steer_bias_deg = 2.5;         // 固定轉向偏置（deg）
   double raw_steer_osc_amp_deg = 1.0;      // 週期擾動振幅（deg）
   double raw_steer_osc_period_s = 6.0;     // 週期擾動週期（s）
+
+  // Preview-MPC baseline（不注入額外擾動）
+  bool preview_mpc_enable = true;          // 是否啟用 preview-MPC baseline
+  uint32_t preview_mpc_horizon = 14;       // 預測視窗長度（步）
+  double preview_mpc_q_cte = 12.0;         // CTE 權重
+  double preview_mpc_q_heading = 4.0;      // heading error 權重（rad）
+  double preview_mpc_q_steer = 0.15;       // steer magnitude 權重（rad）
+  double preview_mpc_r_steer_rate = 1.2;   // steer rate 權重（rad/step）
+  double preview_mpc_max_steer_rate_deg_s = 180.0;  // steering wheel rate limit（deg/s）
 };
 
 struct AlgorithmAblationFrame {
@@ -62,6 +71,10 @@ struct AlgorithmAblationFrame {
   const std::vector<TrackingBox>* world_after_skeleton = nullptr;   // RunVehicleSkeletonAndHeading 後
 
   stability::VehicleControlCommand vehicle_control_cmd{};            // VehicleControl_Run 輸出命令
+  bool preview_mpc_valid = false;                   // 是否提供 preview-MPC baseline
+  double preview_mpc_speed_kmh = 0.0;              // preview-MPC speed 命令
+  double preview_mpc_steer_deg = 0.0;              // preview-MPC steer 命令
+  double preview_mpc_brake_0_10 = 0.0;             // preview-MPC brake 命令
 };
 
 struct AlgorithmAblationResult {
@@ -81,6 +94,9 @@ struct AlgorithmAblationResult {
   double vc_cte_m = 0.0;                             // VC on CTE（m）
   double vc_heading_err_deg = 0.0;                   // VC on 航向誤差（deg）
   int vc_lane_departure = 0;                         // VC on 是否偏離車道（0/1）
+  double preview_mpc_cte_m = 0.0;                    // preview-MPC CTE（m）
+  double preview_mpc_heading_err_deg = 0.0;          // preview-MPC 航向誤差（deg）
+  int preview_mpc_lane_departure = 0;                // preview-MPC 是否偏離車道（0/1）
   double raw_cte_m = 0.0;                            // VC off CTE（m）
   double raw_heading_err_deg = 0.0;                  // VC off 航向誤差（deg）
   int raw_lane_departure = 0;                        // VC off 是否偏離車道（0/1）
@@ -128,13 +144,18 @@ private:
 
     uint64_t virtual_road_valid_frames = 0;
     uint64_t vc_lane_departure_count = 0;
+    uint64_t preview_mpc_lane_departure_count = 0;
     uint64_t raw_lane_departure_count = 0;
     double sum_abs_vc_cte_m = 0.0;
     double max_abs_vc_cte_m = 0.0;
+    double sum_abs_preview_mpc_cte_m = 0.0;
+    double max_abs_preview_mpc_cte_m = 0.0;
     double sum_abs_raw_cte_m = 0.0;
     double max_abs_raw_cte_m = 0.0;
     double sum_abs_vc_heading_err_deg = 0.0;
     double max_abs_vc_heading_err_deg = 0.0;
+    double sum_abs_preview_mpc_heading_err_deg = 0.0;
+    double max_abs_preview_mpc_heading_err_deg = 0.0;
     double sum_abs_raw_heading_err_deg = 0.0;
     double max_abs_raw_heading_err_deg = 0.0;
   };
@@ -164,8 +185,10 @@ private:
   std::chrono::steady_clock::time_point start_steady_;
 
   PoseState route_vc_;
+  PoseState route_preview_mpc_;
   PoseState route_raw_;
   std::vector<cv::Point2d> path_vc_;
+  std::vector<cv::Point2d> path_preview_mpc_;
   std::vector<cv::Point2d> path_raw_;
   bool virtual_road_active_ = false;
   std::string virtual_road_mode_used_;
