@@ -100,6 +100,10 @@ struct ControlState {
         bool valid = false;
         bool has_lane = false;
         float p_curve = 0.0f;
+        float ey_m = 0.0f;
+        float epsi_rad = 0.0f;
+        float mean_kappa_m_inv = 0.0f;
+        float std_kappa_m_inv = 0.0f;
         ReferencePoint current_point;
         ReferencePoint target_point;
     } reference_snapshot;

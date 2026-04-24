@@ -41,6 +41,10 @@ struct FrameSnapshot {
 
   bool lka_reference_valid = false;
   double lka_p_curve = 0.0;
+  double lka_ey_m = 0.0;
+  double lka_epsi_rad = 0.0;
+  double lka_mean_kappa_m_inv = 0.0;
+  double lka_std_kappa_m_inv = 0.0;
   double lka_current_x_m = 0.0;
   double lka_current_y_m = 0.0;
   bool lka_current_image_valid = false;

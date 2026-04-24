@@ -168,6 +168,10 @@ void ResearchDataLogger::WriteHeader() {
        << ",lka_steer_deg_raw"
        << ",lka_reference_valid"
        << ",lka_p_curve"
+       << ",lka_ey_m"
+       << ",lka_epsi_rad"
+       << ",lka_mean_kappa_m_inv"
+       << ",lka_std_kappa_m_inv"
        << ",lka_current_x_m"
        << ",lka_current_y_m"
        << ",lka_current_image_valid"
@@ -383,6 +387,10 @@ void ResearchDataLogger::LogFrame(const ResearchLogFrame& frame) {
        << ',' << FiniteOrNaN(frame.lka_steer_deg_raw)
        << ',' << (frame.lka_reference_valid ? 1 : 0)
        << ',' << FiniteOrNaN(frame.lka_p_curve)
+       << ',' << FiniteOrNaN(frame.lka_ey_m)
+       << ',' << FiniteOrNaN(frame.lka_epsi_rad)
+       << ',' << FiniteOrNaN(frame.lka_mean_kappa_m_inv)
+       << ',' << FiniteOrNaN(frame.lka_std_kappa_m_inv)
        << ',' << FiniteOrNaN(frame.lka_current_x_m)
        << ',' << FiniteOrNaN(frame.lka_current_y_m)
        << ',' << (frame.lka_current_image_valid ? 1 : 0)

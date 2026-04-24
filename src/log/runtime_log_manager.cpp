@@ -459,6 +459,10 @@ void RuntimeLogManager::LogFrame(const FrameSnapshot& snapshot) {
   log_frame.lka_steer_deg_raw = snapshot.vehicle_cmd->lka_steer_deg_raw;
   log_frame.lka_reference_valid = snapshot.lka_reference_valid;
   log_frame.lka_p_curve = snapshot.lka_p_curve;
+  log_frame.lka_ey_m = snapshot.lka_ey_m;
+  log_frame.lka_epsi_rad = snapshot.lka_epsi_rad;
+  log_frame.lka_mean_kappa_m_inv = snapshot.lka_mean_kappa_m_inv;
+  log_frame.lka_std_kappa_m_inv = snapshot.lka_std_kappa_m_inv;
   log_frame.lka_current_x_m = snapshot.lka_current_x_m;
   log_frame.lka_current_y_m = snapshot.lka_current_y_m;
   log_frame.lka_current_image_valid = snapshot.lka_current_image_valid;

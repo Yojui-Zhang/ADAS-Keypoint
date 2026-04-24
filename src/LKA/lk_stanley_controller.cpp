@@ -214,11 +214,17 @@ float calculate_lane_steering(const TrackingBox& input,
 
     const double target_y_s = PolyY(poly, x_heading_s) + static_cast<double>(cfg.lane_center_offset_m);
     const double target_y_c = PolyY(poly, x_heading_c) + static_cast<double>(cfg.lane_center_offset_m);
+    const double blended_cte = (1.0 - p_curve) * cte_s + p_curve * cte_c;
+    const double blended_heading_err = (1.0 - p_curve) * head_s + p_curve * head_c;
 
     LkaReferenceSnapshot reference_snapshot;
     reference_snapshot.valid = true;
     reference_snapshot.has_lane = true;
     reference_snapshot.p_curve = static_cast<float>(p_curve);
+    reference_snapshot.ey_m = static_cast<float>(blended_cte);
+    reference_snapshot.epsi_rad = static_cast<float>(blended_heading_err);
+    reference_snapshot.mean_kappa_m_inv = static_cast<float>(mean_kappa);
+    reference_snapshot.std_kappa_m_inv = static_cast<float>(std_kappa);
     reference_snapshot.current_point.valid = true;
     reference_snapshot.current_point.x_m =
         static_cast<float>((1.0 - p_curve) * x_ref_s + p_curve * x_ref_c);
