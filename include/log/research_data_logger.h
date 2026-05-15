@@ -4,6 +4,9 @@
 #include <cstdint>
 #include <fstream>
 #include <string>
+#include <vector>
+
+#include "config.h"
 
 struct ResearchLogOptions {
   bool enabled = true;
@@ -172,18 +175,41 @@ struct ResearchLogFrame {
   std::string can_turn_signal_text = "unknown";
 };
 
+struct ResearchDetectionLogRecord {
+  std::string stage = "unknown";
+  int object_index = -1;
+  int source_detection_index = -1;
+  int track_id = -1;
+  int track_frame = -1;
+  int class_id = -1;
+  std::string class_label = "unknown";
+  double score = 0.0;
+  int classify_num = 0;
+  cv::Rect box;
+  std::vector<cv::Point3f> raw_image_kpts;
+  std::vector<cv::Point3f> sort_image_kpts;
+  std::vector<cv::Point3f> world_box;
+  std::vector<cv::Point3f> ipm_world_kpts;
+  std::vector<cv::Rect> track_box_history;
+  std::vector<std::vector<cv::Point3f>> track_kpt_history;
+  bool heading_valid = false;
+  double heading_deg = 0.0;
+};
+
 class ResearchDataLogger {
 public:
   explicit ResearchDataLogger(const ResearchLogOptions& options = {});
   ~ResearchDataLogger();
 
   bool Start(std::string* out_error = nullptr);
-  void LogFrame(const ResearchLogFrame& frame);
+  void LogFrame(const ResearchLogFrame& frame,
+                const std::vector<ResearchDetectionLogRecord>& detection_records = {});
   void Stop();
 
   bool IsEnabled() const { return options_.enabled; }
   bool IsRunning() const { return running_; }
   const std::string& OutputPath() const { return output_path_; }
+  const std::string& DetectionOutputPath() const { return detection_output_path_; }
 
 private:
   struct Summary {
@@ -208,8 +234,14 @@ private:
   void UpdatePose(const ResearchLogFrame& frame, double dt_s);
   void UpdateSummary(const ResearchLogFrame& frame, double elapsed_s);
   void WriteHeader();
+  void WriteDetectionHeader();
+  void WriteDetectionRecords(int64_t unix_ms,
+                             double elapsed_s,
+                             const ResearchLogFrame& frame,
+                             const std::vector<ResearchDetectionLogRecord>& records);
   void WriteSummaryFile();
   std::string ResolveOutputPath() const;
+  std::string ResolveDetectionOutputPath() const;
 
   static bool ParseEnvBool(const char* value, bool default_value);
   static double Clamp(double x, double lo, double hi);
@@ -222,9 +254,13 @@ private:
   std::string output_path_;
 
   std::ofstream out_;
+  std::ofstream detection_out_;
   uint64_t flush_counter_ = 0;
+  uint64_t detection_row_count_ = 0;
 
   std::chrono::steady_clock::time_point start_steady_;
+
+  std::string detection_output_path_;
 
   double route_x_m_ = 0.0;
   double route_y_m_ = 0.0;

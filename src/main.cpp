@@ -124,6 +124,28 @@ const char* RunModeName(RunMode mode) {
   }
 }
 
+std::vector<TrackingBox> BuildRawDetectionTrackingBoxes(
+    const std::vector<Object>& detections,
+    uint64_t frame_index) {
+  std::vector<TrackingBox> boxes;
+  boxes.reserve(detections.size());
+
+  for (std::size_t i = 0; i < detections.size(); ++i) {
+    const auto& obj = detections[i];
+    TrackingBox tb{};
+    tb.frame = static_cast<int>(frame_index);
+    tb.id = static_cast<int>(i);
+    tb.class_id = obj.class_id;
+    tb.score = obj.score;
+    tb.classify_num = -1;
+    tb.box = obj.box;
+    tb.kpts = obj.kpts;
+    boxes.push_back(std::move(tb));
+  }
+
+  return boxes;
+}
+
 float SelectActuatorSpeedTargetKmh(const keypad::RuntimeControlState& control_state,
                                    const stability::VehicleControlCommand& cmd,
                                    float ego_speed_kmh) {
@@ -439,6 +461,8 @@ int main(int argc, char** argv) {
   if (run_mode != RunMode::VirtualRoad) {
     if (runtime_log_manager.ResearchRunning()) {
       std::cout << "Main: Research log -> " << runtime_log_manager.ResearchOutputPath() << std::endl;
+      std::cout << "Main: Research detection log -> "
+                << runtime_log_manager.ResearchDetectionOutputPath() << std::endl;
     } else {
       std::cout << "Main: Research logger disabled." << std::endl;
     }
@@ -572,6 +596,8 @@ int main(int argc, char** argv) {
     perf_metrics.input_ms = ElapsedMs(perf_frame_start, perf_after_input);
 
     std::vector<TrackingBox> tracking_result;
+    std::vector<Object> ai_detections;
+    std::vector<TrackingBox> ai_detection_world_result;
     std::vector<TrackingBox> world_result;
 
     const auto inference_start = PerfClock::now();
@@ -580,20 +606,26 @@ int main(int argc, char** argv) {
                                        output_frame,
                                        runtime_cfg.model.classify_model_width,
                                        runtime_cfg.model.classify_model_height,
-                                       control_state.draw_inference_overlay);
+                                       control_state.draw_inference_overlay,
+                                       &ai_detections);
 #endif
 
 #ifdef USE_TENSORRT
     tracking_result = trt_process_frame(frame,
                                         output_frame,
                                         trt_config,
-                                        control_state.draw_inference_overlay);
+                                        control_state.draw_inference_overlay,
+                                        &ai_detections);
 #endif
 
     const auto inference_end = PerfClock::now();
     perf_metrics.inference_ms = ElapsedMs(inference_start, inference_end);
 
     const auto geometry_start = PerfClock::now();
+    const std::vector<TrackingBox> ai_detection_tracking =
+        BuildRawDetectionTrackingBoxes(ai_detections, frame_index);
+    ai_detection_world_result =
+        GeometryConvertTrackingResultToWorld(ai_detection_tracking, &cam);
     world_result = GeometryFunction(output_frame, output_frame, tracking_result, &cam);
     const auto geometry_end = PerfClock::now();
     perf_metrics.geometry_ms = ElapsedMs(geometry_start, geometry_end);
@@ -777,6 +809,8 @@ int main(int argc, char** argv) {
     log_snapshot.lka_target_image_valid = lka_target_px_valid;
     log_snapshot.lka_target_u_px = lka_target_px.x;
     log_snapshot.lka_target_v_px = lka_target_px.y;
+    log_snapshot.ai_detections = &ai_detections;
+    log_snapshot.ai_detection_world_result = &ai_detection_world_result;
     log_snapshot.tracking_result = &tracking_result;
     log_snapshot.world_before_behavior = runtime_log_manager.AblationRunning() ? &world_before_behavior : nullptr;
     log_snapshot.world_result = &world_result;

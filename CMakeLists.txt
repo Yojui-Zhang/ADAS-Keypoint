@@ -171,6 +171,7 @@ if(ENGINE STREQUAL "TFLITE")
         drm
         GLESv2
         EGL
+        # ${PLATFORM_LIBS}
         glfw
     )
 elseif(ENGINE STREQUAL "TENSORRT")

@@ -2,13 +2,13 @@
 #include <opencv2/core.hpp>  // 包含 cv::Scalar 和其他基本類型
 
 // 是否啟動 CANBus 實車控車
-#define CANBUS__
+// #define CANBUS__
 
 // 是否啟用 GPU delegate（TFLite）
-// #define _GPU_delegate
+#define _GPU_delegate
 
 // 影像/推論資料輸出開關
-// #define Write_Video__
+#define Write_Video__
 // #define Save_infer_raw_data__
 
 // 輸入來源選擇（二擇一）
@@ -20,9 +20,9 @@
 // #define _opengl
 
 // ============= 模型輸入解析度（四選一） =========
-// #define _640640
+#define _640640
 // #define _640384
-#define _512288
+// #define _512288
 // #define _480480
 
 // ============= 影像尺寸設定 ============
@@ -39,8 +39,8 @@
 #define process_video_width 1280    // 演算法處理寬度
 #define process_video_height 720    // 演算法處理高度
 
-#define output_video_width 1280     // 輸出影片寬度
-#define output_video_height 720    // 輸出影片高度
+#define output_video_width 1920     // 輸出影片寬度
+#define output_video_height 1080    // 輸出影片高度
 #define output_video_fps 15         // 輸出影片幀率
 
 // ============= V4L2 設定 ===================
@@ -233,11 +233,12 @@ struct Object {
 
 typedef struct TrackingBox
 {
-    int frame;           // 幀編號
-    int id;              // 追蹤 ID
-    int class_id;        // 偵測類別 ID
-    float score;         // 追蹤目標分數
-    int classify_num;    // 分類結果 ID
+    int frame = 0;       // 幀編號
+    int id = -1;         // 追蹤 ID
+    int class_id = -1;   // 偵測類別 ID
+    float score = 0.0f;  // 追蹤目標分數
+    int classify_num = -1;    // 分類結果 ID
+    int source_detection_index = -1;  // 本幀 SORT 輸出對應的 raw detection index；無配對時為 -1
 
     // SORT
     cv::Rect box;                                                    // 當前框（像素）

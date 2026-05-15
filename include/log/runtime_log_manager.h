@@ -56,6 +56,8 @@ struct FrameSnapshot {
   double lka_target_u_px = 0.0;
   double lka_target_v_px = 0.0;
 
+  const std::vector<Object>* ai_detections = nullptr;
+  const std::vector<TrackingBox>* ai_detection_world_result = nullptr;
   const std::vector<TrackingBox>* tracking_result = nullptr;
   const std::vector<TrackingBox>* world_before_behavior = nullptr;
   const std::vector<TrackingBox>* world_result = nullptr;
@@ -82,6 +84,7 @@ public:
   bool ResearchRunning() const { return research_logger_.IsRunning(); }
   const std::string& AblationOutputPath() const { return ablation_logger_.OutputPath(); }
   const std::string& ResearchOutputPath() const { return research_logger_.OutputPath(); }
+  const std::string& ResearchDetectionOutputPath() const { return research_logger_.DetectionOutputPath(); }
 
 private:
   AdasSystemConfig runtime_cfg_;

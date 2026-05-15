@@ -13,6 +13,8 @@
 #include <tensorflow/lite/model.h>
 #include <tensorflow/lite/delegates/external/external_delegate.h>
 
+#include "tensorflow/lite/delegates/xnnpack/xnnpack_delegate.h"
+
 #include "SortTracking.h"
 #include "draw_icon.h"
 #include "config.h" 
@@ -172,13 +174,31 @@ bool PoseDetector::Set_TFlite(const char* model_path) {
     }
 
 #ifdef _GPU_delegate
-    const char* vx_delegate_library_path = "/usr/lib/libvx_delegate.so";
-    TfLiteExternalDelegateOptions delegate_options = TfLiteExternalDelegateOptionsDefault(vx_delegate_library_path);
-    TfLiteDelegate* vx_delegate = TfLiteExternalDelegateCreate(&delegate_options);
-    if (interpreter->ModifyGraphWithDelegate(vx_delegate) != kTfLiteOk) {
-        std::cerr << "Fail to create vx delegate\n";
+
+    // /* VX Delegate */
+    // const char* vx_delegate_library_path = "/usr/lib/libvx_delegate.so";
+    // TfLiteExternalDelegateOptions delegate_options = TfLiteExternalDelegateOptionsDefault(vx_delegate_library_path);
+    // TfLiteDelegate* vx_delegate = TfLiteExternalDelegateCreate(&delegate_options);
+    // if (interpreter->ModifyGraphWithDelegate(vx_delegate) != kTfLiteOk) {
+    //     std::cerr << "Fail to create vx delegate\n";
+    //     return false;
+    // }
+
+
+    /* XNN Pack */
+    TfLiteXNNPackDelegateOptions xnnpack_options = TfLiteXNNPackDelegateOptionsDefault();
+    // 明確指定執行緒數量以榨乾 PC CPU 效能 (請依據您的硬體實體核心數調整)
+    xnnpack_options.num_threads = 8; 
+
+    // 3. 實例化 XNNPACK 委派
+    TfLiteDelegate* xnnpack_delegate = TfLiteXNNPackDelegateCreate(&xnnpack_options);
+
+    // 4. 將委派綁定至 Interpreter
+    if (interpreter->ModifyGraphWithDelegate(xnnpack_delegate) != kTfLiteOk) {
+        std::cerr << "Fail to apply XNNPACK delegate. Falling back to default CPU executor.\n";
         return false;
     }
+
 #endif
 
     if (interpreter->AllocateTensors() != kTfLiteOk) {

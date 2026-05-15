@@ -45,7 +45,8 @@ bool trt_init(const char* lanepose_model_path,
 std::vector<TrackingBox> trt_process_frame(const cv::Mat& frame,
                                            cv::Mat& output_frame,
                                            Config& config,
-                                           bool draw_visuals)
+                                           bool draw_visuals,
+                                           std::vector<Object>* raw_objects)
 {
     std::vector<TrackingBox> TrackingResult;
 
@@ -62,6 +63,10 @@ std::vector<TrackingBox> trt_process_frame(const cv::Mat& frame,
                              config.iou_thres,
                              config.topk,
                              config.num_labels);
+
+    if (raw_objects != nullptr) {
+        *raw_objects = objs;
+    }
 
     TrackingResult = sorttracking.TrackingResult(objs);
 
@@ -91,7 +96,7 @@ bool trt_init(const char*, char*, const char*, Config&)
     return false;
 }
 
-std::vector<TrackingBox> trt_process_frame(const cv::Mat&, cv::Mat&, Config&, bool)
+std::vector<TrackingBox> trt_process_frame(const cv::Mat&, cv::Mat&, Config&, bool, std::vector<Object>*)
 {
     return {};
 }

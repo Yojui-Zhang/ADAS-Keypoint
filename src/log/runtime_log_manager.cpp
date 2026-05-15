@@ -224,6 +224,100 @@ ObjectLogSummary BuildObjectLogSummary(const std::vector<TrackingBox>& objects,
   return summary;
 }
 
+const TrackingBox* FindWorldObjectForTracking(const std::vector<TrackingBox>& world_result,
+                                              const TrackingBox& tracking,
+                                              std::size_t index) {
+  if (index < world_result.size() && world_result[index].id == tracking.id) {
+    return &world_result[index];
+  }
+
+  for (const auto& world_tb : world_result) {
+    if (world_tb.id == tracking.id && world_tb.class_id == tracking.class_id) {
+      return &world_tb;
+    }
+  }
+
+  return nullptr;
+}
+
+void AppendRawDetectionRecords(const std::vector<Object>* raw_detections,
+                               const std::vector<TrackingBox>* raw_world_result,
+                               std::vector<ResearchDetectionLogRecord>* out_records) {
+  if (raw_detections == nullptr || out_records == nullptr) {
+    return;
+  }
+
+  for (std::size_t i = 0; i < raw_detections->size(); ++i) {
+    const auto& obj = (*raw_detections)[i];
+    ResearchDetectionLogRecord record;
+    record.stage = "raw_detect";
+    record.object_index = static_cast<int>(i);
+    record.source_detection_index = static_cast<int>(i);
+    record.track_id = -1;
+    record.track_frame = -1;
+    record.class_id = obj.class_id;
+    record.class_label = ClassIdName(obj.class_id);
+    record.score = obj.score;
+    record.classify_num = -1;
+    record.box = obj.box;
+    record.raw_image_kpts = obj.kpts;
+
+    if (raw_world_result != nullptr && i < raw_world_result->size()) {
+      const auto& world_tb = (*raw_world_result)[i];
+      record.world_box = world_tb.World_box;
+      record.ipm_world_kpts = world_tb.kpts;
+      record.heading_valid = world_tb.target_heading_valid;
+      record.heading_deg = world_tb.target_heading_deg;
+    }
+
+    out_records->push_back(std::move(record));
+  }
+}
+
+void AppendSortDetectionRecords(const std::vector<TrackingBox>* tracking_result,
+                                const std::vector<Object>* raw_detections,
+                                const std::vector<TrackingBox>* world_result,
+                                std::vector<ResearchDetectionLogRecord>* out_records) {
+  if (tracking_result == nullptr || out_records == nullptr) {
+    return;
+  }
+
+  for (std::size_t i = 0; i < tracking_result->size(); ++i) {
+    const auto& tb = (*tracking_result)[i];
+    ResearchDetectionLogRecord record;
+    record.stage = "sort_filtered";
+    record.object_index = static_cast<int>(i);
+    record.source_detection_index = tb.source_detection_index;
+    record.track_id = tb.id;
+    record.track_frame = tb.frame;
+    record.class_id = tb.class_id;
+    record.class_label = ClassIdName(tb.class_id);
+    record.score = tb.score;
+    record.classify_num = tb.classify_num;
+    record.box = tb.box;
+    record.sort_image_kpts = tb.kpts;
+    if (raw_detections != nullptr &&
+        tb.source_detection_index >= 0 &&
+        tb.source_detection_index < static_cast<int>(raw_detections->size())) {
+      record.raw_image_kpts = (*raw_detections)[tb.source_detection_index].kpts;
+    }
+    record.track_box_history = tb.track_box_history;
+    record.track_kpt_history = tb.track_kpt_history;
+
+    if (world_result != nullptr) {
+      const TrackingBox* world_tb = FindWorldObjectForTracking(*world_result, tb, i);
+      if (world_tb != nullptr) {
+        record.world_box = world_tb->World_box;
+        record.ipm_world_kpts = world_tb->kpts;
+        record.heading_valid = world_tb->target_heading_valid;
+        record.heading_deg = world_tb->target_heading_deg;
+      }
+    }
+
+    out_records->push_back(std::move(record));
+  }
+}
+
 struct AccObjectLogSummary {
   int candidate_count = 0;
   int follow_count = 0;
@@ -559,7 +653,16 @@ void RuntimeLogManager::LogFrame(const FrameSnapshot& snapshot) {
       TimeDeltaMsOrNaN(snapshot.cmd_sync_ns, log_frame.can_steering_torque_rx_sync_ns);
   log_frame.can_turn_signal_age_at_cmd_ms =
       TimeDeltaMsOrNaN(snapshot.cmd_sync_ns, log_frame.can_turn_signal_rx_sync_ns);
-  research_logger_.LogFrame(log_frame);
+
+  std::vector<ResearchDetectionLogRecord> detection_records;
+  AppendRawDetectionRecords(snapshot.ai_detections,
+                            snapshot.ai_detection_world_result,
+                            &detection_records);
+  AppendSortDetectionRecords(snapshot.tracking_result,
+                             snapshot.ai_detections,
+                             snapshot.world_result,
+                             &detection_records);
+  research_logger_.LogFrame(log_frame, detection_records);
 }
 
 void RuntimeLogManager::Stop() {

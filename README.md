@@ -190,7 +190,26 @@ make -j$(nproc)
 - 新增設定僅擴充注入能力，不移除原演算法邏輯。
 - 若配置檔缺少欄位，載入器會使用程式內預設值。
 
-## 7. 建議調參順序
+## 7. Research Log 與逐物件偵測紀錄
+
+啟用 `ADAS_RESEARCH_LOG_ENABLE=1` 時，系統保留原本主檔：
+- `research_drive_*.csv`：逐幀車態、控制、ACC/LKA/Collision、摘要統計。
+
+同時新增逐物件詳細檔：
+- `research_drive_*.detections.csv`：每幀每個 AI/SORT 物件一列，記錄 bbox 與 keypoints。
+
+詳細檔重點欄位：
+- `stage=raw_detect`：AI raw detect 的 bbox、`raw_kpts_px`，以及 raw detection 直接 IPM 後的 `ipm_kpts_world_m`。
+- `stage=sort_filtered`：SORT filter 後的 bbox、`sort_kpts_px`、SORT/IPM 後的 `ipm_kpts_world_m`。
+- `source_detection_index`：SORT 輸出可配對回 raw detection 時，對應 raw detection index。
+- 若每個物件有 15 個 keypoints，SORT 列在有配對時會同時包含 `raw_kpts_px` 15 點、`sort_kpts_px` 15 點、`ipm_kpts_world_m` 15 點，共 45 個 keypoint 座標記錄。
+- keypoints 格式為 `idx:x:y:score;idx:x:y:score`，world/IPM 欄位中的 `x/y` 單位為公尺。
+
+可選環境變數：
+- `ADAS_RESEARCH_LOG_PATH=/path/to/research.csv`：指定主 research CSV。
+- `ADAS_RESEARCH_DETECTION_LOG_PATH=/path/to/detections.csv`：指定逐物件詳細 CSV。
+
+## 8. 建議調參順序
 
 1. `geometry` + `camera_yaml_path`（先確保世界座標可信）
 2. `sort` / `sort_keypoint`（追蹤穩定）
@@ -199,7 +218,7 @@ make -j$(nproc)
 5. `stability`（物理與舒適邊界）
 6. `collision`（警示/介入策略）
 
-## 8. 演算法模擬對照（無 CANBus、影片回放）
+## 9. 演算法模擬對照（無 CANBus、影片回放）
 
 主流程已新增 `AlgorithmAblationLogger`，呼叫點位於：
 - `RunVehicleSkeletonAndHeading(...)` 後
