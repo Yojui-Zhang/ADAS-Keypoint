@@ -46,13 +46,17 @@ static void drawCoordinates(cv::Mat& img, const cv::Point2f& px_pos, const cv::P
     cv::putText(img, text, px_pos, fontFace, fontScale, color, thickness);
 }
 
-std::vector<TrackingBox> GeometryConvertTrackingResultToWorld(const std::vector<TrackingBox>& TrackingResult, const CameraModel* cam)
+std::vector<TrackingBox> GeometryFunction(const cv::Mat& Src_frame, cv::Mat& Output_frame, std::vector<TrackingBox>& TrackingResult, const CameraModel* cam)
 {
     const GeometryConfig geom_cfg = Geometry_GetConfig();
     const float world_scale = geom_cfg.world_unit_scale;
 
-    if (cam == nullptr) {
-        return {};
+    // 1. 複製原始影像到輸出影像
+    if (Src_frame.empty()) {
+        // 防止空圖傳入
+        Output_frame = cv::Mat(); 
+    } else {
+        Output_frame = Src_frame.clone();
     }
 
     GroundPlane plane = GroundPlane::Z0();
@@ -63,8 +67,7 @@ std::vector<TrackingBox> GeometryConvertTrackingResultToWorld(const std::vector<
     WorldResult.reserve(TrackingResult.size());
 
     // 2. 處理每個物件
-    for (const auto& input_tb : TrackingResult) {
-        TrackingBox tb = input_tb;
+    for (auto& tb : TrackingResult) {
         
         std::vector<cv::Point3f> result_points = tf.toWorldPoints(tb);
         TrackingBox world_tb = tb;
@@ -95,17 +98,4 @@ std::vector<TrackingBox> GeometryConvertTrackingResultToWorld(const std::vector<
     }
 
     return WorldResult;
-}
-
-std::vector<TrackingBox> GeometryFunction(const cv::Mat& Src_frame, cv::Mat& Output_frame, std::vector<TrackingBox>& TrackingResult, const CameraModel* cam)
-{
-    // 1. 複製原始影像到輸出影像
-    if (Src_frame.empty()) {
-        // 防止空圖傳入
-        Output_frame = cv::Mat(); 
-    } else {
-        Output_frame = Src_frame.clone();
-    }
-
-    return GeometryConvertTrackingResultToWorld(TrackingResult, cam);
 }

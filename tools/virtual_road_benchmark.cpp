@@ -25,6 +25,18 @@ uint64_t ParseUInt64(const std::string& label, const std::string& value) {
   return static_cast<uint64_t>(parsed);
 }
 
+bool ParseBool(const std::string& label, const std::string& value) {
+  if (value == "1" || value == "true" || value == "TRUE" ||
+      value == "yes" || value == "on") {
+    return true;
+  }
+  if (value == "0" || value == "false" || value == "FALSE" ||
+      value == "no" || value == "off") {
+    return false;
+  }
+  throw std::runtime_error("invalid boolean value for " + label + ": " + value);
+}
+
 void PrintUsage() {
   std::cerr
       << "Usage: virtual_road_benchmark --output <csv> [options]\n"
@@ -42,7 +54,12 @@ void PrintUsage() {
       << "  --s-amplitude-m <float>\n"
       << "  --s-wavelength-m <float>\n"
       << "  --steering-ratio <float>\n"
-      << "  --wheelbase-m <float>\n";
+      << "  --wheelbase-m <float>\n"
+      << "  --preview-mpc <0|1>\n"
+      << "  --disturbed-preview-mpc <0|1>\n"
+      << "  --raw-steer-bias-deg <float>\n"
+      << "  --raw-steer-osc-amp-deg <float>\n"
+      << "  --raw-steer-osc-period-s <float>\n";
 }
 
 }  // namespace
@@ -99,6 +116,16 @@ int main(int argc, char** argv) {
         options.steering_ratio = ParseDouble(arg, require_value(arg));
       } else if (arg == "--wheelbase-m") {
         options.wheelbase_m = ParseDouble(arg, require_value(arg));
+      } else if (arg == "--preview-mpc") {
+        sim.preview_mpc_enable = ParseBool(arg, require_value(arg));
+      } else if (arg == "--disturbed-preview-mpc") {
+        sim.disturbed_preview_mpc_enable = ParseBool(arg, require_value(arg));
+      } else if (arg == "--raw-steer-bias-deg") {
+        sim.raw_steer_bias_deg = ParseDouble(arg, require_value(arg));
+      } else if (arg == "--raw-steer-osc-amp-deg") {
+        sim.raw_steer_osc_amp_deg = ParseDouble(arg, require_value(arg));
+      } else if (arg == "--raw-steer-osc-period-s") {
+        sim.raw_steer_osc_period_s = ParseDouble(arg, require_value(arg));
       } else if (arg == "--help" || arg == "-h") {
         PrintUsage();
         return 0;

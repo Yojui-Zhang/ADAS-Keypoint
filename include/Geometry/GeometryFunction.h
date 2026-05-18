@@ -15,8 +15,5 @@ struct GeometryConfig {
 void Geometry_SetConfig(const GeometryConfig& cfg);
 GeometryConfig Geometry_GetConfig();
 
-// 只做座標轉換，不改動輸出影像；適合 log raw AI detection 或其他中間結果。
-std::vector<TrackingBox> GeometryConvertTrackingResultToWorld(const std::vector<TrackingBox>& TrackingResult, const CameraModel* cam);
-
 // 輸入 TrackingResult (像素座標), 輸出 WorldResult (世界座標)
 std::vector<TrackingBox> GeometryFunction(const cv::Mat& Src_frame, cv::Mat& Output_frame, std::vector<TrackingBox>& TrackingResult, const CameraModel* cam);

@@ -58,8 +58,7 @@ std::vector<TrackingBox> tflite_run_frame(const cv::Mat& frame,
                                           cv::Mat& out_bgr,
                                           int classify_model_width,
                                           int classify_model_height,
-                                          bool draw_visuals,
-                                          std::vector<Object>* raw_objects)
+                                          bool draw_visuals)
 {
     pose.get_input_data_fp32(frame,
                              pose.input_data,
@@ -90,10 +89,6 @@ std::vector<TrackingBox> tflite_run_frame(const cv::Mat& frame,
 
     pose.nms(objs, NMS_THRESHOLD_BBOX, NMS_THRESHOLD_LANE);
 
-    if (raw_objects != nullptr) {
-        *raw_objects = objs;
-    }
-
     TrackingResult = sorttracking.TrackingResult(objs);
 
     if (draw_visuals) {
@@ -114,6 +109,6 @@ std::vector<TrackingBox> tflite_run_frame(const cv::Mat& frame,
 bool Classify_and_icon_init(const char*, const char*) { return false; }
 void tflite_set_sort_config(const SORTTRACKING::SortTrackingConfig&, const sort_kpt::KeypointFilterConfig&) {}
 bool tflite_init(const char*, const cv::Mat&) { return false; }
-std::vector<TrackingBox> tflite_run_frame(const cv::Mat&, cv::Mat&, int, int, bool, std::vector<Object>*) { return {}; }
+std::vector<TrackingBox> tflite_run_frame(const cv::Mat&, cv::Mat&, int, int, bool) { return {}; }
 
 #endif

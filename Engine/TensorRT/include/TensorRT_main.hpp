@@ -16,5 +16,4 @@ bool trt_init(const char* lanepose_model_path,
 std::vector<TrackingBox> trt_process_frame(const cv::Mat& frame,
                                            cv::Mat& output_frame,
                                            Config& config,
-                                           bool draw_visuals = true,
-                                           std::vector<Object>* raw_objects = nullptr);
+                                           bool draw_visuals = true);

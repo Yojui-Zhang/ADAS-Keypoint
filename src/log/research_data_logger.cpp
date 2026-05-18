@@ -38,46 +38,6 @@ std::string ParentDirOf(const std::string& p) {
   return path.has_parent_path() ? path.parent_path().string() : std::string();
 }
 
-std::string ReplaceCsvSuffix(const std::string& path, const std::string& suffix) {
-  std::filesystem::path p(path);
-  const std::string stem = p.stem().string();
-  const std::string ext = p.extension().string();
-  if (ext == ".csv") {
-    p.replace_filename(stem + suffix + ext);
-    return p.string();
-  }
-  return path + suffix + ".csv";
-}
-
-std::string FormatPointList(const std::vector<cv::Point3f>& points) {
-  std::ostringstream oss;
-  oss << std::fixed << std::setprecision(6);
-  for (std::size_t i = 0; i < points.size(); ++i) {
-    if (i > 0) oss << ';';
-    oss << i << ':' << points[i].x << ':' << points[i].y << ':' << points[i].z;
-  }
-  return oss.str();
-}
-
-std::string FormatRectList(const std::vector<cv::Rect>& rects) {
-  std::ostringstream oss;
-  for (std::size_t i = 0; i < rects.size(); ++i) {
-    if (i > 0) oss << ';';
-    oss << i << ':' << rects[i].x << ':' << rects[i].y
-        << ':' << rects[i].width << ':' << rects[i].height;
-  }
-  return oss.str();
-}
-
-std::string FormatNestedPointList(const std::vector<std::vector<cv::Point3f>>& frames) {
-  std::ostringstream oss;
-  for (std::size_t i = 0; i < frames.size(); ++i) {
-    if (i > 0) oss << '|';
-    oss << i << '[' << FormatPointList(frames[i]) << ']';
-  }
-  return oss.str();
-}
-
 }  // namespace
 
 ResearchDataLogger::ResearchDataLogger(const ResearchLogOptions& options)
@@ -131,12 +91,6 @@ std::string ResearchDataLogger::ResolveOutputPath() const {
   return oss.str();
 }
 
-std::string ResearchDataLogger::ResolveDetectionOutputPath() const {
-  const char* env_path = std::getenv("ADAS_RESEARCH_DETECTION_LOG_PATH");
-  if (env_path && *env_path) return std::string(env_path);
-  return ReplaceCsvSuffix(output_path_, ".detections");
-}
-
 bool ResearchDataLogger::Start(std::string* out_error) {
   const char* env_enable = std::getenv("ADAS_RESEARCH_LOG_ENABLE");
   options_.enabled = ParseEnvBool(env_enable, options_.enabled);
@@ -171,34 +125,7 @@ bool ResearchDataLogger::Start(std::string* out_error) {
   out_ << std::fixed << std::setprecision(6);
   WriteHeader();
 
-  detection_output_path_ = ResolveDetectionOutputPath();
-  const std::string detection_parent_dir = ParentDirOf(detection_output_path_);
-  if (!detection_parent_dir.empty()) {
-    std::error_code ec;
-    std::filesystem::create_directories(detection_parent_dir, ec);
-    if (ec) {
-      out_.close();
-      if (out_error) {
-        *out_error = "failed to create detection output directory: " +
-                     detection_parent_dir + " (" + ec.message() + ")";
-      }
-      return false;
-    }
-  }
-
-  detection_out_.open(detection_output_path_, std::ios::out | std::ios::trunc);
-  if (!detection_out_.is_open()) {
-    out_.close();
-    if (out_error) {
-      *out_error = "failed to open detection log file: " + detection_output_path_;
-    }
-    return false;
-  }
-  detection_out_ << std::fixed << std::setprecision(6);
-  WriteDetectionHeader();
-
   flush_counter_ = 0;
-  detection_row_count_ = 0;
   route_x_m_ = 0.0;
   route_y_m_ = 0.0;
   route_heading_rad_ = 0.0;
@@ -360,43 +287,6 @@ void ResearchDataLogger::WriteHeader() {
        << '\n';
 }
 
-void ResearchDataLogger::WriteDetectionHeader() {
-  detection_out_ << "unix_ms"
-                 << ",elapsed_s"
-                 << ",frame_idx"
-                 << ",frame_sync_ns"
-                 << ",cmd_sync_ns"
-                 << ",stage"
-                 << ",object_index"
-                 << ",source_detection_index"
-                 << ",track_id"
-                 << ",track_frame"
-                 << ",class_id"
-                 << ",class_label"
-                 << ",score"
-                 << ",classify_num"
-                 << ",box_x_px"
-                 << ",box_y_px"
-                 << ",box_w_px"
-                 << ",box_h_px"
-                 << ",bottom_center_u_px"
-                 << ",bottom_center_v_px"
-                 << ",raw_kpt_count"
-                 << ",raw_kpts_px"
-                 << ",sort_kpt_count"
-                 << ",sort_kpts_px"
-                 << ",world_box_count"
-                 << ",world_box_m"
-                 << ",ipm_kpt_count"
-                 << ",ipm_kpts_world_m"
-                 << ",track_history_count"
-                 << ",track_box_history_px"
-                 << ",track_kpt_history_px"
-                 << ",heading_valid"
-                 << ",heading_deg"
-                 << '\n';
-}
-
 void ResearchDataLogger::UpdatePose(const ResearchLogFrame& frame, double dt_s) {
   const double speed_kmh = (frame.can_valid && IsFinite(frame.can_speed_kmh))
                              ? std::max(0.0, frame.can_speed_kmh)
@@ -455,9 +345,7 @@ void ResearchDataLogger::UpdateSummary(const ResearchLogFrame& frame, double ela
   summary_.last_elapsed_s = elapsed_s;
 }
 
-void ResearchDataLogger::LogFrame(
-    const ResearchLogFrame& frame,
-    const std::vector<ResearchDetectionLogRecord>& detection_records) {
+void ResearchDataLogger::LogFrame(const ResearchLogFrame& frame) {
   if (!running_) return;
 
   const auto now_wall = std::chrono::system_clock::now();
@@ -617,64 +505,10 @@ void ResearchDataLogger::LogFrame(
        << ',' << frame.can_turn_signal_text
        << '\n';
 
-  WriteDetectionRecords(unix_ms, elapsed_s, frame, detection_records);
-
   flush_counter_ += 1;
   if (flush_counter_ >= static_cast<uint64_t>(std::max(1, options_.flush_every_n))) {
     out_.flush();
-    if (detection_out_.is_open()) detection_out_.flush();
     flush_counter_ = 0;
-  }
-}
-
-void ResearchDataLogger::WriteDetectionRecords(
-    int64_t unix_ms,
-    double elapsed_s,
-    const ResearchLogFrame& frame,
-    const std::vector<ResearchDetectionLogRecord>& records) {
-  if (!detection_out_.is_open()) return;
-
-  for (const auto& record : records) {
-    const double bottom_center_u = record.box.x + 0.5 * record.box.width;
-    const double bottom_center_v = record.box.y + record.box.height;
-
-    detection_out_ << unix_ms
-                   << ',' << elapsed_s
-                   << ',' << frame.frame_index
-                   << ',' << frame.frame_sync_ns
-                   << ',' << frame.cmd_sync_ns
-                   << ',' << record.stage
-                   << ',' << record.object_index
-                   << ',' << record.source_detection_index
-                   << ',' << record.track_id
-                   << ',' << record.track_frame
-                   << ',' << record.class_id
-                   << ',' << record.class_label
-                   << ',' << FiniteOrNaN(record.score)
-                   << ',' << record.classify_num
-                   << ',' << record.box.x
-                   << ',' << record.box.y
-                   << ',' << record.box.width
-                   << ',' << record.box.height
-                   << ',' << FiniteOrNaN(bottom_center_u)
-                   << ',' << FiniteOrNaN(bottom_center_v)
-                   << ',' << record.raw_image_kpts.size()
-                   << ',' << FormatPointList(record.raw_image_kpts)
-                   << ',' << record.sort_image_kpts.size()
-                   << ',' << FormatPointList(record.sort_image_kpts)
-                   << ',' << record.world_box.size()
-                   << ',' << FormatPointList(record.world_box)
-                   << ',' << record.ipm_world_kpts.size()
-                   << ',' << FormatPointList(record.ipm_world_kpts)
-                   << ',' << record.track_box_history.size()
-                   << ',' << FormatRectList(record.track_box_history)
-                   << ',' << FormatNestedPointList(record.track_kpt_history)
-                   << ',' << (record.heading_valid ? 1 : 0)
-                   << ',' << FiniteOrNaN(record.heading_valid
-                                            ? record.heading_deg
-                                            : std::numeric_limits<double>::quiet_NaN())
-                   << '\n';
-    detection_row_count_ += 1;
   }
 }
 
@@ -707,8 +541,6 @@ void ResearchDataLogger::WriteSummaryFile() {
       : 0.0;
 
   summary << "output_csv=" << output_path_ << '\n';
-  summary << "detection_csv=" << detection_output_path_ << '\n';
-  summary << "detection_rows=" << detection_row_count_ << '\n';
   summary << "time_sync_source=" << options_.time_sync_source << '\n';
   summary << "time_sync_uses_ptp=" << (options_.time_sync_uses_ptp ? 1 : 0) << '\n';
   summary << "run_mode=" << options_.run_mode << '\n';
@@ -751,11 +583,6 @@ void ResearchDataLogger::Stop() {
   if (out_.is_open()) {
     out_.flush();
     out_.close();
-  }
-
-  if (detection_out_.is_open()) {
-    detection_out_.flush();
-    detection_out_.close();
   }
 
   running_ = false;

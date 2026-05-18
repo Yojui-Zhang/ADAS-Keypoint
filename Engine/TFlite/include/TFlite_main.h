@@ -13,5 +13,4 @@ std::vector<TrackingBox> tflite_run_frame(const cv::Mat& frame,
                                           cv::Mat& out_bgr,
                                           int classify_model_width,
                                           int classify_model_height,
-                                          bool draw_visuals = true,
-                                          std::vector<Object>* raw_objects = nullptr);
+                                          bool draw_visuals = true);

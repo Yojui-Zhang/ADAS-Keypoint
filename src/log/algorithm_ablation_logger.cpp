@@ -569,13 +569,17 @@ bool AlgorithmAblationLogger::Start(std::string* out_error) {
   flush_counter_ = 0;
   route_vc_ = PoseState{};
   route_preview_mpc_ = PoseState{};
+  route_disturbed_preview_mpc_ = PoseState{};
   route_raw_ = PoseState{};
   path_vc_.clear();
   path_preview_mpc_.clear();
+  path_disturbed_preview_mpc_.clear();
   path_raw_.clear();
   path_vc_.emplace_back(0.0, 0.0);
   path_preview_mpc_.emplace_back(0.0, 0.0);
+  path_disturbed_preview_mpc_.emplace_back(0.0, 0.0);
   path_raw_.emplace_back(0.0, 0.0);
+  has_virtual_sim_config_ = false;
   summary_ = Summary{};
 
   start_steady_ = std::chrono::steady_clock::now();
@@ -596,6 +600,11 @@ void AlgorithmAblationLogger::WriteHeader() {
        << ",preview_mpc_speed_kmh"
        << ",preview_mpc_steer_deg"
        << ",preview_mpc_brake_0_10"
+       << ",disturbed_preview_mpc_speed_kmh"
+       << ",disturbed_preview_mpc_steer_base_deg"
+       << ",disturbed_preview_mpc_steer_deg"
+       << ",disturbed_preview_mpc_brake_0_10"
+       << ",steering_disturbance_deg"
        << ",raw_speed_kmh"
        << ",raw_steer_deg"
        << ",raw_brake_0_10"
@@ -616,6 +625,10 @@ void AlgorithmAblationLogger::WriteHeader() {
        << ",route_preview_mpc_x_m"
        << ",route_preview_mpc_y_m"
        << ",route_preview_mpc_distance_m"
+       << ",route_disturbed_preview_mpc_heading_rad"
+       << ",route_disturbed_preview_mpc_x_m"
+       << ",route_disturbed_preview_mpc_y_m"
+       << ",route_disturbed_preview_mpc_distance_m"
        << ",route_raw_heading_rad"
        << ",route_raw_x_m"
        << ",route_raw_y_m"
@@ -628,6 +641,9 @@ void AlgorithmAblationLogger::WriteHeader() {
        << ",preview_mpc_cte_m"
        << ",preview_mpc_heading_err_deg"
        << ",preview_mpc_lane_departure"
+       << ",disturbed_preview_mpc_cte_m"
+       << ",disturbed_preview_mpc_heading_err_deg"
+       << ",disturbed_preview_mpc_lane_departure"
        << ",raw_cte_m"
        << ",raw_heading_err_deg"
        << ",raw_lane_departure"
@@ -744,6 +760,21 @@ AlgorithmAblationResult AlgorithmAblationLogger::Step(const AlgorithmAblationFra
     }
   }
 
+  bool disturbed_preview_mpc_active = frame.disturbed_preview_mpc_valid;
+  double disturbed_preview_mpc_speed_kmh = std::numeric_limits<double>::quiet_NaN();
+  double disturbed_preview_mpc_steer_base_deg = std::numeric_limits<double>::quiet_NaN();
+  double disturbed_preview_mpc_steer_deg = std::numeric_limits<double>::quiet_NaN();
+  double disturbed_preview_mpc_brake_0_10 = std::numeric_limits<double>::quiet_NaN();
+  if (disturbed_preview_mpc_active) {
+    disturbed_preview_mpc_speed_kmh = std::max(0.0, frame.disturbed_preview_mpc_speed_kmh);
+    disturbed_preview_mpc_steer_base_deg = frame.disturbed_preview_mpc_steer_base_deg;
+    disturbed_preview_mpc_steer_deg = frame.disturbed_preview_mpc_steer_deg;
+    disturbed_preview_mpc_brake_0_10 = Clamp(frame.disturbed_preview_mpc_brake_0_10, 0.0, 10.0);
+    if (disturbed_preview_mpc_brake_0_10 > 1e-3) {
+      disturbed_preview_mpc_speed_kmh = 0.0;
+    }
+  }
+
   double raw_speed_kmh = std::max(0.0, static_cast<double>(vc_cmd.acc_cmd.speed_kmh));
   const double raw_steer_deg = static_cast<double>(vc_cmd.lka_steer_deg_raw);
   const double raw_brake_0_10 = Clamp(static_cast<double>(vc_cmd.acc_cmd.brake_0_10), 0.0, 10.0);
@@ -760,11 +791,21 @@ AlgorithmAblationResult AlgorithmAblationLogger::Step(const AlgorithmAblationFra
   if (preview_mpc_active) {
     UpdatePose(&route_preview_mpc_, preview_mpc_speed_kmh, preview_mpc_steer_deg, dt_s);
   }
+  if (disturbed_preview_mpc_active) {
+    UpdatePose(&route_disturbed_preview_mpc_,
+               disturbed_preview_mpc_speed_kmh,
+               disturbed_preview_mpc_steer_deg,
+               dt_s);
+  }
   UpdatePose(&route_raw_, raw_speed_kmh, raw_steer_deg, dt_s);
 
   path_vc_.emplace_back(route_vc_.x_m, route_vc_.y_m);
   if (preview_mpc_active) {
     path_preview_mpc_.emplace_back(route_preview_mpc_.x_m, route_preview_mpc_.y_m);
+  }
+  if (disturbed_preview_mpc_active) {
+    path_disturbed_preview_mpc_.emplace_back(route_disturbed_preview_mpc_.x_m,
+                                             route_disturbed_preview_mpc_.y_m);
   }
   path_raw_.emplace_back(route_raw_.x_m, route_raw_.y_m);
 
@@ -783,18 +824,30 @@ AlgorithmAblationResult AlgorithmAblationLogger::Step(const AlgorithmAblationFra
               route_preview_mpc_.heading_rad,
               virtual_road_path_)
         : VirtualRoadProjection{};
+    const VirtualRoadProjection disturbed_preview_mpc_proj = disturbed_preview_mpc_active
+        ? ProjectPoseToPath(
+              cv::Point2d(route_disturbed_preview_mpc_.x_m, route_disturbed_preview_mpc_.y_m),
+              route_disturbed_preview_mpc_.heading_rad,
+              virtual_road_path_)
+        : VirtualRoadProjection{};
     const VirtualRoadProjection raw_proj = ProjectPoseToPath(
         cv::Point2d(route_raw_.x_m, route_raw_.y_m),
         route_raw_.heading_rad,
         virtual_road_path_);
 
-    if (vc_proj.valid && raw_proj.valid && (!preview_mpc_active || preview_mpc_proj.valid)) {
+    if (vc_proj.valid && raw_proj.valid &&
+        (!preview_mpc_active || preview_mpc_proj.valid) &&
+        (!disturbed_preview_mpc_active || disturbed_preview_mpc_proj.valid)) {
       result.virtual_road_valid = true;
       result.vc_cte_m = vc_proj.cte_m;
       result.vc_heading_err_deg = vc_proj.heading_err_deg;
       if (preview_mpc_active) {
         result.preview_mpc_cte_m = preview_mpc_proj.cte_m;
         result.preview_mpc_heading_err_deg = preview_mpc_proj.heading_err_deg;
+      }
+      if (disturbed_preview_mpc_active) {
+        result.disturbed_preview_mpc_cte_m = disturbed_preview_mpc_proj.cte_m;
+        result.disturbed_preview_mpc_heading_err_deg = disturbed_preview_mpc_proj.heading_err_deg;
       }
       result.raw_cte_m = raw_proj.cte_m;
       result.raw_heading_err_deg = raw_proj.heading_err_deg;
@@ -804,6 +857,10 @@ AlgorithmAblationResult AlgorithmAblationLogger::Step(const AlgorithmAblationFra
       if (preview_mpc_active) {
         result.preview_mpc_lane_departure =
             (std::abs(result.preview_mpc_cte_m) > lane_half_width_m) ? 1 : 0;
+      }
+      if (disturbed_preview_mpc_active) {
+        result.disturbed_preview_mpc_lane_departure =
+            (std::abs(result.disturbed_preview_mpc_cte_m) > lane_half_width_m) ? 1 : 0;
       }
       result.raw_lane_departure = (std::abs(result.raw_cte_m) > lane_half_width_m) ? 1 : 0;
     }
@@ -836,19 +893,27 @@ AlgorithmAblationResult AlgorithmAblationLogger::Step(const AlgorithmAblationFra
     summary_.virtual_road_valid_frames += 1;
     summary_.vc_lane_departure_count += static_cast<uint64_t>(result.vc_lane_departure);
     summary_.preview_mpc_lane_departure_count += static_cast<uint64_t>(result.preview_mpc_lane_departure);
+    summary_.disturbed_preview_mpc_lane_departure_count +=
+        static_cast<uint64_t>(result.disturbed_preview_mpc_lane_departure);
     summary_.raw_lane_departure_count += static_cast<uint64_t>(result.raw_lane_departure);
 
     const double abs_vc_cte = std::abs(result.vc_cte_m);
     const double abs_preview_mpc_cte = std::abs(result.preview_mpc_cte_m);
+    const double abs_disturbed_preview_mpc_cte = std::abs(result.disturbed_preview_mpc_cte_m);
     const double abs_raw_cte = std::abs(result.raw_cte_m);
     const double abs_vc_heading = std::abs(result.vc_heading_err_deg);
     const double abs_preview_mpc_heading = std::abs(result.preview_mpc_heading_err_deg);
+    const double abs_disturbed_preview_mpc_heading =
+        std::abs(result.disturbed_preview_mpc_heading_err_deg);
     const double abs_raw_heading = std::abs(result.raw_heading_err_deg);
 
     summary_.sum_abs_vc_cte_m += abs_vc_cte;
     summary_.max_abs_vc_cte_m = std::max(summary_.max_abs_vc_cte_m, abs_vc_cte);
     summary_.sum_abs_preview_mpc_cte_m += abs_preview_mpc_cte;
     summary_.max_abs_preview_mpc_cte_m = std::max(summary_.max_abs_preview_mpc_cte_m, abs_preview_mpc_cte);
+    summary_.sum_abs_disturbed_preview_mpc_cte_m += abs_disturbed_preview_mpc_cte;
+    summary_.max_abs_disturbed_preview_mpc_cte_m =
+        std::max(summary_.max_abs_disturbed_preview_mpc_cte_m, abs_disturbed_preview_mpc_cte);
     summary_.sum_abs_raw_cte_m += abs_raw_cte;
     summary_.max_abs_raw_cte_m = std::max(summary_.max_abs_raw_cte_m, abs_raw_cte);
     summary_.sum_abs_vc_heading_err_deg += abs_vc_heading;
@@ -856,6 +921,10 @@ AlgorithmAblationResult AlgorithmAblationLogger::Step(const AlgorithmAblationFra
     summary_.sum_abs_preview_mpc_heading_err_deg += abs_preview_mpc_heading;
     summary_.max_abs_preview_mpc_heading_err_deg = std::max(
         summary_.max_abs_preview_mpc_heading_err_deg, abs_preview_mpc_heading);
+    summary_.sum_abs_disturbed_preview_mpc_heading_err_deg += abs_disturbed_preview_mpc_heading;
+    summary_.max_abs_disturbed_preview_mpc_heading_err_deg = std::max(
+        summary_.max_abs_disturbed_preview_mpc_heading_err_deg,
+        abs_disturbed_preview_mpc_heading);
     summary_.sum_abs_raw_heading_err_deg += abs_raw_heading;
     summary_.max_abs_raw_heading_err_deg = std::max(summary_.max_abs_raw_heading_err_deg, abs_raw_heading);
   }
@@ -876,6 +945,12 @@ AlgorithmAblationResult AlgorithmAblationLogger::Step(const AlgorithmAblationFra
   const double preview_mpc_heading = result.virtual_road_valid
       ? result.preview_mpc_heading_err_deg
       : std::numeric_limits<double>::quiet_NaN();
+  const double disturbed_preview_mpc_cte = result.virtual_road_valid
+      ? result.disturbed_preview_mpc_cte_m
+      : std::numeric_limits<double>::quiet_NaN();
+  const double disturbed_preview_mpc_heading = result.virtual_road_valid
+      ? result.disturbed_preview_mpc_heading_err_deg
+      : std::numeric_limits<double>::quiet_NaN();
   const double route_preview_mpc_heading = preview_mpc_active
       ? route_preview_mpc_.heading_rad
       : std::numeric_limits<double>::quiet_NaN();
@@ -887,6 +962,18 @@ AlgorithmAblationResult AlgorithmAblationLogger::Step(const AlgorithmAblationFra
       : std::numeric_limits<double>::quiet_NaN();
   const double route_preview_mpc_distance = preview_mpc_active
       ? route_preview_mpc_.distance_m
+      : std::numeric_limits<double>::quiet_NaN();
+  const double route_disturbed_preview_mpc_heading = disturbed_preview_mpc_active
+      ? route_disturbed_preview_mpc_.heading_rad
+      : std::numeric_limits<double>::quiet_NaN();
+  const double route_disturbed_preview_mpc_x = disturbed_preview_mpc_active
+      ? route_disturbed_preview_mpc_.x_m
+      : std::numeric_limits<double>::quiet_NaN();
+  const double route_disturbed_preview_mpc_y = disturbed_preview_mpc_active
+      ? route_disturbed_preview_mpc_.y_m
+      : std::numeric_limits<double>::quiet_NaN();
+  const double route_disturbed_preview_mpc_distance = disturbed_preview_mpc_active
+      ? route_disturbed_preview_mpc_.distance_m
       : std::numeric_limits<double>::quiet_NaN();
   const double raw_cte = result.virtual_road_valid ? result.raw_cte_m : std::numeric_limits<double>::quiet_NaN();
   const double raw_heading = result.virtual_road_valid
@@ -905,6 +992,11 @@ AlgorithmAblationResult AlgorithmAblationLogger::Step(const AlgorithmAblationFra
        << ',' << FiniteOrNaN(preview_mpc_speed_kmh)
        << ',' << FiniteOrNaN(preview_mpc_steer_deg)
        << ',' << FiniteOrNaN(preview_mpc_brake_0_10)
+       << ',' << FiniteOrNaN(disturbed_preview_mpc_speed_kmh)
+       << ',' << FiniteOrNaN(disturbed_preview_mpc_steer_base_deg)
+       << ',' << FiniteOrNaN(disturbed_preview_mpc_steer_deg)
+       << ',' << FiniteOrNaN(disturbed_preview_mpc_brake_0_10)
+       << ',' << FiniteOrNaN(frame.steering_disturbance_deg)
        << ',' << FiniteOrNaN(raw_speed_kmh)
        << ',' << FiniteOrNaN(raw_steer_deg)
        << ',' << FiniteOrNaN(raw_brake_0_10)
@@ -925,6 +1017,10 @@ AlgorithmAblationResult AlgorithmAblationLogger::Step(const AlgorithmAblationFra
        << ',' << FiniteOrNaN(route_preview_mpc_x)
        << ',' << FiniteOrNaN(route_preview_mpc_y)
        << ',' << FiniteOrNaN(route_preview_mpc_distance)
+       << ',' << FiniteOrNaN(route_disturbed_preview_mpc_heading)
+       << ',' << FiniteOrNaN(route_disturbed_preview_mpc_x)
+       << ',' << FiniteOrNaN(route_disturbed_preview_mpc_y)
+       << ',' << FiniteOrNaN(route_disturbed_preview_mpc_distance)
        << ',' << FiniteOrNaN(route_raw_.heading_rad)
        << ',' << FiniteOrNaN(route_raw_.x_m)
        << ',' << FiniteOrNaN(route_raw_.y_m)
@@ -937,6 +1033,9 @@ AlgorithmAblationResult AlgorithmAblationLogger::Step(const AlgorithmAblationFra
        << ',' << FiniteOrNaN(preview_mpc_cte)
        << ',' << FiniteOrNaN(preview_mpc_heading)
        << ',' << result.preview_mpc_lane_departure
+       << ',' << FiniteOrNaN(disturbed_preview_mpc_cte)
+       << ',' << FiniteOrNaN(disturbed_preview_mpc_heading)
+       << ',' << result.disturbed_preview_mpc_lane_departure
        << ',' << FiniteOrNaN(raw_cte)
        << ',' << FiniteOrNaN(raw_heading)
        << ',' << result.raw_lane_departure
@@ -968,13 +1067,17 @@ bool AlgorithmAblationLogger::RunVirtualRoadSimulation(const VirtualRoadSimulati
   cfg.speed_kmh = std::max(0.0, cfg.speed_kmh);
   cfg.max_steer_deg = std::max(1.0, cfg.max_steer_deg);
   cfg.raw_steer_osc_period_s = std::max(0.1, cfg.raw_steer_osc_period_s);
+  last_virtual_sim_config_ = cfg;
+  has_virtual_sim_config_ = true;
 
   // Reset trajectories/statistics to keep this run self-contained.
   route_vc_ = PoseState{};
   route_preview_mpc_ = PoseState{};
+  route_disturbed_preview_mpc_ = PoseState{};
   route_raw_ = PoseState{};
   path_vc_.clear();
   path_preview_mpc_.clear();
+  path_disturbed_preview_mpc_.clear();
   path_raw_.clear();
   summary_ = Summary{};
   flush_counter_ = 0;
@@ -987,14 +1090,18 @@ bool AlgorithmAblationLogger::RunVirtualRoadSimulation(const VirtualRoadSimulati
   route_vc_.y_m = p0.y;
   route_vc_.heading_rad = init_heading_rad;
   route_preview_mpc_ = route_vc_;
+  route_disturbed_preview_mpc_ = route_vc_;
   route_raw_ = route_vc_;
   path_vc_.emplace_back(route_vc_.x_m, route_vc_.y_m);
   path_preview_mpc_.emplace_back(route_preview_mpc_.x_m, route_preview_mpc_.y_m);
+  path_disturbed_preview_mpc_.emplace_back(route_disturbed_preview_mpc_.x_m,
+                                           route_disturbed_preview_mpc_.y_m);
   path_raw_.emplace_back(route_raw_.x_m, route_raw_.y_m);
 
   constexpr double kTwoPi = 2.0 * 3.14159265358979323846;
   const double osc_w = kTwoPi / cfg.raw_steer_osc_period_s;
   double last_preview_mpc_steer_deg = 0.0;
+  double last_disturbed_preview_mpc_steer_base_deg = 0.0;
 
   for (uint64_t i = 0; i < cfg.frame_count; ++i) {
     const double t_s = static_cast<double>(i) * cfg.dt_s;
@@ -1009,10 +1116,21 @@ bool AlgorithmAblationLogger::RunVirtualRoadSimulation(const VirtualRoadSimulati
               route_preview_mpc_.heading_rad,
               virtual_road_path_)
         : VirtualRoadProjection{};
+    const VirtualRoadProjection disturbed_preview_mpc_proj =
+        (cfg.preview_mpc_enable && cfg.disturbed_preview_mpc_enable)
+            ? ProjectPoseToPath(
+                  cv::Point2d(route_disturbed_preview_mpc_.x_m,
+                              route_disturbed_preview_mpc_.y_m),
+                  route_disturbed_preview_mpc_.heading_rad,
+                  virtual_road_path_)
+            : VirtualRoadProjection{};
     const VirtualRoadProjection raw_proj = ProjectPoseToPath(
         cv::Point2d(route_raw_.x_m, route_raw_.y_m),
         route_raw_.heading_rad,
         virtual_road_path_);
+
+    const double steer_disturbance_deg =
+        cfg.raw_steer_bias_deg + cfg.raw_steer_osc_amp_deg * std::sin(osc_w * t_s);
 
     double vc_steer_deg = 0.0;
     if (vc_proj.valid) {
@@ -1026,8 +1144,7 @@ bool AlgorithmAblationLogger::RunVirtualRoadSimulation(const VirtualRoadSimulati
       raw_steer_deg =
           -(cfg.raw_k_cte * raw_proj.cte_m + cfg.raw_k_heading * raw_proj.heading_err_deg);
     }
-    raw_steer_deg += cfg.raw_steer_bias_deg +
-                     cfg.raw_steer_osc_amp_deg * std::sin(osc_w * t_s);
+    raw_steer_deg += steer_disturbance_deg;
     raw_steer_deg = Clamp(raw_steer_deg, -cfg.max_steer_deg, cfg.max_steer_deg);
 
     double preview_mpc_steer_deg = 0.0;
@@ -1043,6 +1160,29 @@ bool AlgorithmAblationLogger::RunVirtualRoadSimulation(const VirtualRoadSimulati
           cfg);
       preview_mpc_steer_deg = Clamp(preview_mpc_steer_deg, -cfg.max_steer_deg, cfg.max_steer_deg);
       last_preview_mpc_steer_deg = preview_mpc_steer_deg;
+    }
+
+    double disturbed_preview_mpc_steer_base_deg = 0.0;
+    double disturbed_preview_mpc_steer_deg = 0.0;
+    const bool disturbed_preview_mpc_active =
+        cfg.preview_mpc_enable && cfg.disturbed_preview_mpc_enable;
+    if (disturbed_preview_mpc_active && disturbed_preview_mpc_proj.valid) {
+      disturbed_preview_mpc_steer_base_deg = ComputePreviewMpcSteerDeg(
+          disturbed_preview_mpc_proj,
+          cfg.speed_kmh,
+          cfg.dt_s,
+          options_.wheelbase_m,
+          options_.steering_ratio,
+          cfg.max_steer_deg,
+          last_disturbed_preview_mpc_steer_base_deg,
+          cfg);
+      disturbed_preview_mpc_steer_base_deg =
+          Clamp(disturbed_preview_mpc_steer_base_deg, -cfg.max_steer_deg, cfg.max_steer_deg);
+      last_disturbed_preview_mpc_steer_base_deg = disturbed_preview_mpc_steer_base_deg;
+      disturbed_preview_mpc_steer_deg =
+          Clamp(disturbed_preview_mpc_steer_base_deg + steer_disturbance_deg,
+                -cfg.max_steer_deg,
+                cfg.max_steer_deg);
     }
 
     AlgorithmAblationFrame frame;
@@ -1062,6 +1202,12 @@ bool AlgorithmAblationLogger::RunVirtualRoadSimulation(const VirtualRoadSimulati
     frame.preview_mpc_speed_kmh = cfg.speed_kmh;
     frame.preview_mpc_steer_deg = preview_mpc_steer_deg;
     frame.preview_mpc_brake_0_10 = 0.0;
+    frame.disturbed_preview_mpc_valid = disturbed_preview_mpc_active;
+    frame.disturbed_preview_mpc_speed_kmh = cfg.speed_kmh;
+    frame.disturbed_preview_mpc_steer_base_deg = disturbed_preview_mpc_steer_base_deg;
+    frame.disturbed_preview_mpc_steer_deg = disturbed_preview_mpc_steer_deg;
+    frame.disturbed_preview_mpc_brake_0_10 = 0.0;
+    frame.steering_disturbance_deg = steer_disturbance_deg;
     Step(frame);
   }
 
@@ -1094,6 +1240,7 @@ void AlgorithmAblationLogger::WriteRoutePlot() {
 
   expand_bounds(path_vc_);
   expand_bounds(path_preview_mpc_);
+  expand_bounds(path_disturbed_preview_mpc_);
   expand_bounds(path_raw_);
   if (virtual_road_active_) {
     expand_bounds(virtual_road_path_);
@@ -1134,6 +1281,7 @@ void AlgorithmAblationLogger::WriteRoutePlot() {
   }
   draw_path(path_vc_, cv::Scalar(255, 80, 0), 2);
   draw_path(path_preview_mpc_, cv::Scalar(160, 40, 180), 2);
+  draw_path(path_disturbed_preview_mpc_, cv::Scalar(40, 40, 210), 2);
   draw_path(path_raw_, cv::Scalar(0, 170, 255), 2);
 
   const cv::Point start_pt = to_px(cv::Point2d(0.0, 0.0));
@@ -1141,9 +1289,11 @@ void AlgorithmAblationLogger::WriteRoutePlot() {
 
   const cv::Point vc_end = to_px(path_vc_.back());
   const cv::Point preview_mpc_end = to_px(path_preview_mpc_.back());
+  const cv::Point disturbed_preview_mpc_end = to_px(path_disturbed_preview_mpc_.back());
   const cv::Point raw_end = to_px(path_raw_.back());
   cv::circle(canvas, vc_end, 4, cv::Scalar(255, 80, 0), cv::FILLED, cv::LINE_AA);
   cv::circle(canvas, preview_mpc_end, 4, cv::Scalar(160, 40, 180), cv::FILLED, cv::LINE_AA);
+  cv::circle(canvas, disturbed_preview_mpc_end, 4, cv::Scalar(40, 40, 210), cv::FILLED, cv::LINE_AA);
   cv::circle(canvas, raw_end, 4, cv::Scalar(0, 170, 255), cv::FILLED, cv::LINE_AA);
 
   int legend_y = 40;
@@ -1174,6 +1324,15 @@ void AlgorithmAblationLogger::WriteRoutePlot() {
               cv::FONT_HERSHEY_SIMPLEX,
               0.8,
               cv::Scalar(160, 40, 180),
+              2,
+              cv::LINE_AA);
+  legend_y += 35;
+  cv::putText(canvas,
+              "Disturbed Preview-MPC comparator",
+              cv::Point(30, legend_y),
+              cv::FONT_HERSHEY_SIMPLEX,
+              0.8,
+              cv::Scalar(40, 40, 210),
               2,
               cv::LINE_AA);
   legend_y += 35;
@@ -1226,12 +1385,40 @@ void AlgorithmAblationLogger::WriteSummaryFile() {
   summary << "samples=" << summary_.sample_count << '\n';
   summary << "route_vc_distance_m=" << route_vc_.distance_m << '\n';
   summary << "route_preview_mpc_distance_m=" << route_preview_mpc_.distance_m << '\n';
+  summary << "route_disturbed_preview_mpc_distance_m="
+          << route_disturbed_preview_mpc_.distance_m << '\n';
   summary << "route_raw_distance_m=" << route_raw_.distance_m << '\n';
   summary << "final_route_gap_m=" << summary_.final_route_gap_m << '\n';
   summary << "max_route_gap_m=" << summary_.max_route_gap_m << '\n';
   summary << "virtual_road_active=" << (virtual_road_active_ ? 1 : 0) << '\n';
   summary << "virtual_road_mode=" << (virtual_road_active_ ? virtual_road_mode_used_ : "disabled") << '\n';
   summary << "virtual_road_lane_width_m=" << options_.virtual_road_lane_width_m << '\n';
+  if (has_virtual_sim_config_) {
+    const auto& cfg = last_virtual_sim_config_;
+    summary << "virtual_sim_frame_count=" << cfg.frame_count << '\n';
+    summary << "virtual_sim_dt_s=" << cfg.dt_s << '\n';
+    summary << "virtual_sim_speed_kmh=" << cfg.speed_kmh << '\n';
+    summary << "virtual_sim_max_steer_deg=" << cfg.max_steer_deg << '\n';
+    summary << "virtual_sim_vc_k_cte=" << cfg.vc_k_cte << '\n';
+    summary << "virtual_sim_vc_k_heading=" << cfg.vc_k_heading << '\n';
+    summary << "virtual_sim_raw_k_cte=" << cfg.raw_k_cte << '\n';
+    summary << "virtual_sim_raw_k_heading=" << cfg.raw_k_heading << '\n';
+    summary << "virtual_sim_raw_steer_bias_deg=" << cfg.raw_steer_bias_deg << '\n';
+    summary << "virtual_sim_raw_steer_osc_amp_deg=" << cfg.raw_steer_osc_amp_deg << '\n';
+    summary << "virtual_sim_raw_steer_osc_period_s=" << cfg.raw_steer_osc_period_s << '\n';
+    summary << "preview_mpc_enable=" << (cfg.preview_mpc_enable ? 1 : 0) << '\n';
+    summary << "disturbed_preview_mpc_enable="
+            << (cfg.disturbed_preview_mpc_enable ? 1 : 0) << '\n';
+    summary << "disturbed_preview_mpc_definition="
+            << "preview_mpc_steer_base_deg plus the same steering_disturbance_deg used by raw baseline\n";
+    summary << "preview_mpc_horizon=" << cfg.preview_mpc_horizon << '\n';
+    summary << "preview_mpc_q_cte=" << cfg.preview_mpc_q_cte << '\n';
+    summary << "preview_mpc_q_heading=" << cfg.preview_mpc_q_heading << '\n';
+    summary << "preview_mpc_q_steer=" << cfg.preview_mpc_q_steer << '\n';
+    summary << "preview_mpc_r_steer_rate=" << cfg.preview_mpc_r_steer_rate << '\n';
+    summary << "preview_mpc_max_steer_rate_deg_s="
+            << cfg.preview_mpc_max_steer_rate_deg_s << '\n';
+  }
 
   if (summary_.sample_count > 0) {
     const double inv_n = 1.0 / static_cast<double>(summary_.sample_count);
@@ -1278,6 +1465,10 @@ void AlgorithmAblationLogger::WriteSummaryFile() {
     summary << "max_abs_vc_cte_m=" << summary_.max_abs_vc_cte_m << '\n';
     summary << "avg_abs_preview_mpc_cte_m=" << summary_.sum_abs_preview_mpc_cte_m * inv_valid << '\n';
     summary << "max_abs_preview_mpc_cte_m=" << summary_.max_abs_preview_mpc_cte_m << '\n';
+    summary << "avg_abs_disturbed_preview_mpc_cte_m="
+            << summary_.sum_abs_disturbed_preview_mpc_cte_m * inv_valid << '\n';
+    summary << "max_abs_disturbed_preview_mpc_cte_m="
+            << summary_.max_abs_disturbed_preview_mpc_cte_m << '\n';
     summary << "avg_abs_raw_cte_m=" << summary_.sum_abs_raw_cte_m * inv_valid << '\n';
     summary << "max_abs_raw_cte_m=" << summary_.max_abs_raw_cte_m << '\n';
     summary << "avg_abs_vc_heading_err_deg=" << summary_.sum_abs_vc_heading_err_deg * inv_valid << '\n';
@@ -1286,12 +1477,18 @@ void AlgorithmAblationLogger::WriteSummaryFile() {
             << summary_.sum_abs_preview_mpc_heading_err_deg * inv_valid << '\n';
     summary << "max_abs_preview_mpc_heading_err_deg="
             << summary_.max_abs_preview_mpc_heading_err_deg << '\n';
+    summary << "avg_abs_disturbed_preview_mpc_heading_err_deg="
+            << summary_.sum_abs_disturbed_preview_mpc_heading_err_deg * inv_valid << '\n';
+    summary << "max_abs_disturbed_preview_mpc_heading_err_deg="
+            << summary_.max_abs_disturbed_preview_mpc_heading_err_deg << '\n';
     summary << "avg_abs_raw_heading_err_deg=" << summary_.sum_abs_raw_heading_err_deg * inv_valid << '\n';
     summary << "max_abs_raw_heading_err_deg=" << summary_.max_abs_raw_heading_err_deg << '\n';
     summary << "vc_lane_departure_ratio="
             << static_cast<double>(summary_.vc_lane_departure_count) * inv_valid << '\n';
     summary << "preview_mpc_lane_departure_ratio="
             << static_cast<double>(summary_.preview_mpc_lane_departure_count) * inv_valid << '\n';
+    summary << "disturbed_preview_mpc_lane_departure_ratio="
+            << static_cast<double>(summary_.disturbed_preview_mpc_lane_departure_count) * inv_valid << '\n';
     summary << "raw_lane_departure_ratio="
             << static_cast<double>(summary_.raw_lane_departure_count) * inv_valid << '\n';
   } else {
@@ -1300,16 +1497,21 @@ void AlgorithmAblationLogger::WriteSummaryFile() {
     summary << "max_abs_vc_cte_m=nan\n";
     summary << "avg_abs_preview_mpc_cte_m=nan\n";
     summary << "max_abs_preview_mpc_cte_m=nan\n";
+    summary << "avg_abs_disturbed_preview_mpc_cte_m=nan\n";
+    summary << "max_abs_disturbed_preview_mpc_cte_m=nan\n";
     summary << "avg_abs_raw_cte_m=nan\n";
     summary << "max_abs_raw_cte_m=nan\n";
     summary << "avg_abs_vc_heading_err_deg=nan\n";
     summary << "max_abs_vc_heading_err_deg=nan\n";
     summary << "avg_abs_preview_mpc_heading_err_deg=nan\n";
     summary << "max_abs_preview_mpc_heading_err_deg=nan\n";
+    summary << "avg_abs_disturbed_preview_mpc_heading_err_deg=nan\n";
+    summary << "max_abs_disturbed_preview_mpc_heading_err_deg=nan\n";
     summary << "avg_abs_raw_heading_err_deg=nan\n";
     summary << "max_abs_raw_heading_err_deg=nan\n";
     summary << "vc_lane_departure_ratio=nan\n";
     summary << "preview_mpc_lane_departure_ratio=nan\n";
+    summary << "disturbed_preview_mpc_lane_departure_ratio=nan\n";
     summary << "raw_lane_departure_ratio=nan\n";
   }
 }

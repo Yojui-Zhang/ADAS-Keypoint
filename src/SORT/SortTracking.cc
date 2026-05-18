@@ -5,7 +5,6 @@
 #include <algorithm>
 #include <cfloat>
 #include <iterator>
-#include <unordered_map>
 
 using namespace std;
 
@@ -110,7 +109,6 @@ std::vector<TrackingBox> SORTTRACKING::TrackingResult(const std::vector<Object>&
                                 Point_<float>(obj.box.width + obj.box.x, obj.box.height + obj.box.y));
         temp.score = obj.score;
         temp.kpts = obj.kpts;
-        temp.source_detection_index = det_id;
         detData.push_back(temp);
         ++det_id;
     }
@@ -137,16 +135,14 @@ std::vector<TrackingBox> SORTTRACKING::TrackingResult(const std::vector<Object>&
 
         // Output
         frameTrackingResult.clear();
-        for (std::size_t tracker_idx = 0; tracker_idx < trackers.size(); ++tracker_idx)
+        for (auto it = trackers.begin(); it != trackers.end(); ++it)
         {
-            auto it = trackers.begin() + static_cast<std::ptrdiff_t>(tracker_idx);
             TrackingBox res;
             res.box = it->get_state();
             res.id = it->m_id + 1; // keep existing +1 behavior
             res.class_id = it->m_class;
             res.frame = frame_count;
             res.score = it->score;
-            res.source_detection_index = static_cast<int>(tracker_idx);
 
             std::vector<cv::Point3f> out_kpts;
             if (kptFilter.GetOutput(it->m_id, out_kpts)) res.kpts = out_kpts;
@@ -201,7 +197,6 @@ std::vector<TrackingBox> SORTTRACKING::TrackingResult(const std::vector<Object>&
     allItems.clear();
     matchedItems.clear();
     matchedPairs.clear();
-    std::unordered_map<int, int> frame_source_detection_index;
 
     // 4.1) Find unmatched detections / trajectories
     if (detNum > trkNum)
@@ -246,7 +241,6 @@ std::vector<TrackingBox> SORTTRACKING::TrackingResult(const std::vector<Object>&
         trackers[trkIdx].update(detData[detIdx].box, detData[detIdx].score);
 
         const int tid = trackers[trkIdx].m_id;
-        frame_source_detection_index[tid] = detIdx;
         kptFilter.Update(tid, &detData[detIdx].kpts);
     }
 
@@ -257,7 +251,6 @@ std::vector<TrackingBox> SORTTRACKING::TrackingResult(const std::vector<Object>&
         tracker.m_class = detData[umd].class_id;
 
         const int tid = tracker.m_id;
-        frame_source_detection_index[tid] = umd;
         kptFilter.Update(tid, &detData[umd].kpts);
 
         trackers.push_back(tracker);
@@ -286,9 +279,6 @@ std::vector<TrackingBox> SORTTRACKING::TrackingResult(const std::vector<Object>&
             res.class_id = it->m_class;
             res.frame = frame_count;
             res.score = it->score;
-            const auto src_it = frame_source_detection_index.find(it->m_id);
-            res.source_detection_index =
-                (src_it != frame_source_detection_index.end()) ? src_it->second : -1;
 
             std::vector<cv::Point3f> out_kpts;
             if (kptFilter.GetOutput(it->m_id, out_kpts)) res.kpts = out_kpts;
