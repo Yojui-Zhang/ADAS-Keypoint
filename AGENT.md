@@ -1575,3 +1575,67 @@
 - 預期效果：
   - 低速應恢復加速能力。
   - 起步不會再因 cruise target 過高而直接看到完整大誤差。
+
+## 32. 本輪再追加（LKA 初始橫向控制器 Stanley / MPC YAML 切換）
+
+### 32.1 本輪用戶要求（分類）
+1. 在 `config/system_config.yaml` 新增開關，控制整套系統的初始橫向控制量由 Stanley controller 或 MPC 計算。
+2. 此開關只允許切換 LKA raw steer 的來源。
+3. 後續有界防護機制，例如摩擦力、離心力、舒適度向量、動態車速與方向盤限制，必須維持共同函式 / 共同代碼，不因 controller 切換而分流。
+
+### 32.2 思考與決策摘要（可公開版本）
+- **決策 BI：把切換點放在 LKA raw steer 生成層**
+  - 原因：主流程實際是 `lane_steering_step(...)` 先產生 `lka_steer_deg_raw`，再交給 `StabilitySupervisor::Update(...)` 做共同防護。
+  - 做法：新增 `lka.lateral_controller: "stanley"|"mpc"`，只改 `calculate_lane_steering(...)` 內部初始轉角計算。
+
+- **決策 BJ：MPC 不耦合 research ablation logger**
+  - 原因：`algorithm_ablation_logger` 內已有 preview-MPC，但它是虛擬道路 / 論文對照用途，不應直接成為實車控制依賴。
+  - 做法：新增獨立 `include/LKA/lk_mpc_controller.h` 與 `src/LKA/lk_mpc_controller.cpp`，供 LKA online control 使用。
+
+- **決策 BK：Stanley 預設不變，MPC 需顯式開啟**
+  - 原因：降低回歸風險，避免舊 YAML 缺欄位時控制行為突然改變。
+  - 做法：`ControlConfig.lateral_controller` 預設為 `stanley`。
+
+### 32.3 架構概要（本輪新增 / 調整）
+- `include/LKA/lane_keeping.h`
+  - 新增 `lateral_controller`
+  - 新增 MPC 參數：
+    - `mpc_horizon`
+    - `mpc_q_cte`
+    - `mpc_q_heading`
+    - `mpc_q_steer`
+    - `mpc_r_steer_rate`
+- `src/LKA/lk_mpc_controller.cpp`
+  - 以 LKA 現有座標語意計算 finite-horizon MPC 初始 steering。
+  - 使用同一份 centerline / `cte` / heading error / curvature input。
+- `src/LKA/lk_stanley_controller.cpp`
+  - 保留 Stanley 原路徑。
+  - 若 `lateral_controller=mpc`，改用 MPC 輸出作為 `delta_cmd`。
+  - 後續 clamp / rate-limit 與 `StabilitySupervisor` 仍走共同流程。
+- `src/system_config.cpp`, `config/system_config.yaml`
+  - 新增 YAML 讀取與預設設定。
+
+### 32.4 使用方式（本輪）
+```yaml
+lka:
+  lateral_controller: "stanley"  # stanley 或 mpc
+```
+
+切換為 MPC：
+```yaml
+lka:
+  lateral_controller: "mpc"
+```
+
+### 32.5 驗證與結果
+- `cmake -S . -B build-TFlite`：通過
+- `cmake --build build-TFlite -j4`：通過
+- `cmake -S . -B build-TensorRT`：通過
+- `cmake --build build-TensorRT -j4`：通過
+- `./build-TFlite/ADAS` 無參數 usage 檢查：通過
+- `./build-TensorRT/ADAS` 無參數 usage 檢查：通過
+
+### 32.6 已知限制與風險
+- MPC 目前只替代初始 LKA raw steer，不改 ACC / Stability / Collision / CAN TX。
+- MPC 權重尚未經實車調參；切換到 `mpc` 前建議先用影片與低速場地驗證。
+- 若未來要讓 MPC 同時優化速度與方向盤，需另行設計，但不能破壞目前共同 Stability 防護邊界。

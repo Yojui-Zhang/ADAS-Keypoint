@@ -117,8 +117,14 @@ lka:
   wheel_base_m: 2.62
   velocity_mps: 5.0
   softening: 0.5
+  lateral_controller: "stanley"   # stanley 或 mpc；只切換 LKA raw steer，後續 Stability 防護共用同一路徑
   k_straight: 1.0
   k_curve: 3.5
+  mpc_horizon: 12
+  mpc_q_cte: 12.0
+  mpc_q_heading: 4.0
+  mpc_q_steer: 0.15
+  mpc_r_steer_rate: 1.2
   x_ref_straight_m: 0.3
   x_heading_straight_m: 1.5
   x_ref_curve_m: 0.3

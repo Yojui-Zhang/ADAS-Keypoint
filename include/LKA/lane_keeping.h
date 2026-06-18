@@ -18,10 +18,18 @@ struct ControlConfig {
     float wheel_base_m = 2.62f;          //【可調】軸距 L（m）。影響曲率前饋 atan(L·kappa) 與整體轉向幾何；需符合實車/平台。
     float velocity_mps = 5.0f;           //【可調/每幀更新】車速 v（m/s）。Stanley 的橫向誤差項會除以 (v+softening)；速度越高修正越溫和。
     float softening = 0.5f;              //【可調】速度軟化項（m/s）。避免 v→0 時增益發散；調大可抑制低速抖動但會降低低速修正力。
+    std::string lateral_controller = "stanley"; //【可調】初始橫向控制器：stanley 或 mpc。只影響進入 Stability 防護前的 LKA raw steer。
 
     // --- Stanley dual-model gains ---
     float k_straight = 0.7f;             //【可調】直線模式 Stanley 增益 k。過大易左右擺動；過小會跟線遲鈍/偏移恢復慢。
     float k_curve    = 3.0f;             //【可調】彎道模式 Stanley 增益 k。用於彎道更積極修正；過大可能在彎道震盪或過衝。
+
+    // --- MPC initial lateral controller ---
+    int   mpc_horizon = 12;              //【可調】MPC 預測步數。越大越前瞻但計算較多。
+    float mpc_q_cte = 12.0f;             //【可調】MPC 橫向誤差權重。
+    float mpc_q_heading = 4.0f;          //【可調】MPC 航向誤差權重。
+    float mpc_q_steer = 0.15f;           //【可調】MPC 轉角大小權重，較大會抑制大轉角。
+    float mpc_r_steer_rate = 1.2f;       //【可調】MPC 轉角變化率權重，較大會讓輸出更平滑。
 
     // --- Preview/reference x locations (meters) ---
     float x_ref_straight_m     = 0.30f;  //【可調】直線模式：計算 CTE（橫向誤差）用的前視距離 x_ref（m）。越大越前瞻、越平滑；越小越貼近當前但可能抖動。

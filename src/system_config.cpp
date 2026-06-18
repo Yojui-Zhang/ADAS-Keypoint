@@ -205,9 +205,16 @@ void ReadLkaConfig(const cv::FileNode& lka_node, ControlConfig& cfg) {
     ReadIfPresent(lka_node, "wheel_base_m", cfg.wheel_base_m);
     ReadIfPresent(lka_node, "velocity_mps", cfg.velocity_mps);
     ReadIfPresent(lka_node, "softening", cfg.softening);
+    ReadIfPresent(lka_node, "lateral_controller", cfg.lateral_controller);
 
     ReadIfPresent(lka_node, "k_straight", cfg.k_straight);
     ReadIfPresent(lka_node, "k_curve", cfg.k_curve);
+
+    ReadIfPresent(lka_node, "mpc_horizon", cfg.mpc_horizon);
+    ReadIfPresent(lka_node, "mpc_q_cte", cfg.mpc_q_cte);
+    ReadIfPresent(lka_node, "mpc_q_heading", cfg.mpc_q_heading);
+    ReadIfPresent(lka_node, "mpc_q_steer", cfg.mpc_q_steer);
+    ReadIfPresent(lka_node, "mpc_r_steer_rate", cfg.mpc_r_steer_rate);
 
     ReadIfPresent(lka_node, "x_ref_straight_m", cfg.x_ref_straight_m);
     ReadIfPresent(lka_node, "x_heading_straight_m", cfg.x_heading_straight_m);

@@ -30,7 +30,7 @@
   像素到世界座標轉換。新增 `GeometryConfig`（單位縮放與可視化開關）。
 
 - `src/LKA/*`, `include/LKA/*`
-  車道中心線與 Stanley 控制。新增 `lane_keeping_set_control_config()`。
+  車道中心線與橫向控制。可用 `lka.lateral_controller` 在 Stanley / MPC 間切換初始 LKA raw steer，並新增 `lane_keeping_set_control_config()`。
 
 - `src/ACC/*`, `include/ACC/*`
   目標選擇與縱向控制（IDM + 濾波 + 限幅），使用 `acc::AccConfig`。
@@ -131,7 +131,9 @@ make -j$(nproc)
 
 ### 4.7 `lka`
 
+- 橫向控制器：`lateral_controller` 可設為 `stanley` 或 `mpc`。此開關只改變 LKA 產生的初始橫向轉向值；後續 `StabilitySupervisor` 的摩擦力、離心力、舒適度與速率防護仍共用同一套程式碼。
 - Stanley 參數：`k_straight`, `k_curve`, `softening`。
+- MPC 參數：`mpc_horizon`, `mpc_q_cte`, `mpc_q_heading`, `mpc_q_steer`, `mpc_r_steer_rate`。
 - 參考距離：`x_ref_*`, `x_heading_*`。
 - Feedforward：`enable_feedforward`, `ff_gain`, `max_ff_deg`。
 - 限幅：`max_steer_deg`, `max_steer_rate_deg_s`, `dt_s`。

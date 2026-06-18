@@ -1,6 +1,7 @@
 #include "lk_stanley_controller.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cstddef>
 #include <cmath>
 #include <numeric>
@@ -11,6 +12,7 @@
 
 #include "lk_lane_points.h"
 #include "lk_math.h"
+#include "lk_mpc_controller.h"
 #include "lk_polyfit.h"
 
 namespace lane_keeping {
@@ -99,6 +101,18 @@ std::vector<double> BuildCurvatureSampleXs(const std::vector<cv::Point2f>& pts,
         xs.push_back(static_cast<double>(pts[std::min(idx, pts.size() - 1)].x));
     }
     return xs;
+}
+
+std::string ToLowerCopy(std::string s) {
+    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) {
+        return static_cast<char>(std::tolower(c));
+    });
+    return s;
+}
+
+bool IsMpcControllerName(const std::string& name) {
+    const std::string v = ToLowerCopy(name);
+    return v == "mpc" || v == "preview_mpc" || v == "mpc_controller";
 }
 
 }  // namespace
@@ -256,6 +270,24 @@ float calculate_lane_steering(const TrackingBox& input,
     // 8) Blend feedback and add feedforward
     const double delta_fb = (1.0 - p_curve) * delta_fb_straight + p_curve * delta_fb_curve;
     double delta_cmd = delta_ff + delta_fb;
+    const std::string requested_controller = ToLowerCopy(cfg.lateral_controller);
+    std::string active_controller = "stanley";
+    double mpc_delta_u_rad = 0.0;
+    bool mpc_valid = false;
+
+    if (IsMpcControllerName(requested_controller)) {
+        const MpcSteerResult mpc = ComputeMpcSteering(blended_cte,
+                                                      blended_heading_err,
+                                                      mean_kappa,
+                                                      state->last_steer_rad,
+                                                      cfg);
+        if (mpc.valid) {
+            delta_cmd = mpc.steer_rad;
+            mpc_delta_u_rad = mpc.delta_u_rad;
+            mpc_valid = true;
+            active_controller = "mpc";
+        }
+    }
 
     const double max_steer_rad = Deg2Rad(cfg.max_steer_deg);
     delta_cmd = Clamp(delta_cmd, -max_steer_rad, +max_steer_rad);
@@ -283,6 +315,10 @@ float calculate_lane_steering(const TrackingBox& input,
             << " | cte_c=" << cte_c << " head_c(rad)=" << head_c
             << " | delta_ff(deg)=" << Rad2Deg(delta_ff)
             << " delta_fb(deg)=" << Rad2Deg(delta_fb)
+            << " controller=" << active_controller
+            << " requested_controller=" << requested_controller
+            << " mpc_valid=" << (mpc_valid ? 1 : 0)
+            << " mpc_delta_u(deg)=" << Rad2Deg(mpc_delta_u_rad)
             << " delta_cmd(deg)=" << state->last_steer_deg;
         state->debug = oss.str();
     }
