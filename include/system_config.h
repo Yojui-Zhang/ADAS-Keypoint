@@ -23,6 +23,7 @@ struct AppRuntimeConfig {
     bool draw_collision_border = true;
     bool draw_collision_target_box = true;
     bool show_timing_ms = true;
+    std::string render_backend = "opencv";
     int wait_key_ms = 30;
 
     bool enable_keypad_evdev = true;

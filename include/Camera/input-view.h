@@ -18,6 +18,9 @@ struct InputViewConfig {
 
 // 宣告初始化函式
 // 傳入 cap 和 frame 的引用(Reference)，這樣函式內的修改會直接影響 main 裡面的變數
-int InitInputAndDisplay(cv::VideoCapture& cap, cv::Mat& frame, const InputViewConfig& cfg = InputViewConfig{});
+int InitInputAndDisplay(cv::VideoCapture& cap,
+                        cv::Mat& frame,
+                        const InputViewConfig& cfg = InputViewConfig{},
+                        bool use_opengl_display = false);
 
 #endif // VIDEO_INIT_H

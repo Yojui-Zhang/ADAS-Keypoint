@@ -2,7 +2,7 @@
 #include <opencv2/core.hpp>  // 包含 cv::Scalar 和其他基本類型
 
 // 是否啟動 CANBus 實車控車
-#define CANBUS__
+// #define CANBUS__
 
 // 是否啟用 GPU delegate（TFLite）
 // #define _GPU_delegate
@@ -39,8 +39,8 @@
 #define process_video_width 1280    // 演算法處理寬度
 #define process_video_height 720    // 演算法處理高度
 
-#define output_video_width 1280     // 輸出影片寬度
-#define output_video_height 720    // 輸出影片高度
+#define output_video_width 1920     // 輸出影片寬度
+#define output_video_height 1080    // 輸出影片高度
 #define output_video_fps 15         // 輸出影片幀率
 
 // ============= V4L2 設定 ===================

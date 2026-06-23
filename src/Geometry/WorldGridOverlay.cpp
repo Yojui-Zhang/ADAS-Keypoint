@@ -33,7 +33,8 @@ bool DrawPolylineFromSampler(cv::Mat& image,
                              float step,
                              const cv::Scalar& color,
                              int thickness,
-                             cv::Point* label_anchor) {
+                             cv::Point* label_anchor,
+                             bool draw_lines) {
     if (step <= 1e-6f || end < start) {
         return false;
     }
@@ -47,7 +48,7 @@ bool DrawPolylineFromSampler(cv::Mat& image,
         const bool padded_visible =
             IsProjectedPointInsideImage(image.size(), projected, padded_margin);
         if (padded_visible == false) {
-            if (segment.size() >= 2) {
+            if (draw_lines && segment.size() >= 2) {
                 cv::polylines(image, segment, false, color, thickness, cv::LINE_AA);
             }
             segment.clear();
@@ -66,7 +67,7 @@ bool DrawPolylineFromSampler(cv::Mat& image,
         }
     }
 
-    if (segment.size() >= 2) {
+    if (draw_lines && segment.size() >= 2) {
         cv::polylines(image, segment, false, color, thickness, cv::LINE_AA);
     }
 
@@ -112,11 +113,47 @@ std::string FormatLateralLabel(float left_m) {
     return oss.str();
 }
 
+void AppendPolylineCommandsFromSampler(adas_render::DrawCommandBuffer& commands,
+                                       const cv::Size& image_size,
+                                       const std::function<cv::Point2f(float)>& sampler,
+                                       float start,
+                                       float end,
+                                       float step,
+                                       const cv::Scalar& color,
+                                       float thickness) {
+    if (step <= 1e-6f || end < start) {
+        return;
+    }
+
+    const float padded_margin = 64.0f;
+    std::vector<cv::Point2f> segment;
+
+    for (float value = start; value <= end + step * 0.5f; value += step) {
+        const cv::Point2f projected = sampler(value);
+        if (IsProjectedPointInsideImage(image_size, projected, padded_margin) == false) {
+            for (size_t i = 1; i < segment.size(); ++i) {
+                commands.AddLine(segment[i - 1], segment[i], color, thickness);
+            }
+            segment.clear();
+            continue;
+        }
+
+        segment.push_back(projected);
+    }
+
+    for (size_t i = 1; i < segment.size(); ++i) {
+        commands.AddLine(segment[i - 1], segment[i], color, thickness);
+    }
+}
+
 }  // namespace
 
-void DrawWorldGridOverlay(cv::Mat& image,
-                          const CameraModel& cam,
-                          const WorldGridOverlayConfig& cfg) {
+namespace {
+
+void DrawWorldGridOverlayInternal(cv::Mat& image,
+                                  const CameraModel& cam,
+                                  const WorldGridOverlayConfig& cfg,
+                                  bool draw_lines) {
     if (image.empty() || cfg.enabled == false) {
         return;
     }
@@ -150,7 +187,8 @@ void DrawWorldGridOverlay(cv::Mat& image,
             sample_step_m,
             color,
             thickness,
-            &label_anchor);
+            &label_anchor,
+            draw_lines);
 
         if (cfg.draw_labels && major && has_label_anchor) {
             DrawOutlinedText(image,
@@ -178,7 +216,8 @@ void DrawWorldGridOverlay(cv::Mat& image,
             sample_step_m,
             color,
             thickness,
-            &label_anchor);
+            &label_anchor,
+            draw_lines);
 
         if (cfg.draw_labels && (center_line || major) && has_label_anchor) {
             DrawOutlinedText(image,
@@ -186,5 +225,79 @@ void DrawWorldGridOverlay(cv::Mat& image,
                              label_anchor + cv::Point(6, 16),
                              color);
         }
+    }
+}
+
+}  // namespace
+
+void DrawWorldGridOverlay(cv::Mat& image,
+                          const CameraModel& cam,
+                          const WorldGridOverlayConfig& cfg) {
+    DrawWorldGridOverlayInternal(image, cam, cfg, true);
+}
+
+void DrawWorldGridOverlayLabels(cv::Mat& image,
+                                const CameraModel& cam,
+                                const WorldGridOverlayConfig& cfg) {
+    DrawWorldGridOverlayInternal(image, cam, cfg, false);
+}
+
+void AppendWorldGridOverlayCommands(adas_render::DrawCommandBuffer& commands,
+                                    const cv::Size& image_size,
+                                    const CameraModel& cam,
+                                    const WorldGridOverlayConfig& cfg) {
+    if (image_size.empty() || cfg.enabled == false) {
+        return;
+    }
+
+    const float spacing_m = std::max(0.1f, cfg.spacing_m);
+    const float sample_step_m = std::max(0.05f, cfg.sample_step_m);
+    const float forward_start_m = std::max(0.1f, cfg.forward_start_m);
+    const float forward_end_m = std::max(forward_start_m, cfg.forward_end_m);
+    const float lateral_min_m = std::min(cfg.lateral_min_m, cfg.lateral_max_m);
+    const float lateral_max_m = std::max(cfg.lateral_min_m, cfg.lateral_max_m);
+
+    const int forward_begin_idx = static_cast<int>(std::ceil(forward_start_m / spacing_m));
+    const int forward_end_idx = static_cast<int>(std::floor(forward_end_m / spacing_m));
+    const int lateral_begin_idx = static_cast<int>(std::ceil(lateral_min_m / spacing_m));
+    const int lateral_end_idx = static_cast<int>(std::floor(lateral_max_m / spacing_m));
+
+    for (int idx = forward_begin_idx; idx <= forward_end_idx; ++idx) {
+        const float forward_m = static_cast<float>(idx) * spacing_m;
+        const bool major = IsMajorIndex(idx, cfg.major_every_n);
+        const cv::Scalar color = major ? ORANGE : cv::Scalar(90, 90, 90);
+        const float thickness = major ? 2.0f : 1.0f;
+
+        AppendPolylineCommandsFromSampler(
+            commands,
+            image_size,
+            [&](float left_m) {
+                return ProjectVehicleGroundPointToImage(cam, image_size, forward_m, left_m);
+            },
+            lateral_min_m,
+            lateral_max_m,
+            sample_step_m,
+            color,
+            thickness);
+    }
+
+    for (int idx = lateral_begin_idx; idx <= lateral_end_idx; ++idx) {
+        const float left_m = static_cast<float>(idx) * spacing_m;
+        const bool center_line = std::fabs(left_m) < 1e-4f;
+        const bool major = IsMajorIndex(idx, cfg.major_every_n);
+        const cv::Scalar color = center_line ? YELLOW : (major ? CYAN : cv::Scalar(110, 110, 110));
+        const float thickness = center_line ? 2.0f : (major ? 2.0f : 1.0f);
+
+        AppendPolylineCommandsFromSampler(
+            commands,
+            image_size,
+            [&](float forward_m) {
+                return ProjectVehicleGroundPointToImage(cam, image_size, forward_m, left_m);
+            },
+            forward_start_m,
+            forward_end_m,
+            sample_step_m,
+            color,
+            thickness);
     }
 }

@@ -9,6 +9,7 @@ app:
   draw_collision_border: 1
   draw_collision_target_box: 1
   show_timing_ms: 1
+  render_backend: "opencv"   # opencv 或 opengl；opengl 需以 _opengl 編譯，否則自動 fallback
   wait_key_ms: 30
 
   enable_keypad_evdev: 1
@@ -40,7 +41,7 @@ app:
   ground_grid_draw_labels: 1
 
 input:
-  video_path: "../video/Paper-run/B-Turn.mp4"
+  video_path: "../video/1280x720/vecow-demo.mp4"
   camera_index: -1
   capture_width: 1280
   capture_height: 720
@@ -117,7 +118,7 @@ lka:
   wheel_base_m: 2.62
   velocity_mps: 5.0
   softening: 0.5
-  lateral_controller: "stanley"   # stanley 或 mpc；只切換 LKA raw steer，後續 Stability 防護共用同一路徑
+  lateral_controller: "mpc"   # stanley 或 mpc；只切換 LKA raw steer，後續 Stability 防護共用同一路徑
   k_straight: 1.0
   k_curve: 3.5
   mpc_horizon: 12

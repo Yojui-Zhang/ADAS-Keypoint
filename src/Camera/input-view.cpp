@@ -6,7 +6,7 @@
 #endif
 
 #ifdef _opengl
-    extern unsigned char* outputRgbaMem;
+    extern void glinit(void);
 #endif
 
 #ifdef _v4l2cap
@@ -37,7 +37,10 @@ bool OpenCamera(cv::VideoCapture& cap, int camera_index) {
 }  // namespace
 
 
-int InitInputAndDisplay(cv::VideoCapture& cap, cv::Mat& frame, const InputViewConfig& cfg) {
+int InitInputAndDisplay(cv::VideoCapture& cap,
+                        cv::Mat& frame,
+                        const InputViewConfig& cfg,
+                        bool use_opengl_display) {
 #ifdef _openCVcap
 
     if (cfg.camera_index >= 0) {
@@ -72,10 +75,14 @@ int InitInputAndDisplay(cv::VideoCapture& cap, cv::Mat& frame, const InputViewCo
 #endif
 
 #ifdef _opengl
-    if(outputRgbaMem == nullptr) {
-        outputRgbaMem = (unsigned char*)calloc(cfg.capture_width * cfg.capture_height * 4, sizeof(unsigned char));
+    if (use_opengl_display) {
+        glinit();
+    } else {
+        cv::namedWindow(cfg.window_name, cv::WINDOW_NORMAL);
+        if (cfg.fullscreen) {
+            cv::setWindowProperty(cfg.window_name, cv::WND_PROP_FULLSCREEN, cv::WINDOW_FULLSCREEN);
+        }
     }
-    glinit();
 #else
     cv::namedWindow(cfg.window_name, cv::WINDOW_NORMAL);
     if (cfg.fullscreen) {

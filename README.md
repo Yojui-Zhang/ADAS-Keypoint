@@ -12,13 +12,58 @@
 ## 1. 專案模組結構
 
 - `src/main.cpp`
+  程式入口，只呼叫 app 層接口。
+
+- `src/app/adas_application.cpp`, `include/app/adas_application.h`
   單一流程協調器：載入配置、初始化子系統、逐幀執行 ADAS pipeline。
+
+- `src/app/runtime_performance.cpp`, `include/app/runtime_performance.h`
+  主流程效能量測資料結構與時間差計算。
+
+- `src/app/cli_args.cpp`, `include/app/cli_args.h`
+  CLI 參數解析與 usage 輸出。
+
+- `src/app/run_mode.cpp`, `include/app/run_mode.h`
+  `video / real_car / virtual_road` 執行模式解析。
+
+- `src/app/runtime_config.cpp`, `include/app/runtime_config.h`
+  YAML fallback 載入、TensorRT runtime 參數套用、子系統設定注入。
+
+- `src/app/frame_preprocessor.cpp`, `include/app/frame_preprocessor.h`
+  影像 ROI 裁切與 process frame resize。
+
+- `src/app/keypad_command_dispatch.cpp`, `include/app/keypad_command_dispatch.h`
+  keypad 指令消化、runtime control state 更新、CAN runtime state 同步。
+
+- `src/app/control_target_selector.cpp`, `include/app/control_target_selector.h`
+  車輛實際送出的縱向 speed target 選擇邏輯。
+
+- `src/app/skeleton_layout_resolver.cpp`, `include/app/skeleton_layout_resolver.h`
+  TFLite / TensorRT 車輛骨架 keypoint layout 選擇。
+
+- `src/app/lka_projection.cpp`, `include/app/lka_projection.h`
+  LKA reference point 投影回影像座標。
 
 - `include/system_config.h`, `src/system_config.cpp`
   集中設定模型與 YAML 載入器。`system_config.yaml` 各欄位映射到對應子系統 Config。
 
+- `src/log/frame_snapshot_builder.cpp`, `include/log/frame_snapshot_builder.h`
+  每幀 research / ablation log snapshot 組裝。
+
+- `src/log/runtime_log_bootstrap.cpp`, `include/log/runtime_log_bootstrap.h`
+  Runtime logger 啟動與狀態輸出。
+
 - `src/Camera/input-view.cpp`, `include/Camera/input-view.h`
-  輸入來源初始化（檔案/攝影機）、顯示視窗設定（全螢幕、視窗名稱）。
+  輸入來源初始化（檔案/攝影機）、顯示初始化。
+
+- `src/render/frame_presenter.cpp`, `include/render/frame_presenter.h`
+  顯示 backend 封裝，可由 `app.render_backend` 在 OpenCV 顯示與 OpenGL texture/primitive 顯示間切換。
+
+- `src/render/adas_overlay.cpp`, `include/render/adas_overlay.h`
+  App 層共用 overlay，例如 LKA reference point 與 performance HUD。
+
+- `src/render/draw_commands.cpp`, `include/render/draw_commands.h`
+  GPU/CPU 共用 primitive command buffer，目前支援 line、rectangle、circle。
 
 - `Engine/TFlite/*`, `Engine/TensorRT/*`
   推論引擎封裝，保留既有流程。新增 `*_set_sort_config()` 可注入 SORT 與 keypoint filter 設定。
@@ -95,6 +140,7 @@ make -j$(nproc)
 - `camera_yaml_path`: 相機內外參檔。
 - `fallback_ego_speed_kmh`: 無 CAN 時預設車速。
 - `enable_collision_actuation`: 碰撞模組是否直接改寫 speed/steer/brake。
+- `render_backend`: `opencv` 或 `opengl`。`opengl` 需以 `_opengl` 編譯；可用 CMake `-DENABLE_OPENGL_RENDER_BACKEND=ON` 啟用。若 binary 未啟用 `_opengl`，會自動 fallback 到 OpenCV。OpenGL 模式目前會把 collision box/border、world grid 線段、LKA reference 點位等 primitive 交給 GPU 繪製；文字與部分模組內 overlay 仍保留 OpenCV。
 - `wait_key_ms`: `cv::waitKey()` 延遲。
 
 ### 4.2 `input`
@@ -172,13 +218,14 @@ make -j$(nproc)
 
 ## 5. 主要程式流程
 
-1. `main` 讀取 CLI 與 `system_config.yaml`。
-2. 套用配置到 LKA/ACC/Stability/Geometry。
-3. 依 `app.run_mode` 切換執行模式：
+1. `main()` 呼叫 `adas_app::RunAdasApplication()`。
+2. App 層讀取 CLI 與 `system_config.yaml`。
+3. 套用配置到 LKA/ACC/Stability/Geometry。
+4. 依 `app.run_mode` 切換執行模式：
    - `video`：影片/相機推論主流程
    - `real_car`：實車模式（需 `CANBUS__`）
    - `virtual_road`：純虛擬道路閉迴路模擬（不依賴影片）
-4. `video` / `real_car` 每幀執行：
+5. `video` / `real_car` 每幀執行：
    - 推論 -> SORT
    - Geometry 世界轉換
    - VehicleControl（ACC + LKA + Stability）

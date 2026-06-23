@@ -1639,3 +1639,159 @@ lka:
 - MPC 目前只替代初始 LKA raw steer，不改 ACC / Stability / Collision / CAN TX。
 - MPC 權重尚未經實車調參；切換到 `mpc` 前建議先用影片與低速場地驗證。
 - 若未來要讓 MPC 同時優化速度與方向盤，需另行設計，但不能破壞目前共同 Stability 防護邊界。
+
+## 33. 本輪再追加（main 結構整理與 OpenCV / OpenGL 顯示 backend 開關）
+
+### 33.1 本輪用戶要求（分類）
+1. 系統目前可用，但 `main.cpp` 結構雜亂，需要整理。
+2. 新增 `system_config.yaml` 開關，可切換 OpenCV 繪圖 / GPU OpenGL 顯示路徑。
+3. `main.cpp` 只保留入口函式，副函式與流程實作移到分類模組。
+4. 保持既有推論、IPM/Geometry、ACC/LKA/Stability/Collision、CAN 與可視化功能一致。
+
+### 33.2 思考與決策摘要（可公開版本）
+- **決策 BL：先做不改演算法行為的結構分離**
+  - 原因：目前系統已可用，直接重寫每個 overlay 成 OpenGL primitive 風險高。
+  - 做法：`src/main.cpp` 清成單一 `main()`，原逐幀主流程搬到 `src/app/adas_application.cpp`。
+
+- **決策 BM：新增 runtime render backend，但保守保留既有 overlay 結果**
+  - 原因：現有 OpenGL 程式碼是 `imageShow.cpp` 的 EGL/GLES texture 顯示，不是完整文字/線段/框線 renderer。
+  - 做法：新增 `app.render_backend: "opencv"|"opengl"` 與 `FramePresenter`。OpenGL backend 使用既有 GPU texture presentation；未以 `_opengl` 編譯時自動 fallback 到 OpenCV。
+
+### 33.3 架構概要（本輪新增 / 調整）
+- `src/main.cpp`
+  - 僅保留：
+    - `#include "adas_application.h"`
+    - `int main(...) { return adas_app::RunAdasApplication(...); }`
+- `include/app/adas_application.h`, `src/app/adas_application.cpp`
+  - 承接原本主流程與 helper。
+  - 仍維持原 pipeline：CLI/config -> camera/model/CAN/keypad init -> frame loop -> inference -> geometry -> control -> overlays/log/display。
+- `include/app/runtime_performance.h`, `src/app/runtime_performance.cpp`
+  - 承接逐幀 performance metrics 型別與時間差計算。
+- `include/render/frame_presenter.h`, `src/render/frame_presenter.cpp`
+  - 封裝 OpenCV / OpenGL 顯示 backend。
+  - `opengl` 在 `_opengl` 可用時呼叫 `imageShow(...)` / `swap_egl()`。
+  - `_opengl` 不可用時輸出 warning 並 fallback 到 OpenCV。
+- `include/render/adas_overlay.h`, `src/render/adas_overlay.cpp`
+  - 承接從主流程移出的 LKA reference point overlay 與 performance HUD。
+- `include/Camera/input-view.h`, `src/Camera/input-view.cpp`
+  - `InitInputAndDisplay(...)` 新增 `use_opengl_display` 參數。
+  - 避免只要編譯 `_opengl` 就強制初始化 OpenGL，改由 runtime backend 決定。
+- `include/system_config.h`, `src/system_config.cpp`, `config/system_config.yaml`
+  - 新增 `app.render_backend`。
+
+### 33.4 使用方式（本輪）
+```yaml
+app:
+  render_backend: "opencv"
+```
+
+切換到 OpenGL 顯示：
+```yaml
+app:
+  render_backend: "opengl"
+```
+
+### 33.5 驗證與結果
+- `cmake --build build-TFlite -j4`：通過
+- `cmake --build build-TensorRT -j4`：通過
+- `./build-TFlite/ADAS` 無參數 usage 檢查：通過
+- `./build-TensorRT/ADAS` 無參數 usage 檢查：通過
+
+### 33.6 已知限制與風險
+- 本輪 OpenGL backend 接上的是既有 EGL/GLES texture 顯示層；現有 overlay 仍由各模組產生到 `cv::Mat`，以確保畫面功能不回歸。
+- 若要完全降低 OpenCV overlay CPU 成本，下一階段需把 `ACC/LKA/Collision/Behavior/HUD/Inference` 的繪圖改為 draw command buffer，再由 OpenGL renderer 畫線、框、文字與圖示。
+
+## 34. 本輪再追加（OpenGL / OpenCV overlay primitive 優化）
+
+### 34.1 本輪用戶要求（分類）
+1. 進行下一步 OpenGL / OpenCV 優化。
+2. 目標是降低 OpenCV 繪圖負擔，讓 OpenGL backend 開始承接實際 overlay primitive，而不只是顯示 texture。
+
+### 34.2 思考與決策摘要（可公開版本）
+- **決策 BN：先建立 draw command buffer，避免直接把所有模組改成 OpenGL API 相依**
+  - 原因：ACC/LKA/Collision/Grid/HUD/Inference 分散在多個模組，若直接散落 `gl*` 呼叫，後續會更難維護。
+  - 做法：新增 `DrawCommandBuffer`，以 line / rectangle / circle 描述 primitive；OpenCV backend 用 OpenCV 執行，OpenGL backend 用 GLES shader 執行。
+
+- **決策 BO：先搬集中且高頻的 primitive，不動文字與複雜模組內繪圖**
+  - 原因：現有 OpenGL 層尚無 font atlas，直接搬文字會大幅增加風險。
+  - 做法：OpenGL backend 先接管 collision border/box、world grid 線段、LKA reference point 線段與圓點；文字 label 與 performance HUD 暫時維持 OpenCV。
+
+### 34.3 架構概要（本輪新增 / 調整）
+- `include/render/draw_commands.h`, `src/render/draw_commands.cpp`
+  - 新增 `DrawCommandBuffer`
+  - 支援：
+    - line
+    - rectangle
+    - circle
+  - 新增 `DrawCommandsOpenCv(...)`，供 OpenCV backend 與錄影輸出使用。
+- `include/render/frame_presenter.h`, `src/render/frame_presenter.cpp`
+  - `Show(...)` 可接收 optional `DrawCommandBuffer`。
+  - OpenGL backend 在 `imageShow(...)` 後、`swap_egl()` 前用 GLES shader 畫 primitive。
+  - OpenCV backend 則直接把 commands 畫回 `cv::Mat`。
+- `CMakeLists.txt`
+  - 新增 `ENABLE_OPENGL_RENDER_BACKEND`，開啟時定義 `_opengl`。
+- `include/Geometry/WorldGridOverlay.h`, `src/Geometry/WorldGridOverlay.cpp`
+  - 新增 `AppendWorldGridOverlayCommands(...)`：把地面格線轉成 line commands。
+  - 新增 `DrawWorldGridOverlayLabels(...)`：OpenGL primitive 模式下只保留文字 label 的 CPU 繪製。
+- `include/render/adas_overlay.h`, `src/render/adas_overlay.cpp`
+  - 新增 `AppendLkaReferenceOverlayCommands(...)`
+  - 新增 `DrawLkaReferenceOverlayLabels(...)`
+- `src/app/adas_application.cpp`
+  - OpenGL backend 下建立逐幀 `overlay_commands`。
+  - collision border/box、world grid 線段、LKA reference shapes 進 command buffer。
+  - 若有 `Write_Video__`，錄影輸出仍會用 OpenCV 把 commands 畫進影片，避免錄影少 overlay。
+
+### 34.4 驗證與結果
+- `cmake -S . -B build-TFlite`：通過
+- `cmake -S . -B build-TensorRT`：通過
+- `cmake --build build-TFlite -j4`：通過
+- `cmake --build build-TensorRT -j4`：通過
+- `./build-TFlite/ADAS` 無參數 usage 檢查：通過
+- `./build-TensorRT/ADAS` 無參數 usage 檢查：通過
+
+### 34.5 已知限制與下一步
+- `_opengl` 仍是編譯期能力；可用 `-DENABLE_OPENGL_RENDER_BACKEND=ON` 編譯。若 binary 未啟用 `_opengl`，`render_backend: "opengl"` 仍會 fallback 到 OpenCV。
+- 文字、ACC HUD、performance HUD、inference keypoints/boxes、Behavior skeleton、LKA lane solution / lane detect 目前仍保留 OpenCV 繪圖。
+- 下一步若要進一步降低 CPU 繪圖，優先把 LKA lane solution / lane detect、ACC tracking boxes、Behavior skeleton、inference keypoint skeleton 改成 command buffer。
+
+## 35. 本輪再追加（RunAdasApplication 內部 helper 依類型拆檔）
+
+### 35.1 本輪用戶要求（分類）
+1. 指出上一輪只是把 `main()` 包成 `RunAdasApplication()`。
+2. `RunAdasApplication()` 內部仍有大量副函式與 log 填值，結構仍雜亂。
+3. 要把 `ParseCliArgs()`、`ParseRunMode()`、log 等依類型移到不同檔案。
+
+### 35.2 思考與決策摘要（可公開版本）
+- **決策 BP：拆 helper，不重寫主 loop 狀態機**
+  - 原因：系統目前可用，主 loop 內 ACC/LKA/Stability/Collision 順序不能因整理而被改變。
+  - 做法：先把純 helper 與資料組裝移到分類模組，保留 `RunAdasApplication()` 的 frame pipeline 順序。
+
+- **決策 BQ：log snapshot builder 移到 log 模組**
+  - 原因：每幀 log 欄位填值佔據主流程大量篇幅，且語意屬於 logging。
+  - 做法：新增 `FrameSnapshotBuilderInput` 與 `BuildFrameSnapshot(...)`，app 只提供資料來源。
+
+### 35.3 架構概要（本輪新增 / 調整）
+- App helpers：
+  - `include/app/cli_args.h`, `src/app/cli_args.cpp`
+  - `include/app/run_mode.h`, `src/app/run_mode.cpp`
+  - `include/app/runtime_config.h`, `src/app/runtime_config.cpp`
+  - `include/app/frame_preprocessor.h`, `src/app/frame_preprocessor.cpp`
+  - `include/app/keypad_command_dispatch.h`, `src/app/keypad_command_dispatch.cpp`
+  - `include/app/control_target_selector.h`, `src/app/control_target_selector.cpp`
+  - `include/app/skeleton_layout_resolver.h`, `src/app/skeleton_layout_resolver.cpp`
+  - `include/app/lka_projection.h`, `src/app/lka_projection.cpp`
+- Log helpers：
+  - `include/log/frame_snapshot_builder.h`, `src/log/frame_snapshot_builder.cpp`
+  - `include/log/runtime_log_bootstrap.h`, `src/log/runtime_log_bootstrap.cpp`
+- `src/app/adas_application.cpp`
+  - 移除檔案前方 anonymous helper 區。
+  - 保留 `RunAdasApplication()` 作為 app pipeline 編排。
+  - usage、config loading、subsystem config、run mode parsing、frame preprocess、keypad dispatch、LKA projection、log snapshot builder 改呼叫分類模組。
+- `CMakeLists.txt`
+  - 新增 log source 檔到 `LOG_SRC_LIST`。
+
+### 35.4 驗證與結果
+- `cmake -S . -B build-TFlite`：通過
+- `cmake -S . -B build-TensorRT`：通過
+- `cmake --build build-TFlite -j4`：通過
+- `cmake --build build-TensorRT -j4`：通過

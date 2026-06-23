@@ -14,6 +14,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -Wall")
 set(CMAKE_BUILD_TYPE Release)
 
+option(ENABLE_OPENGL_RENDER_BACKEND "Compile the runtime OpenGL render backend (_opengl)." OFF)
+if(ENABLE_OPENGL_RENDER_BACKEND)
+    add_definitions(-D_opengl)
+endif()
+
 set(CANBUS "ITRI" CACHE STRING "Choose Canbus: ITRI or YUNTECH")
 set_property(CACHE CANBUS PROPERTY STRINGS "ITRI" "YUNTECH")
 
@@ -84,6 +89,8 @@ aux_source_directory(./src/StabilityControl/ StabilityControl_SRC_LIST)
 aux_source_directory(./src/VehicleBehavior/ VehicleBehavior_SRC_LIST)
 aux_source_directory(./src/DRAW/ DRAW_SRC_LIST)
 aux_source_directory(./src/Collision/ Collision_SRC_LIST)
+aux_source_directory(./src/app/ APP_SRC_LIST)
+aux_source_directory(./src/render/ RENDER_SRC_LIST)
 
 set(KEYPAD_SRC_LIST
     ./src/keypad/keypad.cpp
@@ -93,8 +100,10 @@ set(KEYPAD_SRC_LIST
 set(LOG_SRC_LIST
     ./src/log/research_data_logger.cpp
     ./src/log/algorithm_ablation_logger.cpp
+    ./src/log/frame_snapshot_builder.cpp
     ./src/log/time_sync.cpp
     ./src/log/runtime_log_manager.cpp
+    ./src/log/runtime_log_bootstrap.cpp
 )
 
 if(ENGINE STREQUAL "TFLITE")
@@ -124,6 +133,8 @@ add_executable(${PROJECT_NAME}
     ${DRAW_SRC_LIST}
     ${StabilityControl_SRC_LIST}
     ${Collision_SRC_LIST}
+    ${APP_SRC_LIST}
+    ${RENDER_SRC_LIST}
     ${KEYPAD_SRC_LIST}
     ${LOG_SRC_LIST}
 )
@@ -140,6 +151,8 @@ include_directories(
     ${CMAKE_CURRENT_LIST_DIR}/include/VehicleBehavior
     ${CMAKE_CURRENT_LIST_DIR}/include/DRAW
     ${CMAKE_CURRENT_LIST_DIR}/include/Collision
+    ${CMAKE_CURRENT_LIST_DIR}/include/app
+    ${CMAKE_CURRENT_LIST_DIR}/include/render
     ${CMAKE_CURRENT_LIST_DIR}/include/Keypad
     ${CMAKE_CURRENT_LIST_DIR}/include/log
 )

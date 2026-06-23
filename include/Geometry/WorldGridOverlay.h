@@ -2,6 +2,8 @@
 
 #include <opencv2/core.hpp>
 
+#include "draw_commands.h"
+
 class CameraModel;
 
 struct WorldGridOverlayConfig {
@@ -19,3 +21,12 @@ struct WorldGridOverlayConfig {
 void DrawWorldGridOverlay(cv::Mat& image,
                           const CameraModel& cam,
                           const WorldGridOverlayConfig& cfg);
+
+void DrawWorldGridOverlayLabels(cv::Mat& image,
+                                const CameraModel& cam,
+                                const WorldGridOverlayConfig& cfg);
+
+void AppendWorldGridOverlayCommands(adas_render::DrawCommandBuffer& commands,
+                                    const cv::Size& image_size,
+                                    const CameraModel& cam,
+                                    const WorldGridOverlayConfig& cfg);

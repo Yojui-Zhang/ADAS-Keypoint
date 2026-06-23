@@ -83,6 +83,7 @@ void ReadAppConfig(const cv::FileNode& app_node, AppRuntimeConfig& cfg) {
     ReadBoolIfPresent(app_node, "draw_collision_border", cfg.draw_collision_border);
     ReadBoolIfPresent(app_node, "draw_collision_target_box", cfg.draw_collision_target_box);
     ReadBoolIfPresent(app_node, "show_timing_ms", cfg.show_timing_ms);
+    ReadIfPresent(app_node, "render_backend", cfg.render_backend);
     ReadIfPresent(app_node, "wait_key_ms", cfg.wait_key_ms);
 
     ReadBoolIfPresent(app_node, "enable_keypad_evdev", cfg.enable_keypad_evdev);
