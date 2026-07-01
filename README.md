@@ -7,7 +7,9 @@
 3. 保留舊 API 相容性，新增設定注入口，不破壞原推論與控制流程。
 
 **熱鍵**
-熱鍵目前是 1 總 TX、2 油門煞車、3 方向盤、4 推論繪圖、5 ACC、6 Behavior、7 Collision、8 HUD、0 全部繪圖、Backspace 強制關閉所有車控輸出
+熱鍵目前是 1 總 TX、2/+ 油門、-/B 煞車、3 方向盤、4 推論繪圖、5 ACC、6 LKA、7 Behavior、8 Collision、9 HUD、G 地面網格、H 車道偏移警示、0 全部繪圖、Backspace 強制關閉所有車控輸出。
+
+Demo 展示模式使用 D 啟閉。Demo 模式中，Q 切橫向控制、W 切縱向控制、E 切 supervisor、R 切車道偏移警示；不論這些功能是否啟動，Demo 仍會強制顯示推論基礎視覺項目（cls 0 車道點、cls 1 車輛骨架、cls 2-6 物件框與 label、icon）與 LKA 預計道路中線。
 
 ## 1. 專案模組結構
 

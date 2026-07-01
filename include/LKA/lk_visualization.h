@@ -1,11 +1,19 @@
 #pragma once
 
+#include <vector>
+
 #include <opencv2/core.hpp>
 
 #include "lane_keeping.h"
 
 namespace lane_keeping {
 namespace internal {
+
+struct LaneDepartureStatus {
+    bool left_departure = false;
+    bool right_departure = false;
+    bool departure = false;
+};
 
 // Draw centerline points on output image by projecting back to pixel coordinates.
 // Behavior is kept identical to the original in lane_steering_step.
@@ -39,6 +47,13 @@ void DrawLaneDetectOverlayOnImage(const std::vector<TrackingBox>& world_result,
                                   cv::Mat& output_img,
                                   const CameraModel& cam,
                                   const ControlConfig& cfg);
+
+// Detect lane departure from the selected raw lane keypoints only. This does
+// not use quadratic curve fitting, even when cfg.lane_detect_mode is set to a
+// curve-based mode for visualization.
+LaneDepartureStatus DetectRawLaneDepartureFromKeypoints(
+    const std::vector<TrackingBox>& world_result,
+    const ControlConfig& cfg);
 
 } // namespace internal
 } // namespace lane_keeping

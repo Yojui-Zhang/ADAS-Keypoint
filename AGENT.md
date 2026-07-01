@@ -1795,3 +1795,62 @@ app:
 - `cmake -S . -B build-TensorRT`：通過
 - `cmake --build build-TFlite -j4`：通過
 - `cmake --build build-TensorRT -j4`：通過
+
+## 36. 本輪再追加（Demo 展示 keypad 與功能開關）
+
+### 36.1 本輪用戶要求（分類）
+1. 新增 Demo 展示用 keypad 模式。
+2. Demo keypad 內可選擇是否啟動：
+   - 橫向控制
+   - 縱向控制
+   - supervisor
+   - 車道偏移警示
+3. 不論上述部份功能是否啟動，畫面都必須保留：
+   - cls 1 車輛框架 / keypoints
+   - cls 0 車道線 keypoints
+   - cls 2/3/4/5/6 物件框與 label
+   - 紅綠燈、限速牌等 icon
+   - LKA 預計行駛道路中線
+
+### 36.2 思考與決策摘要（可公開版本）
+- **決策 BR：Demo 控制與 CAN TX 安全開關分離**
+  - 原因：Demo 是展示功能選擇，不應覆寫 `1/2/3` 既有的總 TX、油門、煞車、方向盤安全輸出語意。
+  - 做法：新增 `D` 進入 Demo 模式，`Q/W/E/R` 分別切 Demo lateral/longitudinal/supervisor/LDW。
+- **決策 BS：關閉功能不等於停止前段演算法**
+  - 原因：即使 Demo 關閉橫向或縱向控制，仍需畫出 LKA 中線、ACC/推論資訊。
+  - 做法：ACC/LKA 仍每幀計算；`VehicleControl_RunWithOptions(...)` 只在最後輸出層遮蔽 steer/speed/brake 或略過 supervisor。
+- **決策 BT：Demo 強制基礎視覺項目**
+  - 原因：用戶要求展示畫面不受部份功能開關影響。
+  - 做法：Demo 模式下強制 `draw_inference_overlay` 與 LKA lane solution overlay；LDW overlay 在 Demo 模式以 `R` 為主控，非 Demo 模式才使用一般 `H`。
+
+### 36.3 架構概要（本輪新增 / 調整）
+- `include/Keypad/keypad_control.h`, `src/keypad/keypad_control.cpp`
+  - 新增 Demo runtime state：
+    - `demo_presentation_mode`
+    - `demo_lateral_control_enable`
+    - `demo_longitudinal_control_enable`
+    - `demo_supervisor_enable`
+    - `demo_lane_departure_warning_enable`
+  - 新增熱鍵：
+    - `D`：Demo 展示模式
+    - `Q`：Demo 橫向控制
+    - `W`：Demo 縱向控制
+    - `E`：Demo supervisor
+    - `R`：Demo 車道偏移警示
+  - HUD 增加 Demo 狀態與熱鍵提示。
+- `include/StabilityControl/VehicleControlApi.h`, `src/StabilityControl/VehicleControlApi.cpp`
+  - 新增 `VehicleControlOptions`
+  - 新增 `VehicleControl_RunWithOptions(...)`
+  - `VehicleControl_Run(...)` 保留舊 API，使用全功能預設選項呼叫新入口。
+- `src/app/adas_application.cpp`
+  - Demo 模式強制推論 overlay 與 LKA 預計道路中線。
+  - Demo lateral/longitudinal/supervisor 狀態接入 control options 與 collision actuation gating。
+- `src/app/control_target_selector.cpp`
+  - Demo 縱向控制關閉時，PID target speed 強制為 0，避免 cruise speed 補回。
+- `README.md`
+  - 更新熱鍵與 Demo 展示模式說明。
+
+### 36.4 驗證與結果
+- `cmake --build build-TFlite -j4`：通過
+- `cmake --build build-TensorRT -j4`：通過
+- build warning：`include/ACC/AccDebugDraw.h` 既有 `panel_height` unused variable warning，非本輪新增。

@@ -129,8 +129,9 @@ inline void ACC_DrawLongitudinalPhaseHud(cv::Mat& frame,
 
   const int panel_width = 250;
   const int panel_height = 132;
-  const int x = std::max(8, frame.cols - panel_width - 20);
-  const int y = 20;
+  // const int x = std::max(8, frame.cols - panel_width - 20);
+  const int x = 8;
+  const int y = 120;
   // const cv::Rect panel(x, y, panel_width, panel_height);
 
   // cv::rectangle(frame, panel, cv::Scalar(36, 36, 36), cv::FILLED, cv::LINE_AA);

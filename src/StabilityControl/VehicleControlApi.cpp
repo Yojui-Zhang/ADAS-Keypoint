@@ -4,10 +4,12 @@
 #include "lk_centerline.h"
 #include "lk_lane_points.h"
 
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <mutex>
 #include <limits>
+#include <sstream>
 
 namespace {
 
@@ -72,6 +74,42 @@ bool BuildAccScopedWorldResult(const std::vector<TrackingBox>& world_result,
   return true;
 }
 
+void DisableLongitudinalAccCommand(acc::AccCommand& cmd)
+{
+  cmd.speed_kmh = 0.0f;
+  cmd.brake_0_10 = 0.0f;
+  cmd.accel_cmd_mps2 = 0.0f;
+  cmd.free_accel_nom_mps2 = 0.0f;
+  cmd.free_accel_limited_mps2 = 0.0f;
+  cmd.longitudinal_phase = acc::AccLongitudinalPhase::Idle;
+}
+
+stability::VehicleControlCommand BuildRawVehicleControlCommand(
+    const acc::AccCommand& acc_cmd,
+    float lka_steer_deg,
+    const stability::VehicleControlOptions& options)
+{
+  stability::VehicleControlCommand cmd;
+  cmd.steer_deg = options.enable_lateral_control ? lka_steer_deg : 0.0f;
+  cmd.speed_kmh = options.enable_longitudinal_control
+      ? std::max(0.0f, acc_cmd.speed_kmh)
+      : 0.0f;
+  cmd.brake_0_10 = options.enable_longitudinal_control
+      ? std::clamp(acc_cmd.brake_0_10, 0.0f, 10.0f)
+      : 0.0f;
+
+  std::ostringstream oss;
+  oss << "VehicleControl(RAW)"
+      << " | lateral=" << (options.enable_lateral_control ? "on" : "off")
+      << " longitudinal=" << (options.enable_longitudinal_control ? "on" : "off")
+      << " supervisor=off"
+      << " | steer=" << cmd.steer_deg
+      << " | speed=" << cmd.speed_kmh
+      << " | brake=" << cmd.brake_0_10;
+  cmd.debug = oss.str();
+  return cmd;
+}
+
 } // namespace
 
 namespace stability {
@@ -96,6 +134,16 @@ VehicleControlCommand VehicleControl_Run(const std::vector<TrackingBox>& world_r
                                         float ego_speed_mps,
                                         float dt_s,
                                         std::string* out_debug)
+{
+  const VehicleControlOptions options;
+  return VehicleControl_RunWithOptions(world_result, ego_speed_mps, dt_s, options, out_debug);
+}
+
+VehicleControlCommand VehicleControl_RunWithOptions(const std::vector<TrackingBox>& world_result,
+                                                    float ego_speed_mps,
+                                                    float dt_s,
+                                                    const VehicleControlOptions& options,
+                                                    std::string* out_debug)
 {
   std::lock_guard<std::mutex> lk(g_mtx);
   const auto vc_start = PerfClock::now();
@@ -132,14 +180,33 @@ VehicleControlCommand VehicleControl_Run(const std::vector<TrackingBox>& world_r
   const float steer_deg = lane_steering_step(world_result, ego_speed_mps, &lka_dbg);
   const auto lka_end = PerfClock::now();
 
-  // 3) Supervisor projection
+  acc::AccCommand control_acc_cmd = acc_cmd;
+  if (options.enable_longitudinal_control == false) {
+    DisableLongitudinalAccCommand(control_acc_cmd);
+  }
+  const float control_steer_deg =
+      options.enable_lateral_control ? steer_deg : 0.0f;
+
+  // 3) Supervisor projection or raw ACC/LKA command for demo ablation.
   const auto stability_start = PerfClock::now();
-  VehicleControlCommand cmd = g_supervisor.Update(
-      ego_speed_mps, dt_s,
-      acc_cmd, steer_deg,
-      yaw_rate, alat,
-      "", lka_dbg
-  );
+  VehicleControlCommand cmd;
+  if (options.enable_supervisor) {
+    cmd = g_supervisor.Update(
+        ego_speed_mps, dt_s,
+        control_acc_cmd, control_steer_deg,
+        yaw_rate, alat,
+        "", lka_dbg
+    );
+  } else {
+    cmd = BuildRawVehicleControlCommand(control_acc_cmd, control_steer_deg, options);
+  }
+  if (options.enable_lateral_control == false) {
+    cmd.steer_deg = 0.0f;
+  }
+  if (options.enable_longitudinal_control == false) {
+    cmd.speed_kmh = 0.0f;
+    cmd.brake_0_10 = 0.0f;
+  }
   const auto stability_end = PerfClock::now();
 
   cmd.acc_cmd = acc_cmd;

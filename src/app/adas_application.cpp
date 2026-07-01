@@ -44,8 +44,11 @@
 #include "runtime_log_bootstrap.h"
 #include "time_sync.h"
 #include "runtime_log_manager.h"
+#include "runtime_control_overlay.h"
+#include "runtime_control_runtime.h"
+#include "runtime_control_state.h"
 #include "keypad.h"
-#include "keypad_control.h"
+#include "sound/sound.h"
 
 #include "canbus_recv.h"
 #include "lib.h"
@@ -214,9 +217,9 @@ int RunAdasApplication(int argc, char** argv) {
 #else
   const bool canbus_compiled = false;
 #endif
-  keypad::RuntimeControlState control_state =
-      keypad::MakeInitialRuntimeControlState(runtime_cfg.app, canbus_compiled);
-  keypad::SyncCanRuntimeState(control_state);
+  controller::RuntimeControlState control_state =
+      controller::MakeInitialRuntimeControlState(runtime_cfg.app, canbus_compiled);
+  controller::SyncCanRuntimeState(control_state);
 
   WorldGridOverlayConfig world_grid_cfg;
   world_grid_cfg.enabled = runtime_cfg.app.draw_ground_grid_overlay;
@@ -234,6 +237,15 @@ int RunAdasApplication(int argc, char** argv) {
   while (1) {
     const auto perf_frame_start = PerfClock::now();
     HandlePendingCommands(keypad_source, control_state);
+    const bool demo_presentation_mode = controller::DemoPresentationActive(control_state);
+    const bool demo_lateral_control = controller::DemoLateralControlEnabled(control_state);
+    const bool demo_longitudinal_control = controller::DemoLongitudinalControlEnabled(control_state);
+    const bool demo_supervisor = controller::DemoSupervisorEnabled(control_state);
+    const bool demo_lane_departure_warning =
+        controller::DemoLaneDepartureWarningEnabled(control_state);
+    const bool draw_required_demo_visuals = demo_presentation_mode;
+    const bool draw_inference_overlay =
+        control_state.draw_inference_overlay || draw_required_demo_visuals;
 
     RuntimePerformanceMetrics perf_metrics;
     uint64_t frame_sync_ns = 0;
@@ -274,14 +286,14 @@ int RunAdasApplication(int argc, char** argv) {
                                        output_frame,
                                        runtime_cfg.model.classify_model_width,
                                        runtime_cfg.model.classify_model_height,
-                                       control_state.draw_inference_overlay);
+                                       draw_inference_overlay);
 #endif
 
 #ifdef USE_TENSORRT
     tracking_result = trt_process_frame(frame,
                                         output_frame,
                                         trt_config,
-                                        control_state.draw_inference_overlay);
+                                        draw_inference_overlay);
 #endif
 
     const auto inference_end = PerfClock::now();
@@ -307,7 +319,12 @@ int RunAdasApplication(int argc, char** argv) {
     const float ego_speed_mps = ego_vehicle_speed_kmh / 3.6f;
 
     std::string dbg;
-    auto cmd = stability::VehicleControl_Run(world_result, ego_speed_mps, dt_s, &dbg);
+    stability::VehicleControlOptions control_options;
+    control_options.enable_lateral_control = demo_lateral_control;
+    control_options.enable_longitudinal_control = demo_longitudinal_control;
+    control_options.enable_supervisor = demo_supervisor;
+    auto cmd = stability::VehicleControl_RunWithOptions(
+        world_result, ego_speed_mps, dt_s, control_options, &dbg);
     perf_metrics.acc_scope_ms = cmd.perf.acc_scope_ms;
     perf_metrics.acc_ms = cmd.perf.acc_ms;
     perf_metrics.lka_ms = cmd.perf.lka_ms;
@@ -322,13 +339,13 @@ int RunAdasApplication(int argc, char** argv) {
       acc::ACC_DrawLongitudinalPhaseHud(output_frame, cmd.acc_cmd);
     }
 
-    const float target_speed_kmh = cmd.acc_cmd.TargetSpeedKmh;
     Targetdistance = cmd.acc_cmd.Targetdistance;
     const float target_ttc = cmd.acc_cmd.TargetTTC;
 
     targetAngle = cmd.steer_deg;
     target_speed = SelectActuatorSpeedTargetKmh(control_state, cmd, ego_vehicle_speed_kmh);
     deceleration = cmd.brake_0_10;
+    const float target_brake_0_10 = cmd.brake_0_10;
 
     const LkaReferenceSnapshot lka_reference_snapshot =
         lane_keeping_get_last_reference_snapshot();
@@ -375,13 +392,21 @@ int RunAdasApplication(int argc, char** argv) {
         ego_speed_mps,
         targetAngle,
         dt_s,
-        runtime_cfg.app.enable_collision_actuation,
+        runtime_cfg.app.enable_collision_actuation && demo_supervisor,
         &target_speed,
         &targetAngle,
         &deceleration);
     const auto collision_end = PerfClock::now();
     perf_metrics.collision_ms = ElapsedMs(collision_start, collision_end);
     const uint64_t cmd_sync_ns = TimeSyncNowNs();
+
+    if (demo_lateral_control == false) {
+      targetAngle = 0.0;
+    }
+    if (demo_longitudinal_control == false) {
+      target_speed = 0.0f;
+      deceleration = 0.0;
+    }
 
     if (control_state.draw_collision_overlay &&
         ca.warning && runtime_cfg.app.draw_collision_border) {
@@ -431,22 +456,24 @@ int RunAdasApplication(int argc, char** argv) {
     targetAngle = -targetAngle ;
     // target_speed = cmd.speed_kmh;
 
-    DrawTargetInfo(output_frame,
-                   target_speed_kmh, Targetdistance, target_ttc, 40,
-                   "Tg-sped", "Tg-dist", "TTC",
-                   " km/h", " m", " s");
+    const float current_steer_deg =
+#ifdef CANBUS__
+        static_cast<float>(CAN.steer);
+#else
+        0.0f;
+#endif
+    const float target_brake_for_display =
+        demo_longitudinal_control ? target_brake_0_10 : 0.0f;
 
     DrawTargetInfo(output_frame,
-                   CAN.speed, targetAngle, deceleration, 80,
-                   "Our-Speed", "Angle", "Dec",
-                   " km/h", " m", " s");
+                   ego_vehicle_speed_kmh,
+                   target_speed,
+                   current_steer_deg,
+                   static_cast<float>(targetAngle),
+                   static_cast<float>(deceleration),
+                   target_brake_for_display);
 
-    // DrawTargetInfo(output_frame,
-    //                0, 0, CAN.speed, 120,
-    //                "", "", " ",
-    //                "", "", " km/h");
-
-    if (control_state.draw_lka_overlay) {
+    if (control_state.draw_lka_overlay || draw_required_demo_visuals) {
       lane_keeping::internal::DrawLkaLaneSolutionOnImage(
           world_result,
           output_frame,
@@ -480,7 +507,19 @@ int RunAdasApplication(int argc, char** argv) {
       }
     }
 
-    if (control_state.draw_lane_detect_overlay) {
+    const bool draw_lane_detect_overlay =
+        demo_presentation_mode ? demo_lane_departure_warning
+                               : control_state.draw_lane_detect_overlay;
+    if (draw_lane_detect_overlay) {
+      const auto lane_departure_status =
+          lane_keeping::internal::DetectRawLaneDepartureFromKeypoints(
+              world_result,
+              lane_keeping_get_control_config());
+      if (lane_departure_status.departure) {
+        sound::RequestLaneDepartureWarningSound();
+      }
+    }
+    if (draw_lane_detect_overlay) {
       lane_keeping::internal::DrawLaneDetectOverlayOnImage(
           world_result,
           output_frame,
@@ -496,7 +535,7 @@ int RunAdasApplication(int argc, char** argv) {
     }
 #endif
 
-    keypad::DrawRuntimeStatusOverlay(output_frame, control_state, keypad_evdev_ready);
+    controller::DrawRuntimeStatusOverlay(output_frame, control_state, keypad_evdev_ready);
 
     const auto overlay_end = PerfClock::now();
     perf_metrics.overlay_ms = ElapsedMs(overlay_start, overlay_end);
@@ -567,7 +606,7 @@ int RunAdasApplication(int argc, char** argv) {
     }
   }
 
-  keypad::ShutdownRuntimeControl(&control_state);
+  controller::ShutdownRuntimeControl(&control_state);
   keypad_source.Stop();
 
 #ifdef _openCVcap

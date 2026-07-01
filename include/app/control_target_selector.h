@@ -1,11 +1,11 @@
 #pragma once
 
+#include "runtime_control_state.h"
 #include "VehicleControlApi.h"
-#include "keypad_control.h"
 
 namespace adas_app {
 
-float SelectActuatorSpeedTargetKmh(const keypad::RuntimeControlState& control_state,
+float SelectActuatorSpeedTargetKmh(const controller::RuntimeControlState& control_state,
                                    const stability::VehicleControlCommand& cmd,
                                    float ego_speed_kmh);
 

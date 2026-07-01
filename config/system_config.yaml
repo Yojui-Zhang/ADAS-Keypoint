@@ -41,7 +41,7 @@ app:
   ground_grid_draw_labels: 1
 
 input:
-  video_path: "../video/1280x720/vecow-demo.mp4"
+  video_path: "../video/1280x720/Paper.mp4"
   camera_index: -1
   capture_width: 1280
   capture_height: 720

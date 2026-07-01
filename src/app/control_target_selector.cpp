@@ -7,10 +7,14 @@
 
 namespace adas_app {
 
-float SelectActuatorSpeedTargetKmh(const keypad::RuntimeControlState& control_state,
+float SelectActuatorSpeedTargetKmh(const controller::RuntimeControlState& control_state,
                                    const stability::VehicleControlCommand& cmd,
                                    float ego_speed_kmh) {
-  if (control_state.longitudinal_controller != keypad::LongitudinalControllerKind::Pid) {
+  if (controller::DemoLongitudinalControlEnabled(control_state) == false) {
+    return 0.0f;
+  }
+
+  if (control_state.longitudinal_controller != controller::LongitudinalControllerKind::Pid) {
     return std::max(0.0f, cmd.speed_kmh);
   }
 

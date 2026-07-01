@@ -91,10 +91,11 @@ aux_source_directory(./src/DRAW/ DRAW_SRC_LIST)
 aux_source_directory(./src/Collision/ Collision_SRC_LIST)
 aux_source_directory(./src/app/ APP_SRC_LIST)
 aux_source_directory(./src/render/ RENDER_SRC_LIST)
+aux_source_directory(./src/sound/ SOUND_SRC_LIST)
+aux_source_directory(./src/controller/ CONTROLLER_SRC_LIST)
 
 set(KEYPAD_SRC_LIST
     ./src/keypad/keypad.cpp
-    ./src/keypad/keypad_control.cpp
 )
 
 set(LOG_SRC_LIST
@@ -135,6 +136,8 @@ add_executable(${PROJECT_NAME}
     ${Collision_SRC_LIST}
     ${APP_SRC_LIST}
     ${RENDER_SRC_LIST}
+    ${SOUND_SRC_LIST}
+    ${CONTROLLER_SRC_LIST}
     ${KEYPAD_SRC_LIST}
     ${LOG_SRC_LIST}
 )
@@ -155,6 +158,8 @@ include_directories(
     ${CMAKE_CURRENT_LIST_DIR}/include/render
     ${CMAKE_CURRENT_LIST_DIR}/include/Keypad
     ${CMAKE_CURRENT_LIST_DIR}/include/log
+    ${CMAKE_CURRENT_LIST_DIR}/include/sound
+    ${CMAKE_CURRENT_LIST_DIR}/include/controller
 )
 
 if(ENGINE STREQUAL "TFLITE")

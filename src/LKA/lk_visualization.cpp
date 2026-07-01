@@ -336,7 +336,66 @@ bool LaneTouchesVehicleEdge(const LaneDetectLaneModel& lane,
     return false;
 }
 
+bool RawKeypointsTouchVehicleEdge(const std::vector<cv::Point2f>& pts,
+                                  float vehicle_half_width_m,
+                                  float forward_range_m,
+                                  float contact_margin_m,
+                                  bool is_left_lane) {
+    if (pts.empty()) {
+        return false;
+    }
+
+    const float x_end = std::max(0.5f, forward_range_m);
+    const float edge_threshold = vehicle_half_width_m + contact_margin_m;
+
+    for (const auto& p : pts) {
+        if (!std::isfinite(p.x) || !std::isfinite(p.y)) {
+            continue;
+        }
+        if (p.x < 0.0f || p.x > x_end) {
+            continue;
+        }
+
+        if (is_left_lane) {
+            if (p.y <= edge_threshold) {
+                return true;
+            }
+        } else {
+            if (p.y >= -edge_threshold) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 }  // namespace
+
+LaneDepartureStatus DetectRawLaneDepartureFromKeypoints(
+    const std::vector<TrackingBox>& world_result,
+    const ControlConfig& cfg) {
+    LaneDepartureStatus status;
+
+    const DirectLanePair lanes = SelectDirectLaneCandidates(world_result, cfg);
+    const float vehicle_half_width_m = std::max(0.1f, cfg.lane_detect_vehicle_half_width_m);
+    const float detect_range_m = std::max(0.5f, cfg.lane_detect_forward_range_m);
+
+    status.left_departure = lanes.left.valid &&
+        RawKeypointsTouchVehicleEdge(lanes.left.pts,
+                                     vehicle_half_width_m,
+                                     detect_range_m,
+                                     cfg.lane_detect_contact_margin_m,
+                                     true);
+    status.right_departure = lanes.right.valid &&
+        RawKeypointsTouchVehicleEdge(lanes.right.pts,
+                                     vehicle_half_width_m,
+                                     detect_range_m,
+                                     cfg.lane_detect_contact_margin_m,
+                                     false);
+    status.departure = status.left_departure || status.right_departure;
+    return status;
+}
 
 void DrawCenterlineOnImage(const TrackingBox& center_lane,
                            cv::Mat& output_img,

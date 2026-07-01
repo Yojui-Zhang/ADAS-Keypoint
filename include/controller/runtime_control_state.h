@@ -2,13 +2,9 @@
 
 #include <string>
 
-#include <opencv2/core.hpp>
-
-#include "user_command.h"
-
 struct AppRuntimeConfig;
 
-namespace keypad {
+namespace controller {
 
 enum class LongitudinalControllerKind {
   Keypad,
@@ -33,24 +29,26 @@ struct RuntimeControlState {
   bool draw_ground_grid_overlay = false;
   bool draw_lane_detect_overlay = false;
   bool draw_status_hud = true;
+
+  bool demo_presentation_mode = false;
+  bool demo_lateral_control_enable = true;
+  bool demo_longitudinal_control_enable = true;
+  bool demo_supervisor_enable = true;
+  bool demo_lane_departure_warning_enable = true;
 };
 
 RuntimeControlState MakeInitialRuntimeControlState(const AppRuntimeConfig& cfg,
                                                    bool canbus_compiled);
-
-bool HandleCommand(user_command_mode_t command,
-                   RuntimeControlState* state,
-                   std::string* out_message = nullptr);
-
-void SyncCanRuntimeState(const RuntimeControlState& state);
-void ShutdownRuntimeControl(RuntimeControlState* state);
-void DrawRuntimeStatusOverlay(cv::Mat& frame,
-                              const RuntimeControlState& state,
-                              bool evdev_ready);
 
 bool LongitudinalControlActive(const RuntimeControlState& state);
 bool SteeringControlActive(const RuntimeControlState& state);
 bool ThrottleControlActive(const RuntimeControlState& state);
 bool BrakeControlActive(const RuntimeControlState& state);
 
-}  // namespace keypad
+bool DemoPresentationActive(const RuntimeControlState& state);
+bool DemoLateralControlEnabled(const RuntimeControlState& state);
+bool DemoLongitudinalControlEnabled(const RuntimeControlState& state);
+bool DemoSupervisorEnabled(const RuntimeControlState& state);
+bool DemoLaneDepartureWarningEnabled(const RuntimeControlState& state);
+
+}  // namespace controller

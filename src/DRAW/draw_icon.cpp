@@ -77,27 +77,27 @@ cv::Mat IconManager::Draw_Icon_Light(cv::Mat& bgr, int light_Set){
      light_set = other  (Gray Light)
 */
 
-    IconManager::Draw_Icon(bgr, Icon_ID::Light_background, cv::Point(0,10));
+    IconManager::Draw_Icon(bgr, Icon_ID::Light_background, cv::Point(1070,10));
 
     if (light_Set == 13){
-        IconManager::Draw_Icon(bgr, Icon_ID::Lightgray,  cv::Point(20,40));
-        IconManager::Draw_Icon(bgr, Icon_ID::Lightgray,  cv::Point(76,40));
-        IconManager::Draw_Icon(bgr, Icon_ID::Light_green, cv::Point(133,40));
+        IconManager::Draw_Icon(bgr, Icon_ID::Lightgray,  cv::Point(1090,40));
+        IconManager::Draw_Icon(bgr, Icon_ID::Lightgray,  cv::Point(1146,40));
+        IconManager::Draw_Icon(bgr, Icon_ID::Light_green, cv::Point(1203,40));
     }
     else if(light_Set == 16){
-        IconManager::Draw_Icon(bgr, Icon_ID::Lightgray,  cv::Point(20,40));
-        IconManager::Draw_Icon(bgr, Icon_ID::Light_yellow,cv::Point(76,40));
-        IconManager::Draw_Icon(bgr, Icon_ID::Lightgray,  cv::Point(133,40));
+        IconManager::Draw_Icon(bgr, Icon_ID::Lightgray,  cv::Point(1090,40));
+        IconManager::Draw_Icon(bgr, Icon_ID::Light_yellow,cv::Point(1146,40));
+        IconManager::Draw_Icon(bgr, Icon_ID::Lightgray,  cv::Point(1203,40));
     }
     else if(light_Set == 15){
-        IconManager::Draw_Icon(bgr, Icon_ID::Light_red,   cv::Point(20,40));
-        IconManager::Draw_Icon(bgr, Icon_ID::Lightgray,  cv::Point(76,40));
-        IconManager::Draw_Icon(bgr, Icon_ID::Lightgray,  cv::Point(133,40));
+        IconManager::Draw_Icon(bgr, Icon_ID::Light_red,   cv::Point(1090,40));
+        IconManager::Draw_Icon(bgr, Icon_ID::Lightgray,  cv::Point(1146,40));
+        IconManager::Draw_Icon(bgr, Icon_ID::Lightgray,  cv::Point(1203,40));
     }
     else{
-        IconManager::Draw_Icon(bgr, Icon_ID::Lightgray,  cv::Point(20,40));
-        IconManager::Draw_Icon(bgr, Icon_ID::Lightgray,  cv::Point(76,40));
-        IconManager::Draw_Icon(bgr, Icon_ID::Lightgray,  cv::Point(133,40));
+        IconManager::Draw_Icon(bgr, Icon_ID::Lightgray,  cv::Point(1090,40));
+        IconManager::Draw_Icon(bgr, Icon_ID::Lightgray,  cv::Point(1146,40));
+        IconManager::Draw_Icon(bgr, Icon_ID::Lightgray,  cv::Point(1203,40));
     }
 
     return bgr;
@@ -112,31 +112,31 @@ cv::Mat IconManager::Draw_Icon_Sign(cv::Mat& bgr, int sign_Set){
 */
 
     if (sign_Set == 0){
-        IconManager::Draw_Icon(bgr, Icon_ID::sign_100km,  cv::Point(210,20));
+        IconManager::Draw_Icon(bgr, Icon_ID::sign_100km,  cv::Point(950,20));
     }
     else if(sign_Set == 1){
-        IconManager::Draw_Icon(bgr, Icon_ID::sign_110km,  cv::Point(210,20));
+        IconManager::Draw_Icon(bgr, Icon_ID::sign_110km,  cv::Point(950,20));
     }
     else if(sign_Set == 2){
-        IconManager::Draw_Icon(bgr, Icon_ID::sign_30km,  cv::Point(210,20));
+        IconManager::Draw_Icon(bgr, Icon_ID::sign_30km,  cv::Point(950,20));
     }
     else if(sign_Set == 3){
-        IconManager::Draw_Icon(bgr, Icon_ID::sign_40km,  cv::Point(210,20));
+        IconManager::Draw_Icon(bgr, Icon_ID::sign_40km,  cv::Point(950,20));
     }
     else if(sign_Set == 4){
-        IconManager::Draw_Icon(bgr, Icon_ID::sign_50km,  cv::Point(210,20));
+        IconManager::Draw_Icon(bgr, Icon_ID::sign_50km,  cv::Point(950,20));
     }
     else if(sign_Set == 5){
-        IconManager::Draw_Icon(bgr, Icon_ID::sign_60km,  cv::Point(210,20));
+        IconManager::Draw_Icon(bgr, Icon_ID::sign_60km,  cv::Point(950,20));
     }
     else if(sign_Set == 6){
-        IconManager::Draw_Icon(bgr, Icon_ID::sign_70km,  cv::Point(210,20));
+        IconManager::Draw_Icon(bgr, Icon_ID::sign_70km,  cv::Point(950,20));
     }
     else if(sign_Set == 7){
-        IconManager::Draw_Icon(bgr, Icon_ID::sign_80km,  cv::Point(210,20));
+        IconManager::Draw_Icon(bgr, Icon_ID::sign_80km,  cv::Point(950,20));
     }
     else if(sign_Set == 8){
-        IconManager::Draw_Icon(bgr, Icon_ID::sign_90km,  cv::Point(210,20));
+        IconManager::Draw_Icon(bgr, Icon_ID::sign_90km,  cv::Point(950,20));
     }
 
     return bgr;
