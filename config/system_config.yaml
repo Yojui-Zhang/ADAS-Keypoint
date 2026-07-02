@@ -139,26 +139,26 @@ lka:
   dt_s: 0.04
   speed_profiles_enable: 1
   speed_profiles:
-    - {enabled: 1, min_speed_kmh: 0.0,  max_speed_kmh: 10.0, softening: 0.5, k_straight: 1.0, k_curve: 3.5, mpc_horizon: 20, mpc_q_cte: 5.0, mpc_q_heading: 1.5, mpc_q_steer: 1.2, mpc_r_steer_rate: 4.0, x_curvature_m: 1.0}
-    - {enabled: 1, min_speed_kmh: 10.0, max_speed_kmh: 20.0, softening: 0.5, k_straight: 1.0, k_curve: 3.5, mpc_horizon: 20, mpc_q_cte: 5.0, mpc_q_heading: 1.5, mpc_q_steer: 1.2, mpc_r_steer_rate: 4.0, x_curvature_m: 1.0}
-    - {enabled: 1, min_speed_kmh: 20.0, max_speed_kmh: 30.0, softening: 0.5, k_straight: 1.0, k_curve: 3.5, mpc_horizon: 20, mpc_q_cte: 5.0, mpc_q_heading: 1.5, mpc_q_steer: 1.2, mpc_r_steer_rate: 4.0, x_curvature_m: 1.0}
-    - {enabled: 1, min_speed_kmh: 30.0, max_speed_kmh: 40.0, softening: 0.5, k_straight: 1.0, k_curve: 3.5, mpc_horizon: 20, mpc_q_cte: 5.0, mpc_q_heading: 1.5, mpc_q_steer: 1.2, mpc_r_steer_rate: 4.0, x_curvature_m: 1.0}
-    - {enabled: 1, min_speed_kmh: 40.0, max_speed_kmh: 50.0, softening: 0.5, k_straight: 1.0, k_curve: 3.5, mpc_horizon: 20, mpc_q_cte: 5.0, mpc_q_heading: 1.5, mpc_q_steer: 1.2, mpc_r_steer_rate: 4.0, x_curvature_m: 1.0}
-    - {enabled: 1, min_speed_kmh: 50.0, max_speed_kmh: 60.0, softening: 0.5, k_straight: 1.0, k_curve: 3.5, mpc_horizon: 20, mpc_q_cte: 5.0, mpc_q_heading: 1.5, mpc_q_steer: 1.2, mpc_r_steer_rate: 4.0, x_curvature_m: 1.0}
-    - {enabled: 1, min_speed_kmh: 60.0, max_speed_kmh: 70.0, softening: 0.5, k_straight: 1.0, k_curve: 3.5, mpc_horizon: 20, mpc_q_cte: 5.0, mpc_q_heading: 1.5, mpc_q_steer: 1.2, mpc_r_steer_rate: 4.0, x_curvature_m: 1.0}
-    - {enabled: 1, min_speed_kmh: 70.0, max_speed_kmh: 80.0, softening: 0.5, k_straight: 1.0, k_curve: 3.5, mpc_horizon: 30, mpc_q_cte: 5.0, mpc_q_heading: 3.0, mpc_q_steer: 0.5, mpc_r_steer_rate: 2.5, x_curvature_m: 3.0}
-    - {enabled: 1, min_speed_kmh: 80.0, max_speed_kmh: 90.0, softening: 0.5, k_straight: 1.0, k_curve: 3.5, mpc_horizon: 30, mpc_q_cte: 5.0, mpc_q_heading: 3.0, mpc_q_steer: 0.5, mpc_r_steer_rate: 2.5, x_curvature_m: 3.0}
-    - {enabled: 1, min_speed_kmh: 90.0, max_speed_kmh: 100.0, softening: 0.5, k_straight: 1.0, k_curve: 3.5, mpc_horizon: 30, mpc_q_cte: 5.0, mpc_q_heading: 3.0, mpc_q_steer: 0.5, mpc_r_steer_rate: 2.5, x_curvature_m: 3.0}
-    # - {enabled: 1, min_speed_kmh: 0.0,  max_speed_kmh: 10.0,  softening: 0.8,  k_straight: 0.8, k_curve: 3.2, mpc_horizon: 18, mpc_q_cte: 4.0,  mpc_q_heading: 1.0, mpc_q_steer: 1.8, mpc_r_steer_rate: 6.0, x_curvature_m: 1.0}
-    # - {enabled: 1, min_speed_kmh: 10.0, max_speed_kmh: 20.0,  softening: 0.7,  k_straight: 0.9, k_curve: 3.5, mpc_horizon: 20, mpc_q_cte: 4.5,  mpc_q_heading: 1.2, mpc_q_steer: 1.6, mpc_r_steer_rate: 5.5, x_curvature_m: 1.2}
-    # - {enabled: 1, min_speed_kmh: 20.0, max_speed_kmh: 30.0,  softening: 0.6,  k_straight: 1.0, k_curve: 3.8, mpc_horizon: 22, mpc_q_cte: 5.0,  mpc_q_heading: 1.4, mpc_q_steer: 1.4, mpc_r_steer_rate: 5.0, x_curvature_m: 1.5}
-    # - {enabled: 1, min_speed_kmh: 30.0, max_speed_kmh: 40.0,  softening: 0.55, k_straight: 1.1, k_curve: 4.2, mpc_horizon: 24, mpc_q_cte: 5.5,  mpc_q_heading: 1.6, mpc_q_steer: 1.2, mpc_r_steer_rate: 4.8, x_curvature_m: 1.8}
-    # - {enabled: 1, min_speed_kmh: 40.0, max_speed_kmh: 50.0,  softening: 0.5,  k_straight: 1.25, k_curve: 4.8, mpc_horizon: 26, mpc_q_cte: 6.0, mpc_q_heading: 1.9, mpc_q_steer: 1.0, mpc_r_steer_rate: 4.6, x_curvature_m: 2.2}
-    # - {enabled: 1, min_speed_kmh: 50.0, max_speed_kmh: 60.0,  softening: 0.5,  k_straight: 1.45, k_curve: 5.4, mpc_horizon: 28, mpc_q_cte: 6.5, mpc_q_heading: 2.2, mpc_q_steer: 0.9, mpc_r_steer_rate: 4.4, x_curvature_m: 2.8}
-    # - {enabled: 1, min_speed_kmh: 60.0, max_speed_kmh: 70.0,  softening: 0.45, k_straight: 1.7, k_curve: 6.0, mpc_horizon: 32, mpc_q_cte: 7.0, mpc_q_heading: 2.6, mpc_q_steer: 0.8, mpc_r_steer_rate: 4.2, x_curvature_m: 3.5}
-    # - {enabled: 1, min_speed_kmh: 70.0, max_speed_kmh: 80.0,  softening: 0.45, k_straight: 2.0, k_curve: 6.7, mpc_horizon: 36, mpc_q_cte: 8.0, mpc_q_heading: 3.0, mpc_q_steer: 0.7, mpc_r_steer_rate: 4.0, x_curvature_m: 4.5}
-    # - {enabled: 1, min_speed_kmh: 80.0, max_speed_kmh: 90.0,  softening: 0.4,  k_straight: 2.35, k_curve: 7.3, mpc_horizon: 40, mpc_q_cte: 9.0, mpc_q_heading: 3.5, mpc_q_steer: 0.65, mpc_r_steer_rate: 3.8, x_curvature_m: 5.5}
-    # - {enabled: 1, min_speed_kmh: 90.0, max_speed_kmh: 100.0, softening: 0.4,  k_straight: 2.75, k_curve: 8.0, mpc_horizon: 45, mpc_q_cte: 10.0, mpc_q_heading: 4.0, mpc_q_steer: 0.6, mpc_r_steer_rate: 3.6, x_curvature_m: 6.5}
+    # - {enabled: 1, min_speed_kmh: 0.0,  max_speed_kmh: 10.0, softening: 0.5, k_straight: 1.0, k_curve: 3.5, mpc_horizon: 20, mpc_q_cte: 5.0, mpc_q_heading: 1.5, mpc_q_steer: 1.2, mpc_r_steer_rate: 4.0, x_curvature_m: 1.0}
+    # - {enabled: 1, min_speed_kmh: 10.0, max_speed_kmh: 20.0, softening: 0.5, k_straight: 1.0, k_curve: 3.5, mpc_horizon: 20, mpc_q_cte: 5.0, mpc_q_heading: 1.5, mpc_q_steer: 1.2, mpc_r_steer_rate: 4.0, x_curvature_m: 1.0}
+    # - {enabled: 1, min_speed_kmh: 20.0, max_speed_kmh: 30.0, softening: 0.5, k_straight: 1.0, k_curve: 3.5, mpc_horizon: 20, mpc_q_cte: 5.0, mpc_q_heading: 1.5, mpc_q_steer: 1.2, mpc_r_steer_rate: 4.0, x_curvature_m: 1.0}
+    # - {enabled: 1, min_speed_kmh: 30.0, max_speed_kmh: 40.0, softening: 0.5, k_straight: 1.0, k_curve: 3.5, mpc_horizon: 20, mpc_q_cte: 5.0, mpc_q_heading: 1.5, mpc_q_steer: 1.2, mpc_r_steer_rate: 4.0, x_curvature_m: 1.0}
+    # - {enabled: 1, min_speed_kmh: 40.0, max_speed_kmh: 50.0, softening: 0.5, k_straight: 1.0, k_curve: 3.5, mpc_horizon: 20, mpc_q_cte: 5.0, mpc_q_heading: 1.5, mpc_q_steer: 1.2, mpc_r_steer_rate: 4.0, x_curvature_m: 1.0}
+    # - {enabled: 1, min_speed_kmh: 50.0, max_speed_kmh: 60.0, softening: 0.5, k_straight: 1.0, k_curve: 3.5, mpc_horizon: 20, mpc_q_cte: 5.0, mpc_q_heading: 1.5, mpc_q_steer: 1.2, mpc_r_steer_rate: 4.0, x_curvature_m: 1.0}
+    # - {enabled: 1, min_speed_kmh: 60.0, max_speed_kmh: 70.0, softening: 0.5, k_straight: 1.0, k_curve: 3.5, mpc_horizon: 20, mpc_q_cte: 5.0, mpc_q_heading: 1.5, mpc_q_steer: 1.2, mpc_r_steer_rate: 4.0, x_curvature_m: 1.0}
+    # - {enabled: 1, min_speed_kmh: 70.0, max_speed_kmh: 80.0, softening: 0.5, k_straight: 1.0, k_curve: 3.5, mpc_horizon: 30, mpc_q_cte: 5.0, mpc_q_heading: 3.0, mpc_q_steer: 0.5, mpc_r_steer_rate: 2.5, x_curvature_m: 3.0}
+    # - {enabled: 1, min_speed_kmh: 80.0, max_speed_kmh: 90.0, softening: 0.5, k_straight: 1.0, k_curve: 3.5, mpc_horizon: 30, mpc_q_cte: 5.0, mpc_q_heading: 3.0, mpc_q_steer: 0.5, mpc_r_steer_rate: 2.5, x_curvature_m: 3.0}
+    # - {enabled: 1, min_speed_kmh: 90.0, max_speed_kmh: 100.0, softening: 0.5, k_straight: 1.0, k_curve: 3.5, mpc_horizon: 30, mpc_q_cte: 5.0, mpc_q_heading: 3.0, mpc_q_steer: 0.5, mpc_r_steer_rate: 2.5, x_curvature_m: 3.0}
+    - {enabled: 1, min_speed_kmh: 0.0,  max_speed_kmh: 10.0,  softening: 0.8,  k_straight: 0.8, k_curve: 3.2, mpc_horizon: 18, mpc_q_cte: 4.0,  mpc_q_heading: 1.0, mpc_q_steer: 1.8, mpc_r_steer_rate: 6.0, x_curvature_m: 1.0}
+    - {enabled: 1, min_speed_kmh: 10.0, max_speed_kmh: 20.0,  softening: 0.7,  k_straight: 0.9, k_curve: 3.5, mpc_horizon: 20, mpc_q_cte: 4.5,  mpc_q_heading: 1.2, mpc_q_steer: 1.6, mpc_r_steer_rate: 5.5, x_curvature_m: 1.2}
+    - {enabled: 1, min_speed_kmh: 20.0, max_speed_kmh: 30.0,  softening: 0.6,  k_straight: 1.0, k_curve: 3.8, mpc_horizon: 22, mpc_q_cte: 5.0,  mpc_q_heading: 1.4, mpc_q_steer: 1.4, mpc_r_steer_rate: 5.0, x_curvature_m: 1.5}
+    - {enabled: 1, min_speed_kmh: 30.0, max_speed_kmh: 40.0,  softening: 0.55, k_straight: 1.1, k_curve: 4.2, mpc_horizon: 24, mpc_q_cte: 5.5,  mpc_q_heading: 1.6, mpc_q_steer: 1.2, mpc_r_steer_rate: 4.8, x_curvature_m: 1.8}
+    - {enabled: 1, min_speed_kmh: 40.0, max_speed_kmh: 50.0,  softening: 0.5,  k_straight: 1.25, k_curve: 4.8, mpc_horizon: 26, mpc_q_cte: 6.0, mpc_q_heading: 1.8, mpc_q_steer: 1.0, mpc_r_steer_rate: 4.6, x_curvature_m: 2.2}
+    - {enabled: 1, min_speed_kmh: 50.0, max_speed_kmh: 60.0,  softening: 0.5,  k_straight: 1.45, k_curve: 5.4, mpc_horizon: 28, mpc_q_cte: 6.5, mpc_q_heading: 2.0, mpc_q_steer: 0.9, mpc_r_steer_rate: 4.4, x_curvature_m: 2.6}
+    - {enabled: 1, min_speed_kmh: 60.0, max_speed_kmh: 70.0,  softening: 0.45, k_straight: 1.7, k_curve: 6.0, mpc_horizon: 30, mpc_q_cte: 7.0, mpc_q_heading: 2.2, mpc_q_steer: 0.8, mpc_r_steer_rate: 4.2, x_curvature_m: 2.9}
+    - {enabled: 1, min_speed_kmh: 70.0, max_speed_kmh: 80.0,  softening: 0.45, k_straight: 2.0, k_curve: 6.7, mpc_horizon: 32, mpc_q_cte: 7.5, mpc_q_heading: 2.4, mpc_q_steer: 0.7, mpc_r_steer_rate: 4.0, x_curvature_m: 3.3}
+    - {enabled: 1, min_speed_kmh: 80.0, max_speed_kmh: 90.0,  softening: 0.4,  k_straight: 2.35, k_curve: 7.3, mpc_horizon: 34, mpc_q_cte: 8.0, mpc_q_heading: 2.6, mpc_q_steer: 0.6, mpc_r_steer_rate: 3.8, x_curvature_m: 3.6}
+    - {enabled: 1, min_speed_kmh: 90.0, max_speed_kmh: 100.0, softening: 0.4,  k_straight: 2.75, k_curve: 8.0, mpc_horizon: 36, mpc_q_cte: 8.5, mpc_q_heading: 2.8, mpc_q_steer: 0.5, mpc_r_steer_rate: 3.6, x_curvature_m: 4.2}
 
   use_confidence: 1
   conf_threshold: 0.5
