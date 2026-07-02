@@ -4,7 +4,7 @@ app:
   run_mode: "real_car"      # real_car video virtual_road
   camera_yaml_path: "../Camera-Config/Sensing-3M.yaml"
   icon_path: "../icon"
-  fallback_ego_speed_kmh: 30.0
+  fallback_ego_speed_kmh: 70.0
   enable_collision_actuation: 0
   draw_collision_border: 1
   draw_collision_target_box: 1
@@ -149,16 +149,16 @@ lka:
     # - {enabled: 1, min_speed_kmh: 70.0, max_speed_kmh: 80.0, softening: 0.5, k_straight: 1.0, k_curve: 3.5, mpc_horizon: 30, mpc_q_cte: 5.0, mpc_q_heading: 3.0, mpc_q_steer: 0.5, mpc_r_steer_rate: 2.5, x_curvature_m: 3.0}
     # - {enabled: 1, min_speed_kmh: 80.0, max_speed_kmh: 90.0, softening: 0.5, k_straight: 1.0, k_curve: 3.5, mpc_horizon: 30, mpc_q_cte: 5.0, mpc_q_heading: 3.0, mpc_q_steer: 0.5, mpc_r_steer_rate: 2.5, x_curvature_m: 3.0}
     # - {enabled: 1, min_speed_kmh: 90.0, max_speed_kmh: 100.0, softening: 0.5, k_straight: 1.0, k_curve: 3.5, mpc_horizon: 30, mpc_q_cte: 5.0, mpc_q_heading: 3.0, mpc_q_steer: 0.5, mpc_r_steer_rate: 2.5, x_curvature_m: 3.0}
-    - {enabled: 1, min_speed_kmh: 0.0,  max_speed_kmh: 10.0,  softening: 0.8,  k_straight: 0.8, k_curve: 3.2, mpc_horizon: 18, mpc_q_cte: 4.0,  mpc_q_heading: 1.0, mpc_q_steer: 1.8, mpc_r_steer_rate: 6.0, x_curvature_m: 1.0}
-    - {enabled: 1, min_speed_kmh: 10.0, max_speed_kmh: 20.0,  softening: 0.7,  k_straight: 0.9, k_curve: 3.5, mpc_horizon: 20, mpc_q_cte: 4.5,  mpc_q_heading: 1.2, mpc_q_steer: 1.6, mpc_r_steer_rate: 5.5, x_curvature_m: 1.2}
-    - {enabled: 1, min_speed_kmh: 20.0, max_speed_kmh: 30.0,  softening: 0.6,  k_straight: 1.0, k_curve: 3.8, mpc_horizon: 22, mpc_q_cte: 5.0,  mpc_q_heading: 1.4, mpc_q_steer: 1.4, mpc_r_steer_rate: 5.0, x_curvature_m: 1.5}
-    - {enabled: 1, min_speed_kmh: 30.0, max_speed_kmh: 40.0,  softening: 0.55, k_straight: 1.1, k_curve: 4.2, mpc_horizon: 24, mpc_q_cte: 5.5,  mpc_q_heading: 1.6, mpc_q_steer: 1.2, mpc_r_steer_rate: 4.8, x_curvature_m: 1.8}
-    - {enabled: 1, min_speed_kmh: 40.0, max_speed_kmh: 50.0,  softening: 0.5,  k_straight: 1.25, k_curve: 4.8, mpc_horizon: 26, mpc_q_cte: 6.0, mpc_q_heading: 1.8, mpc_q_steer: 1.0, mpc_r_steer_rate: 4.6, x_curvature_m: 2.2}
-    - {enabled: 1, min_speed_kmh: 50.0, max_speed_kmh: 60.0,  softening: 0.5,  k_straight: 1.45, k_curve: 5.4, mpc_horizon: 28, mpc_q_cte: 6.5, mpc_q_heading: 2.0, mpc_q_steer: 0.9, mpc_r_steer_rate: 4.4, x_curvature_m: 2.6}
-    - {enabled: 1, min_speed_kmh: 60.0, max_speed_kmh: 70.0,  softening: 0.45, k_straight: 1.7, k_curve: 6.0, mpc_horizon: 30, mpc_q_cte: 7.0, mpc_q_heading: 2.2, mpc_q_steer: 0.8, mpc_r_steer_rate: 4.2, x_curvature_m: 2.9}
-    - {enabled: 1, min_speed_kmh: 70.0, max_speed_kmh: 80.0,  softening: 0.45, k_straight: 2.0, k_curve: 6.7, mpc_horizon: 32, mpc_q_cte: 7.5, mpc_q_heading: 2.4, mpc_q_steer: 0.7, mpc_r_steer_rate: 4.0, x_curvature_m: 3.3}
-    - {enabled: 1, min_speed_kmh: 80.0, max_speed_kmh: 90.0,  softening: 0.4,  k_straight: 2.35, k_curve: 7.3, mpc_horizon: 34, mpc_q_cte: 8.0, mpc_q_heading: 2.6, mpc_q_steer: 0.6, mpc_r_steer_rate: 3.8, x_curvature_m: 3.6}
-    - {enabled: 1, min_speed_kmh: 90.0, max_speed_kmh: 100.0, softening: 0.4,  k_straight: 2.75, k_curve: 8.0, mpc_horizon: 36, mpc_q_cte: 8.5, mpc_q_heading: 2.8, mpc_q_steer: 0.5, mpc_r_steer_rate: 3.6, x_curvature_m: 4.2}
+    - {enabled: 1, min_speed_kmh: 0.0,  max_speed_kmh: 10.0,  softening: 1.40, k_straight: 0.55, k_curve: 1.45, mpc_horizon: 18, mpc_q_cte: 2.8, mpc_q_heading: 0.90, mpc_q_steer: 3.6, mpc_r_steer_rate: 8.5,  x_curvature_m: 1.0, ff_gain: 0.30, max_ff_deg: 5.0, max_steer_deg: 42.0, max_steer_rate_deg_s: 145.0}
+    - {enabled: 1, min_speed_kmh: 10.0, max_speed_kmh: 20.0,  softening: 1.25, k_straight: 0.60, k_curve: 1.60, mpc_horizon: 20, mpc_q_cte: 3.0, mpc_q_heading: 1.00, mpc_q_steer: 3.8, mpc_r_steer_rate: 8.8,  x_curvature_m: 1.1, ff_gain: 0.32, max_ff_deg: 5.5, max_steer_deg: 40.0, max_steer_rate_deg_s: 140.0}
+    - {enabled: 1, min_speed_kmh: 20.0, max_speed_kmh: 30.0,  softening: 1.10, k_straight: 0.68, k_curve: 1.80, mpc_horizon: 21, mpc_q_cte: 3.2, mpc_q_heading: 1.10, mpc_q_steer: 4.0, mpc_r_steer_rate: 9.2,  x_curvature_m: 1.2, ff_gain: 0.35, max_ff_deg: 6.0, max_steer_deg: 36.0, max_steer_rate_deg_s: 135.0}
+    - {enabled: 1, min_speed_kmh: 30.0, max_speed_kmh: 40.0,  softening: 1.00, k_straight: 0.76, k_curve: 2.00, mpc_horizon: 23, mpc_q_cte: 3.5, mpc_q_heading: 1.25, mpc_q_steer: 4.3, mpc_r_steer_rate: 9.6,  x_curvature_m: 1.4, ff_gain: 0.38, max_ff_deg: 6.5, max_steer_deg: 32.0, max_steer_rate_deg_s: 125.0}
+    - {enabled: 1, min_speed_kmh: 40.0, max_speed_kmh: 50.0,  softening: 0.92, k_straight: 0.84, k_curve: 2.20, mpc_horizon: 24, mpc_q_cte: 3.8, mpc_q_heading: 1.40, mpc_q_steer: 4.7, mpc_r_steer_rate: 10.2, x_curvature_m: 1.6, ff_gain: 0.40, max_ff_deg: 7.0, max_steer_deg: 29.0, max_steer_rate_deg_s: 110.0}
+    - {enabled: 1, min_speed_kmh: 50.0, max_speed_kmh: 60.0,  softening: 0.86, k_straight: 0.94, k_curve: 2.38, mpc_horizon: 26, mpc_q_cte: 4.1, mpc_q_heading: 1.55, mpc_q_steer: 5.1, mpc_r_steer_rate: 10.8, x_curvature_m: 1.8, ff_gain: 0.42, max_ff_deg: 7.5, max_steer_deg: 25.0, max_steer_rate_deg_s: 90.0}
+    - {enabled: 1, min_speed_kmh: 60.0, max_speed_kmh: 70.0,  softening: 0.80, k_straight: 1.04, k_curve: 2.55, mpc_horizon: 27, mpc_q_cte: 4.4, mpc_q_heading: 1.70, mpc_q_steer: 5.5, mpc_r_steer_rate: 11.4, x_curvature_m: 2.0, ff_gain: 0.44, max_ff_deg: 8.0, max_steer_deg: 21.0, max_steer_rate_deg_s: 75.0}
+    - {enabled: 1, min_speed_kmh: 70.0, max_speed_kmh: 80.0,  softening: 0.76, k_straight: 1.12, k_curve: 2.70, mpc_horizon: 29, mpc_q_cte: 4.7, mpc_q_heading: 1.85, mpc_q_steer: 5.9, mpc_r_steer_rate: 12.0, x_curvature_m: 2.2, ff_gain: 0.45, max_ff_deg: 8.0, max_steer_deg: 17.0, max_steer_rate_deg_s: 65.0}
+    - {enabled: 1, min_speed_kmh: 80.0, max_speed_kmh: 90.0,  softening: 0.72, k_straight: 1.18, k_curve: 2.82, mpc_horizon: 30, mpc_q_cte: 5.0, mpc_q_heading: 2.00, mpc_q_steer: 6.3, mpc_r_steer_rate: 12.8, x_curvature_m: 2.4, ff_gain: 0.46, max_ff_deg: 8.0, max_steer_deg: 13.5, max_steer_rate_deg_s: 55.0}
+    - {enabled: 1, min_speed_kmh: 90.0, max_speed_kmh: 100.0, softening: 0.70, k_straight: 1.24, k_curve: 2.95, mpc_horizon: 32, mpc_q_cte: 5.2, mpc_q_heading: 2.15, mpc_q_steer: 6.7, mpc_r_steer_rate: 13.5, x_curvature_m: 2.6, ff_gain: 0.46, max_ff_deg: 8.0, max_steer_deg: 10.5, max_steer_rate_deg_s: 50.0}
 
   use_confidence: 1
   conf_threshold: 0.5
@@ -189,7 +189,7 @@ lka:
 stability:
   mass_kg: 1350.0
   wheelbase_m: 2.62
-  steering_ratio: 2.5
+  steering_ratio: 20.62
   g: 9.81
   mu_static: 0.90
   mu_dynamic: 0.75
