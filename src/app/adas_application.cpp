@@ -70,8 +70,8 @@ using namespace std;
 using namespace cv;
 
 extern volatile int steerCtrlMode;
-extern double targetAngle;
-extern double deceleration;
+extern volatile double targetAngle;
+extern volatile double deceleration;
 double deceleration_TEST;
 
 float target_speed = 0.f;
@@ -342,9 +342,9 @@ int RunAdasApplication(int argc, char** argv) {
     Targetdistance = cmd.acc_cmd.Targetdistance;
     const float target_ttc = cmd.acc_cmd.TargetTTC;
 
-    targetAngle = cmd.steer_deg;
+    double target_angle_cmd = cmd.steer_deg;
     target_speed = SelectActuatorSpeedTargetKmh(control_state, cmd, ego_vehicle_speed_kmh);
-    deceleration = cmd.brake_0_10;
+    double deceleration_cmd = cmd.brake_0_10;
     const float target_brake_0_10 = cmd.brake_0_10;
 
     const LkaReferenceSnapshot lka_reference_snapshot =
@@ -390,22 +390,22 @@ int RunAdasApplication(int argc, char** argv) {
     auto ca = collision_assist.Step(
         world_result,
         ego_speed_mps,
-        targetAngle,
+        target_angle_cmd,
         dt_s,
         runtime_cfg.app.enable_collision_actuation && demo_supervisor,
         &target_speed,
-        &targetAngle,
-        &deceleration);
+        &target_angle_cmd,
+        &deceleration_cmd);
     const auto collision_end = PerfClock::now();
     perf_metrics.collision_ms = ElapsedMs(collision_start, collision_end);
     const uint64_t cmd_sync_ns = TimeSyncNowNs();
 
     if (demo_lateral_control == false) {
-      targetAngle = 0.0;
+      target_angle_cmd = 0.0;
     }
     if (demo_longitudinal_control == false) {
       target_speed = 0.0f;
-      deceleration = 0.0;
+      deceleration_cmd = 0.0;
     }
 
     if (control_state.draw_collision_overlay &&
@@ -453,7 +453,9 @@ int RunAdasApplication(int argc, char** argv) {
       DrawWorldGridOverlay(output_frame, cam, world_grid_cfg);
     }
 
-    targetAngle = -targetAngle ;
+    target_angle_cmd = -target_angle_cmd;
+    targetAngle = target_angle_cmd;
+    deceleration = deceleration_cmd;
     // target_speed = cmd.speed_kmh;
 
     const float current_steer_deg =
@@ -469,8 +471,8 @@ int RunAdasApplication(int argc, char** argv) {
                    ego_vehicle_speed_kmh,
                    target_speed,
                    current_steer_deg,
-                   static_cast<float>(targetAngle),
-                   static_cast<float>(deceleration),
+                   static_cast<float>(target_angle_cmd),
+                   static_cast<float>(deceleration_cmd),
                    target_brake_for_display);
 
     if (control_state.draw_lka_overlay || draw_required_demo_visuals) {

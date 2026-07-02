@@ -1,5 +1,7 @@
 #include "brake_control.h"
 
+#include "config.h"
+
 #ifdef CANBUS__
 #include "canbus_recv.h"
 

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <string>
 #include <vector>
 
@@ -11,6 +12,39 @@
 // =========================
 // Public types (API stable)
 // =========================
+
+struct LkaSpeedProfile {
+    bool enabled = false;
+    float min_speed_kmh = 0.0f;
+    float max_speed_kmh = 10.0f;
+
+    std::string lateral_controller = "mpc";
+    float softening = 0.5f;
+    float k_straight = 0.7f;
+    float k_curve = 3.0f;
+
+    int mpc_horizon = 12;
+    float mpc_q_cte = 12.0f;
+    float mpc_q_heading = 4.0f;
+    float mpc_q_steer = 0.15f;
+    float mpc_r_steer_rate = 1.2f;
+
+    float x_ref_straight_m = 0.30f;
+    float x_heading_straight_m = 1.50f;
+    float x_ref_curve_m = 0.30f;
+    float x_heading_curve_m = 0.80f;
+
+    bool enable_feedforward = true;
+    float ff_gain = 1.0f;
+    float x_curvature_m = 1.00f;
+    float max_ff_deg = 25.0f;
+
+    float max_steer_deg = 30.0f;
+    float max_steer_rate_deg_s = 200.0f;
+    float dt_s = 0.02f;
+};
+
+using LkaMpcSpeedProfile = LkaSpeedProfile;
 
 // Controller configuration
 struct ControlConfig {
@@ -48,6 +82,9 @@ struct ControlConfig {
     float max_steer_deg = 30.0f;         //【可調】方向盤/舵角輸出飽和上限（deg）。請依車輛可用轉角與上層安全策略設定。
     float max_steer_rate_deg_s = 200.0f; //【可調】舵角變化率限制（deg/s）。調小更平順但反應慢；調大更靈敏但可能抖動。
     float dt_s = 0.02f;                  //【可調】控制迴圈時間間隔（s）。用於 rate limit；需與實際呼叫週期一致（例如 50 Hz → 0.02s）。
+
+    bool speed_profiles_enable = false;  //【可調】啟用後依車速 km/h 選用 speed_profiles 內的 Stanley/MPC/前視/限幅參數。
+    std::array<LkaSpeedProfile, 10> speed_profiles{}; //【可調】建議 0-10, 10-20, ..., 90-100 km/h 共 10 組。
 
     // --- Keypoint filtering ---
     bool  use_confidence = true;         //【可調】是否使用 kpt.z 作為信心值過濾（需模型輸出 z=confidence）。

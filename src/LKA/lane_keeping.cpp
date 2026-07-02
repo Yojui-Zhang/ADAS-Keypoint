@@ -1,5 +1,7 @@
 #include "lane_keeping.h"
 
+#include <algorithm>
+#include <cmath>
 #include <mutex>
 #include <sstream>
 
@@ -11,6 +13,101 @@ namespace {
 std::mutex g_lane_keeping_mtx;
 ControlConfig g_lane_keeping_cfg;
 ControlState g_lane_keeping_state;
+
+void ApplyLkaSpeedProfile(const LkaSpeedProfile& profile,
+                          ControlConfig* cfg) {
+    if (cfg == nullptr) {
+        return;
+    }
+
+    cfg->lateral_controller = profile.lateral_controller;
+    cfg->softening = profile.softening;
+    cfg->k_straight = profile.k_straight;
+    cfg->k_curve = profile.k_curve;
+    cfg->mpc_horizon = profile.mpc_horizon;
+    cfg->mpc_q_cte = profile.mpc_q_cte;
+    cfg->mpc_q_heading = profile.mpc_q_heading;
+    cfg->mpc_q_steer = profile.mpc_q_steer;
+    cfg->mpc_r_steer_rate = profile.mpc_r_steer_rate;
+    cfg->x_ref_straight_m = profile.x_ref_straight_m;
+    cfg->x_heading_straight_m = profile.x_heading_straight_m;
+    cfg->x_ref_curve_m = profile.x_ref_curve_m;
+    cfg->x_heading_curve_m = profile.x_heading_curve_m;
+    cfg->enable_feedforward = profile.enable_feedforward;
+    cfg->ff_gain = profile.ff_gain;
+    cfg->x_curvature_m = profile.x_curvature_m;
+    cfg->max_ff_deg = profile.max_ff_deg;
+    cfg->max_steer_deg = profile.max_steer_deg;
+    cfg->max_steer_rate_deg_s = profile.max_steer_rate_deg_s;
+    cfg->dt_s = profile.dt_s;
+}
+
+const LkaSpeedProfile* SelectLkaSpeedProfile(const ControlConfig& cfg,
+                                             float speed_kmh) {
+    if (cfg.speed_profiles_enable == false) {
+        return nullptr;
+    }
+
+    const LkaSpeedProfile* first_enabled = nullptr;
+    const LkaSpeedProfile* last_enabled = nullptr;
+    for (const auto& profile : cfg.speed_profiles) {
+        if (profile.enabled == false) {
+            continue;
+        }
+
+        if (first_enabled == nullptr) {
+            first_enabled = &profile;
+        }
+        last_enabled = &profile;
+
+        const float min_speed = std::min(profile.min_speed_kmh, profile.max_speed_kmh);
+        const float max_speed = std::max(profile.min_speed_kmh, profile.max_speed_kmh);
+        if (speed_kmh >= min_speed && speed_kmh < max_speed) {
+            return &profile;
+        }
+    }
+
+    if (first_enabled != nullptr && speed_kmh < first_enabled->min_speed_kmh) {
+        return first_enabled;
+    }
+    return last_enabled;
+}
+
+ControlConfig MakeEffectiveControlConfigForSpeed(const ControlConfig& base_cfg,
+                                                 float velocity_mps,
+                                                 std::string* out_debug) {
+    ControlConfig effective_cfg = base_cfg;
+    effective_cfg.velocity_mps = velocity_mps;
+
+    const float speed_kmh = std::max(0.0f, velocity_mps * 3.6f);
+    const LkaSpeedProfile* profile =
+        SelectLkaSpeedProfile(base_cfg, speed_kmh);
+    if (profile != nullptr) {
+        ApplyLkaSpeedProfile(*profile, &effective_cfg);
+        if (out_debug != nullptr) {
+            std::ostringstream oss;
+            oss << "speed_profile=" << profile->min_speed_kmh
+                << "-" << profile->max_speed_kmh << "km/h"
+                << " speed_kmh=" << speed_kmh
+                << " controller=" << effective_cfg.lateral_controller
+                << " softening=" << effective_cfg.softening
+                << " k_straight=" << effective_cfg.k_straight
+                << " k_curve=" << effective_cfg.k_curve
+                << " mpc_horizon=" << effective_cfg.mpc_horizon
+                << " q_cte=" << effective_cfg.mpc_q_cte
+                << " q_heading=" << effective_cfg.mpc_q_heading
+                << " q_steer=" << effective_cfg.mpc_q_steer
+                << " r_steer_rate=" << effective_cfg.mpc_r_steer_rate;
+            *out_debug = oss.str();
+        }
+    } else if (out_debug != nullptr) {
+        std::ostringstream oss;
+        oss << "speed_profile=base speed_kmh=" << speed_kmh;
+        *out_debug = oss.str();
+    }
+
+    return effective_cfg;
+}
 }  // namespace
 
 void lane_keeping_set_control_config(const ControlConfig& cfg) {
@@ -44,11 +141,13 @@ float lane_steering_step(const std::vector<TrackingBox>& world_result,
 
     (void)input_img; // currently unused; preserved for API compatibility
 
-    ControlConfig& config = g_lane_keeping_cfg;
+    g_lane_keeping_cfg.velocity_mps = velocity_mps;
+    std::string profile_debug;
+    const ControlConfig config =
+        MakeEffectiveControlConfigForSpeed(g_lane_keeping_cfg,
+                                           velocity_mps,
+                                           &profile_debug);
     ControlState& state = g_lane_keeping_state;
-
-    // Per-frame speed update
-    config.velocity_mps = velocity_mps;
 
     // A) WorldResult -> centerline TrackingBox
     TrackingBox center_lane;
@@ -68,7 +167,7 @@ float lane_steering_step(const std::vector<TrackingBox>& world_result,
     if (has_lane) {
         const float steer_deg = calculate_lane_steering(center_lane, config, &state);
         if (out_debug) {
-            *out_debug = debug_a + " | " + state.debug;
+            *out_debug = debug_a + " | " + profile_debug + " | " + state.debug;
         }
         return steer_deg;
     }
@@ -89,7 +188,8 @@ float lane_steering_step(const std::vector<TrackingBox>& world_result,
 
     if (out_debug) {
         std::ostringstream oss;
-        oss << debug_a << " | no lane -> steer to 0 with rate_limit, steer_deg=" << state.last_steer_deg;
+        oss << debug_a << " | " << profile_debug
+            << " | no lane -> steer to 0 with rate_limit, steer_deg=" << state.last_steer_deg;
         *out_debug = oss.str();
     }
 

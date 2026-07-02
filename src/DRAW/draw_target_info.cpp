@@ -170,15 +170,9 @@ void DrawTargetInfo(cv::Mat& img,
 
     const cv::Point speed_origin(left, top);
     const cv::Point steer_origin(left + speed_layout.width + style.block_gap_x, top);
-    const int first_row_target_baseline_y =
-        std::max(speed_layout.target_baseline_y, steer_layout.target_baseline_y);
-    const int first_row_current_height =
-        std::max(speed_layout.current_height, steer_layout.current_height);
-    // const cv::Point brake_origin(
-    //     left,
-    //     top + first_row_target_baseline_y + first_row_current_height + style.block_gap_y);
-
-    const cv::Point brake_origin(left + steer_layout.width + speed_layout.width + style.block_gap_x + style.block_gap_x, top);
+    const cv::Point brake_origin(
+        left + steer_layout.width + speed_layout.width + style.block_gap_x + style.block_gap_x,
+        top);
 
     DrawCurrentTargetBlock(img, speed_origin, current_speed_text, target_speed_text,
                            speed_layout, style);

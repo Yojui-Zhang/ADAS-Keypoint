@@ -182,6 +182,7 @@ make -j$(nproc)
 - 橫向控制器：`lateral_controller` 可設為 `stanley` 或 `mpc`。此開關只改變 LKA 產生的初始橫向轉向值；後續 `StabilitySupervisor` 的摩擦力、離心力、舒適度與速率防護仍共用同一套程式碼。
 - Stanley 參數：`k_straight`, `k_curve`, `softening`。
 - MPC 參數：`mpc_horizon`, `mpc_q_cte`, `mpc_q_heading`, `mpc_q_steer`, `mpc_r_steer_rate`。
+- LKA 速域參數：`speed_profiles_enable: 1` 後，`speed_profiles` 會依目前車速 km/h 選擇 0-10、10-20、...、90-100 共 10 組 profile。每組可覆蓋 Stanley 的 `softening`, `k_straight`, `k_curve`，也可覆蓋 `lateral_controller`, `mpc_*`, `x_ref_*`, `x_heading_*`, `enable_feedforward`, `ff_gain`, `x_curvature_m`, `max_ff_deg`, `max_steer_deg`, `max_steer_rate_deg_s`, `dt_s`；未填欄位沿用 `lka` 頂層設定。
 - 參考距離：`x_ref_*`, `x_heading_*`。
 - Feedforward：`enable_feedforward`, `ff_gain`, `max_ff_deg`。
 - 限幅：`max_steer_deg`, `max_steer_rate_deg_s`, `dt_s`。

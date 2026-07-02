@@ -42,7 +42,7 @@ app:
 
 input:
   video_path: "../video/1280x720/Paper.mp4"
-  camera_index: -1
+  camera_index: 1
   capture_width: 1280
   capture_height: 720
   window_name: "Screen"
@@ -121,11 +121,11 @@ lka:
   lateral_controller: "mpc"   # stanley 或 mpc；只切換 LKA raw steer，後續 Stability 防護共用同一路徑
   k_straight: 1.0
   k_curve: 3.5
-  mpc_horizon: 12
-  mpc_q_cte: 12.0
-  mpc_q_heading: 4.0
-  mpc_q_steer: 0.15
-  mpc_r_steer_rate: 1.2
+  mpc_horizon: 20
+  mpc_q_cte: 5.0
+  mpc_q_heading: 1.5
+  mpc_q_steer: 1.2
+  mpc_r_steer_rate: 4.0
   x_ref_straight_m: 0.3
   x_heading_straight_m: 1.5
   x_ref_curve_m: 0.3
@@ -136,7 +136,19 @@ lka:
   max_ff_deg: 25.0
   max_steer_deg: 59.0
   max_steer_rate_deg_s: 300.0
-  dt_s: 0.02
+  dt_s: 0.04
+  speed_profiles_enable: 1
+  speed_profiles:
+    - {enabled: 1, min_speed_kmh: 0.0,  max_speed_kmh: 10.0, softening: 0.5, k_straight: 1.0, k_curve: 3.5}
+    - {enabled: 1, min_speed_kmh: 10.0, max_speed_kmh: 20.0, softening: 0.5, k_straight: 1.0, k_curve: 3.5}
+    - {enabled: 1, min_speed_kmh: 20.0, max_speed_kmh: 30.0, softening: 0.5, k_straight: 1.0, k_curve: 3.5}
+    - {enabled: 1, min_speed_kmh: 30.0, max_speed_kmh: 40.0, softening: 0.5, k_straight: 1.0, k_curve: 3.5}
+    - {enabled: 1, min_speed_kmh: 40.0, max_speed_kmh: 50.0, softening: 0.5, k_straight: 1.0, k_curve: 3.5}
+    - {enabled: 1, min_speed_kmh: 50.0, max_speed_kmh: 60.0, softening: 0.5, k_straight: 1.0, k_curve: 3.5}
+    - {enabled: 1, min_speed_kmh: 60.0, max_speed_kmh: 70.0, softening: 0.5, k_straight: 1.0, k_curve: 3.5, mpc_horizon: 20, mpc_q_cte: 5.0, mpc_q_heading: 1.5, mpc_q_steer: 1.2, mpc_r_steer_rate: 4.0, x_curvature_m: 1.0}
+    - {enabled: 1, min_speed_kmh: 70.0, max_speed_kmh: 80.0, softening: 0.5, k_straight: 1.0, k_curve: 3.5, mpc_horizon: 30, mpc_q_cte: 5.0, mpc_q_heading: 3.0, mpc_q_steer: 0.5, mpc_r_steer_rate: 2.5, x_curvature_m: 3.0}
+    - {enabled: 1, min_speed_kmh: 80.0, max_speed_kmh: 90.0, softening: 0.5, k_straight: 1.0, k_curve: 3.5}
+    - {enabled: 1, min_speed_kmh: 90.0, max_speed_kmh: 100.0, softening: 0.5, k_straight: 1.0, k_curve: 3.5}
   use_confidence: 1
   conf_threshold: 0.5
   min_x_m: 0.05

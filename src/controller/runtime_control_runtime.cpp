@@ -1,6 +1,7 @@
 #include "runtime_control_runtime.h"
 
 #include "brake_control.h"
+#include "config.h"
 #include "steering_control.h"
 #include "throttle_control.h"
 

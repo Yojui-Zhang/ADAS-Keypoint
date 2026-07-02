@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstddef>
 #include <sstream>
 #include <string>
 
@@ -202,6 +203,97 @@ void ReadAccConfig(const cv::FileNode& acc_node, acc::AccConfig& cfg) {
     ReadBoolIfPresent(acc_node, "use_external_ego_speed", cfg.use_external_ego_speed);
 }
 
+LkaSpeedProfile MakeLkaSpeedProfileFromBase(const ControlConfig& cfg,
+                                            float min_speed_kmh,
+                                            float max_speed_kmh) {
+    LkaSpeedProfile profile;
+    profile.enabled = true;
+    profile.min_speed_kmh = min_speed_kmh;
+    profile.max_speed_kmh = max_speed_kmh;
+    profile.lateral_controller = cfg.lateral_controller;
+    profile.softening = cfg.softening;
+    profile.k_straight = cfg.k_straight;
+    profile.k_curve = cfg.k_curve;
+    profile.mpc_horizon = cfg.mpc_horizon;
+    profile.mpc_q_cte = cfg.mpc_q_cte;
+    profile.mpc_q_heading = cfg.mpc_q_heading;
+    profile.mpc_q_steer = cfg.mpc_q_steer;
+    profile.mpc_r_steer_rate = cfg.mpc_r_steer_rate;
+    profile.x_ref_straight_m = cfg.x_ref_straight_m;
+    profile.x_heading_straight_m = cfg.x_heading_straight_m;
+    profile.x_ref_curve_m = cfg.x_ref_curve_m;
+    profile.x_heading_curve_m = cfg.x_heading_curve_m;
+    profile.enable_feedforward = cfg.enable_feedforward;
+    profile.ff_gain = cfg.ff_gain;
+    profile.x_curvature_m = cfg.x_curvature_m;
+    profile.max_ff_deg = cfg.max_ff_deg;
+    profile.max_steer_deg = cfg.max_steer_deg;
+    profile.max_steer_rate_deg_s = cfg.max_steer_rate_deg_s;
+    profile.dt_s = cfg.dt_s;
+    return profile;
+}
+
+void ReadLkaSpeedProfile(const cv::FileNode& profile_node,
+                         const ControlConfig& base_cfg,
+                         LkaSpeedProfile& profile) {
+    if (profile_node.empty()) {
+        return;
+    }
+
+    const float fallback_min = profile.min_speed_kmh;
+    const float fallback_max = profile.max_speed_kmh;
+    profile = MakeLkaSpeedProfileFromBase(base_cfg, fallback_min, fallback_max);
+
+    ReadBoolIfPresent(profile_node, "enabled", profile.enabled);
+    ReadIfPresent(profile_node, "min_speed_kmh", profile.min_speed_kmh);
+    ReadIfPresent(profile_node, "max_speed_kmh", profile.max_speed_kmh);
+    ReadIfPresent(profile_node, "lateral_controller", profile.lateral_controller);
+    ReadIfPresent(profile_node, "softening", profile.softening);
+    ReadIfPresent(profile_node, "k_straight", profile.k_straight);
+    ReadIfPresent(profile_node, "k_curve", profile.k_curve);
+    ReadIfPresent(profile_node, "mpc_horizon", profile.mpc_horizon);
+    ReadIfPresent(profile_node, "mpc_q_cte", profile.mpc_q_cte);
+    ReadIfPresent(profile_node, "mpc_q_heading", profile.mpc_q_heading);
+    ReadIfPresent(profile_node, "mpc_q_steer", profile.mpc_q_steer);
+    ReadIfPresent(profile_node, "mpc_r_steer_rate", profile.mpc_r_steer_rate);
+    ReadIfPresent(profile_node, "x_ref_straight_m", profile.x_ref_straight_m);
+    ReadIfPresent(profile_node, "x_heading_straight_m", profile.x_heading_straight_m);
+    ReadIfPresent(profile_node, "x_ref_curve_m", profile.x_ref_curve_m);
+    ReadIfPresent(profile_node, "x_heading_curve_m", profile.x_heading_curve_m);
+    ReadBoolIfPresent(profile_node, "enable_feedforward", profile.enable_feedforward);
+    ReadIfPresent(profile_node, "ff_gain", profile.ff_gain);
+    ReadIfPresent(profile_node, "x_curvature_m", profile.x_curvature_m);
+    ReadIfPresent(profile_node, "max_ff_deg", profile.max_ff_deg);
+    ReadIfPresent(profile_node, "max_steer_deg", profile.max_steer_deg);
+    ReadIfPresent(profile_node, "max_steer_rate_deg_s", profile.max_steer_rate_deg_s);
+    ReadIfPresent(profile_node, "dt_s", profile.dt_s);
+}
+
+void ReadLkaSpeedProfiles(const cv::FileNode& lka_node, ControlConfig& cfg) {
+    ReadBoolIfPresent(lka_node, "speed_profiles_enable", cfg.speed_profiles_enable);
+
+    for (std::size_t i = 0; i < cfg.speed_profiles.size(); ++i) {
+        const float min_speed_kmh = static_cast<float>(i * 10);
+        const float max_speed_kmh = static_cast<float>((i + 1) * 10);
+        cfg.speed_profiles[i] =
+            MakeLkaSpeedProfileFromBase(cfg, min_speed_kmh, max_speed_kmh);
+    }
+
+    const cv::FileNode profiles_node = lka_node["speed_profiles"];
+    if (profiles_node.empty() || profiles_node.isSeq() == false) {
+        return;
+    }
+
+    const std::size_t count =
+        std::min<std::size_t>(cfg.speed_profiles.size(),
+                              static_cast<std::size_t>(profiles_node.size()));
+    for (std::size_t i = 0; i < count; ++i) {
+        ReadLkaSpeedProfile(profiles_node[static_cast<int>(i)],
+                            cfg,
+                            cfg.speed_profiles[i]);
+    }
+}
+
 void ReadLkaConfig(const cv::FileNode& lka_node, ControlConfig& cfg) {
     ReadIfPresent(lka_node, "wheel_base_m", cfg.wheel_base_m);
     ReadIfPresent(lka_node, "velocity_mps", cfg.velocity_mps);
@@ -261,6 +353,8 @@ void ReadLkaConfig(const cv::FileNode& lka_node, ControlConfig& cfg) {
     ReadIfPresent(lka_node, "lane_detect_bottom_range_m", cfg.lane_detect_bottom_range_m);
     ReadIfPresent(lka_node, "lane_detect_contact_margin_m", cfg.lane_detect_contact_margin_m);
     ReadIfPresent(lka_node, "lane_detect_mode", cfg.lane_detect_mode);
+
+    ReadLkaSpeedProfiles(lka_node, cfg);
 }
 
 void ReadStabilityConfig(const cv::FileNode& s_node, stability::StabilityConfig& cfg) {

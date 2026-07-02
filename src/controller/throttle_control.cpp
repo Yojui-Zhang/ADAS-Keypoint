@@ -5,6 +5,7 @@
 #include <chrono>
 #include <thread>
 
+#include "config.h"
 #include "speed_pid_controller.h"
 
 #ifdef CANBUS__
