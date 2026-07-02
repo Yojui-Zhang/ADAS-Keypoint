@@ -2,7 +2,7 @@
 #include <opencv2/core.hpp>  // 包含 cv::Scalar 和其他基本類型
 
 // 是否啟動 CANBus 實車控車
-#define CANBUS__
+// #define CANBUS__
 
 // 是否啟用 GPU delegate（TFLite）
 // #define _GPU_delegate
