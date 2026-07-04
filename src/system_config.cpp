@@ -18,6 +18,10 @@ void ReadIfPresent(const cv::FileNode& node, const char* key, T& out_value) {
     n >> out_value;
 }
 
+bool HasNodeValue(const cv::FileNode& node, const char* key) {
+    return node.empty() == false && node[key].empty() == false;
+}
+
 std::string ToLower(std::string s) {
     std::transform(s.begin(), s.end(), s.begin(),
                    [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
@@ -256,6 +260,10 @@ void ReadLkaSpeedProfile(const cv::FileNode& profile_node,
     ReadIfPresent(profile_node, "mpc_q_heading", profile.mpc_q_heading);
     ReadIfPresent(profile_node, "mpc_q_steer", profile.mpc_q_steer);
     ReadIfPresent(profile_node, "mpc_r_steer_rate", profile.mpc_r_steer_rate);
+    profile.has_x_ref_straight_m = HasNodeValue(profile_node, "x_ref_straight_m");
+    profile.has_x_heading_straight_m = HasNodeValue(profile_node, "x_heading_straight_m");
+    profile.has_x_ref_curve_m = HasNodeValue(profile_node, "x_ref_curve_m");
+    profile.has_x_heading_curve_m = HasNodeValue(profile_node, "x_heading_curve_m");
     ReadIfPresent(profile_node, "x_ref_straight_m", profile.x_ref_straight_m);
     ReadIfPresent(profile_node, "x_heading_straight_m", profile.x_heading_straight_m);
     ReadIfPresent(profile_node, "x_ref_curve_m", profile.x_ref_curve_m);

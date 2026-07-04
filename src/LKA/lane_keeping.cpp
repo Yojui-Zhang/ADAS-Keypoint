@@ -73,8 +73,55 @@ const LkaSpeedProfile* SelectLkaSpeedProfile(const ControlConfig& cfg,
     return last_enabled;
 }
 
+float ResolveRuntimeDtS(float frame_dt_s, float fallback_dt_s) {
+    if (std::isfinite(frame_dt_s) && frame_dt_s > 1e-6f) {
+        return std::clamp(frame_dt_s, 0.001f, 1.0f);
+    }
+    if (std::isfinite(fallback_dt_s) && fallback_dt_s > 1e-6f) {
+        return std::clamp(fallback_dt_s, 0.001f, 1.0f);
+    }
+    return 0.02f;
+}
+
+float DynamicPreviewDistanceM(float velocity_mps, float dt_s) {
+    if (!std::isfinite(velocity_mps) || !std::isfinite(dt_s)) {
+        return 0.0f;
+    }
+    return std::max(0.0f, velocity_mps) * std::max(0.0f, dt_s);
+}
+
+void ApplyRuntimeTimingAndPreview(float frame_dt_s,
+                                  const LkaSpeedProfile* profile,
+                                  ControlConfig* cfg,
+                                  float* out_dynamic_preview_m) {
+    if (cfg == nullptr) {
+        return;
+    }
+
+    cfg->dt_s = ResolveRuntimeDtS(frame_dt_s, cfg->dt_s);
+    const float dynamic_preview_m =
+        DynamicPreviewDistanceM(cfg->velocity_mps, cfg->dt_s);
+    if (out_dynamic_preview_m != nullptr) {
+        *out_dynamic_preview_m = dynamic_preview_m;
+    }
+
+    if (profile == nullptr || profile->has_x_ref_straight_m == false) {
+        cfg->x_ref_straight_m = dynamic_preview_m;
+    }
+    if (profile == nullptr || profile->has_x_heading_straight_m == false) {
+        cfg->x_heading_straight_m = dynamic_preview_m;
+    }
+    if (profile == nullptr || profile->has_x_ref_curve_m == false) {
+        cfg->x_ref_curve_m = dynamic_preview_m;
+    }
+    if (profile == nullptr || profile->has_x_heading_curve_m == false) {
+        cfg->x_heading_curve_m = dynamic_preview_m;
+    }
+}
+
 ControlConfig MakeEffectiveControlConfigForSpeed(const ControlConfig& base_cfg,
                                                  float velocity_mps,
+                                                 float frame_dt_s,
                                                  std::string* out_debug) {
     ControlConfig effective_cfg = base_cfg;
     effective_cfg.velocity_mps = velocity_mps;
@@ -84,11 +131,15 @@ ControlConfig MakeEffectiveControlConfigForSpeed(const ControlConfig& base_cfg,
         SelectLkaSpeedProfile(base_cfg, speed_kmh);
     if (profile != nullptr) {
         ApplyLkaSpeedProfile(*profile, &effective_cfg);
+        float dynamic_preview_m = 0.0f;
+        ApplyRuntimeTimingAndPreview(frame_dt_s, profile, &effective_cfg, &dynamic_preview_m);
         if (out_debug != nullptr) {
             std::ostringstream oss;
             oss << "speed_profile=" << profile->min_speed_kmh
                 << "-" << profile->max_speed_kmh << "km/h"
                 << " speed_kmh=" << speed_kmh
+                << " dt_s=" << effective_cfg.dt_s
+                << " dynamic_preview_m=" << dynamic_preview_m
                 << " controller=" << effective_cfg.lateral_controller
                 << " softening=" << effective_cfg.softening
                 << " k_straight=" << effective_cfg.k_straight
@@ -97,13 +148,27 @@ ControlConfig MakeEffectiveControlConfigForSpeed(const ControlConfig& base_cfg,
                 << " q_cte=" << effective_cfg.mpc_q_cte
                 << " q_heading=" << effective_cfg.mpc_q_heading
                 << " q_steer=" << effective_cfg.mpc_q_steer
-                << " r_steer_rate=" << effective_cfg.mpc_r_steer_rate;
+                << " r_steer_rate=" << effective_cfg.mpc_r_steer_rate
+                << " x_ref_s=" << effective_cfg.x_ref_straight_m
+                << " x_heading_s=" << effective_cfg.x_heading_straight_m
+                << " x_ref_c=" << effective_cfg.x_ref_curve_m
+                << " x_heading_c=" << effective_cfg.x_heading_curve_m;
             *out_debug = oss.str();
         }
-    } else if (out_debug != nullptr) {
-        std::ostringstream oss;
-        oss << "speed_profile=base speed_kmh=" << speed_kmh;
-        *out_debug = oss.str();
+    } else {
+        float dynamic_preview_m = 0.0f;
+        ApplyRuntimeTimingAndPreview(frame_dt_s, nullptr, &effective_cfg, &dynamic_preview_m);
+        if (out_debug != nullptr) {
+            std::ostringstream oss;
+            oss << "speed_profile=base speed_kmh=" << speed_kmh
+                << " dt_s=" << effective_cfg.dt_s
+                << " dynamic_preview_m=" << dynamic_preview_m
+                << " x_ref_s=" << effective_cfg.x_ref_straight_m
+                << " x_heading_s=" << effective_cfg.x_heading_straight_m
+                << " x_ref_c=" << effective_cfg.x_ref_curve_m
+                << " x_heading_c=" << effective_cfg.x_heading_curve_m;
+            *out_debug = oss.str();
+        }
     }
 
     return effective_cfg;
@@ -135,7 +200,8 @@ float lane_steering_step(const std::vector<TrackingBox>& world_result,
                          std::string* out_debug,
                          cv::Mat input_img,
                          cv::Mat output_img,
-                         const CameraModel* cam)
+                         const CameraModel* cam,
+                         float frame_dt_s)
 {
     std::lock_guard<std::mutex> lk(g_lane_keeping_mtx);
 
@@ -146,6 +212,7 @@ float lane_steering_step(const std::vector<TrackingBox>& world_result,
     const ControlConfig config =
         MakeEffectiveControlConfigForSpeed(g_lane_keeping_cfg,
                                            velocity_mps,
+                                           frame_dt_s,
                                            &profile_debug);
     ControlState& state = g_lane_keeping_state;
 

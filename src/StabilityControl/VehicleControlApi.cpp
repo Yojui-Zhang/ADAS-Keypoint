@@ -177,7 +177,13 @@ VehicleControlCommand VehicleControl_RunWithOptions(const std::vector<TrackingBo
   // 2) LKA
   std::string lka_dbg;
   const auto lka_start = PerfClock::now();
-  const float steer_deg = lane_steering_step(world_result, ego_speed_mps, &lka_dbg);
+  const float steer_deg = lane_steering_step(world_result,
+                                             ego_speed_mps,
+                                             &lka_dbg,
+                                             cv::Mat(),
+                                             cv::Mat(),
+                                             nullptr,
+                                             dt_s);
   const auto lka_end = PerfClock::now();
 
   acc::AccCommand control_acc_cmd = acc_cmd;
