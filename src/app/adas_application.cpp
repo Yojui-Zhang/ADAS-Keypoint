@@ -481,6 +481,7 @@ int RunAdasApplication(int argc, char** argv) {
           output_frame,
           cam,
           lane_keeping_get_control_config(),
+          lka_reference_snapshot.p_curve,
           0.0f,
           20.0f);
       if (use_gpu_overlay_commands) {

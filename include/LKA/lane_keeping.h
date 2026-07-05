@@ -33,6 +33,10 @@ struct LkaSpeedProfile {
     float x_heading_straight_m = 1.50f;
     float x_ref_curve_m = 0.30f;
     float x_heading_curve_m = 0.80f;
+    bool has_x_ref_straight_m = false;
+    bool has_x_heading_straight_m = false;
+    bool has_x_ref_curve_m = false;
+    bool has_x_heading_curve_m = false;
 
     bool enable_feedforward = true;
     float ff_gain = 1.0f;
@@ -71,6 +75,7 @@ struct ControlConfig {
 
     float x_ref_curve_m        = 0.30f;  //【可調】彎道模式：CTE 取樣 x_ref（m）。彎道常建議較小以避免「切彎」；但過小會更抖。
     float x_heading_curve_m    = 0.80f;  //【可調】彎道模式：航向誤差取樣 x_heading（m）。越小越貼近曲率、越能跟彎；過小可能放大斜率估計雜訊。
+    float dynamic_preview_distance_weight = 1.0f; //【可調】未由 speed_profiles 明確指定 x_* 時，動態前視距離的倍率：x = speed_mps * dt_s * weight。
 
     // --- Feedforward (curvature) ---
     bool  enable_feedforward = true;     //【可調】是否啟用曲率前饋（彎道提早打方向）。通常可降低彎道延遲，但若曲率估計抖動會引入抖動。
@@ -174,11 +179,12 @@ float calculate_lane_steering(const TrackingBox& input,
                               const ControlConfig& cfg,
                               ControlState* state);
 
-// Maintain this exact signature to preserve existing call sites, e.g.:
+// Existing positional callers remain valid; frame_dt_s is an optional runtime timing input.
 // float steer_deg = lane_steering_step(WorldResult, v, &dbg, Output_frame, Output_frame, &cam);
 float lane_steering_step(const std::vector<TrackingBox>& world_result,
                          float velocity_mps,
                          std::string* out_debug = nullptr,
                          cv::Mat input_img = cv::Mat(),
                          cv::Mat output_img = cv::Mat(),
-                         const CameraModel* cam = nullptr);
+                         const CameraModel* cam = nullptr,
+                         float frame_dt_s = 0.0f);

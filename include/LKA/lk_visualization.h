@@ -40,6 +40,7 @@ void DrawLkaLaneSolutionOnImage(const std::vector<TrackingBox>& world_result,
                                 cv::Mat& output_img,
                                 const CameraModel& cam,
                                 const ControlConfig& cfg,
+                                float p_curve = 0.0f,
                                 float x_start_m = 0.0f,
                                 float x_end_m = 20.0f);
 

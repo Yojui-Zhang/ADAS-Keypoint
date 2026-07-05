@@ -183,7 +183,7 @@ make -j$(nproc)
 - Stanley 參數：`k_straight`, `k_curve`, `softening`。
 - MPC 參數：`mpc_horizon`, `mpc_q_cte`, `mpc_q_heading`, `mpc_q_steer`, `mpc_r_steer_rate`。
 - LKA 速域參數：`speed_profiles_enable: 1` 後，`speed_profiles` 會依目前車速 km/h 選擇 0-10、10-20、...、90-100 共 10 組 profile。每組可覆蓋 Stanley 的 `softening`, `k_straight`, `k_curve`，也可覆蓋 `lateral_controller`, `mpc_*`, `enable_feedforward`, `ff_gain`, `x_curvature_m`, `max_ff_deg`, `max_steer_deg`, `max_steer_rate_deg_s`；未填欄位沿用 `lka` 頂層設定。
-- 參考距離：`x_ref_straight_m`, `x_heading_straight_m`, `x_ref_curve_m`, `x_heading_curve_m` 預設由 `車速 m/s * 當前 frame dt_s` 自動推導；只有 speed profile 內明確填入對應 `x_*` 欄位時才覆蓋自動值。
+- 參考距離：`x_ref_straight_m`, `x_heading_straight_m`, `x_ref_curve_m`, `x_heading_curve_m` 預設由 `車速 m/s * 當前 frame dt_s * dynamic_preview_distance_weight` 自動推導；只有 speed profile 內明確填入對應 `x_*` 欄位時才覆蓋自動值。
 - Feedforward：`enable_feedforward`, `ff_gain`, `max_ff_deg`。
 - 限幅：`max_steer_deg`, `max_steer_rate_deg_s`。控制週期 `dt_s` 會優先使用 runtime frame elapsed time，YAML 的 `dt_s` 僅作為沒有 runtime dt 時的 fallback。
 - 車道點過濾：`conf_threshold`, `min_x_m`, `max_x_m`, `max_abs_y_m`。

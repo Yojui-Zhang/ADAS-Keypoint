@@ -34,6 +34,9 @@ void AppendLkaReferenceOverlayCommands(DrawCommandBuffer& commands,
   if (current_valid && target_valid) {
     commands.AddLine(current_px, target_px, cv::Scalar(255, 255, 255), 2.0f);
   }
+  if (ego_valid && current_valid) {
+    commands.AddLine(ego_px, current_px, cv::Scalar(255, 128, 255), 2.0f);
+  }
 
   if (ego_valid) {
     commands.AddCircle(ego_px, 8.0f, cv::Scalar(0, 0, 0), 1.0f, true);
@@ -71,14 +74,14 @@ void DrawLkaReferenceOverlayLabels(cv::Mat& image,
 
   if (current_valid) {
     DrawOutlinedText(image,
-                     "LKA current",
+                     "CTE",
                      cv::Point(cvRound(current_px.x + 10.0f), cvRound(current_px.y - 10.0f)),
                      cv::Scalar(0, 255, 255));
   }
 
   if (target_valid) {
     DrawOutlinedText(image,
-                     "LKA target",
+                     "Heading",
                      cv::Point(cvRound(target_px.x + 10.0f), cvRound(target_px.y - 10.0f)),
                      cv::Scalar(255, 255, 0));
   }

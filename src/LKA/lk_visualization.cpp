@@ -482,6 +482,7 @@ void DrawLkaLaneSolutionOnImage(const std::vector<TrackingBox>& world_result,
                                 cv::Mat& output_img,
                                 const CameraModel& cam,
                                 const ControlConfig& cfg,
+                                float p_curve,
                                 float x_start_m,
                                 float x_end_m) {
     if (output_img.empty()) {
@@ -555,6 +556,9 @@ void DrawLkaLaneSolutionOnImage(const std::vector<TrackingBox>& world_result,
 
     const std::vector<float> center_xs =
         CollectPointXsInRange(center_pts, draw_x_start_m, draw_x_end_m);
+    const bool curve_mode = std::isfinite(p_curve) && p_curve >= 0.5f;
+    const cv::Scalar center_color = curve_mode ? cv::Scalar(255, 0, 255)
+                                               : cv::Scalar(0, 165, 255);
     DrawProjectedKeypointPolyline(
         output_img,
         cam,
@@ -571,9 +575,9 @@ void DrawLkaLaneSolutionOnImage(const std::vector<TrackingBox>& world_result,
             }
             return SampleYLinear(center_pts, xq, yq);
         },
-        cv::Scalar(0, 165, 255),
+        center_color,
         2,
-        "Center");
+        curve_mode ? "Center curve" : "Center straight");
 }
 
 void DrawLaneDetectOverlayOnImage(const std::vector<TrackingBox>& world_result,

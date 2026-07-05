@@ -321,6 +321,7 @@ void ReadLkaConfig(const cv::FileNode& lka_node, ControlConfig& cfg) {
     ReadIfPresent(lka_node, "x_heading_straight_m", cfg.x_heading_straight_m);
     ReadIfPresent(lka_node, "x_ref_curve_m", cfg.x_ref_curve_m);
     ReadIfPresent(lka_node, "x_heading_curve_m", cfg.x_heading_curve_m);
+    ReadIfPresent(lka_node, "dynamic_preview_distance_weight", cfg.dynamic_preview_distance_weight);
 
     ReadBoolIfPresent(lka_node, "enable_feedforward", cfg.enable_feedforward);
     ReadIfPresent(lka_node, "ff_gain", cfg.ff_gain);

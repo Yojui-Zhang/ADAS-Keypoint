@@ -83,11 +83,15 @@ float ResolveRuntimeDtS(float frame_dt_s, float fallback_dt_s) {
     return 0.02f;
 }
 
-float DynamicPreviewDistanceM(float velocity_mps, float dt_s) {
-    if (!std::isfinite(velocity_mps) || !std::isfinite(dt_s)) {
+float DynamicPreviewDistanceM(float velocity_mps, float dt_s, float weight) {
+    if (!std::isfinite(velocity_mps) ||
+        !std::isfinite(dt_s) ||
+        !std::isfinite(weight)) {
         return 0.0f;
     }
-    return std::max(0.0f, velocity_mps) * std::max(0.0f, dt_s);
+    return std::max(0.0f, velocity_mps) *
+           std::max(0.0f, dt_s) *
+           std::max(0.0f, weight);
 }
 
 void ApplyRuntimeTimingAndPreview(float frame_dt_s,
@@ -100,7 +104,9 @@ void ApplyRuntimeTimingAndPreview(float frame_dt_s,
 
     cfg->dt_s = ResolveRuntimeDtS(frame_dt_s, cfg->dt_s);
     const float dynamic_preview_m =
-        DynamicPreviewDistanceM(cfg->velocity_mps, cfg->dt_s);
+        DynamicPreviewDistanceM(cfg->velocity_mps,
+                                cfg->dt_s,
+                                cfg->dynamic_preview_distance_weight);
     if (out_dynamic_preview_m != nullptr) {
         *out_dynamic_preview_m = dynamic_preview_m;
     }
@@ -139,6 +145,7 @@ ControlConfig MakeEffectiveControlConfigForSpeed(const ControlConfig& base_cfg,
                 << "-" << profile->max_speed_kmh << "km/h"
                 << " speed_kmh=" << speed_kmh
                 << " dt_s=" << effective_cfg.dt_s
+                << " dynamic_preview_weight=" << effective_cfg.dynamic_preview_distance_weight
                 << " dynamic_preview_m=" << dynamic_preview_m
                 << " controller=" << effective_cfg.lateral_controller
                 << " softening=" << effective_cfg.softening
@@ -162,6 +169,7 @@ ControlConfig MakeEffectiveControlConfigForSpeed(const ControlConfig& base_cfg,
             std::ostringstream oss;
             oss << "speed_profile=base speed_kmh=" << speed_kmh
                 << " dt_s=" << effective_cfg.dt_s
+                << " dynamic_preview_weight=" << effective_cfg.dynamic_preview_distance_weight
                 << " dynamic_preview_m=" << dynamic_preview_m
                 << " x_ref_s=" << effective_cfg.x_ref_straight_m
                 << " x_heading_s=" << effective_cfg.x_heading_straight_m

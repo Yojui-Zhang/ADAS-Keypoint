@@ -5,6 +5,7 @@
 #include "TrackingBoxWorldTransformer.h" // 請確認你的資料夾路徑
 
 #include <cstdio> // for sprintf or string formatting
+#include <cstddef>
 #include <string>
 #include <iomanip>
 #include <sstream>
@@ -76,10 +77,12 @@ std::vector<TrackingBox> GeometryFunction(const cv::Mat& Src_frame, cv::Mat& Out
         // kpts：轉換後寫回 world_tb.kpts
         world_tb.kpts.clear();
         world_tb.kpts.reserve(result_points.size());
-        for (const auto& p : result_points) {
+        for (std::size_t i = 0; i < result_points.size(); ++i) {
+            const auto& p = result_points[i];
             float x_forward_m = p.y * world_scale;
             float y_left_m    = -(p.x * world_scale);
-            float confidence  = 1.0f;
+            // Lane LKA uses z as confidence; other classes keep the previous geometry contract.
+            float confidence  = (tb.class_id == 0 && i < tb.kpts.size()) ? tb.kpts[i].z : 1.0f;
             world_tb.kpts.emplace_back(x_forward_m, y_left_m, confidence);
         }
 
