@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 #include <vector>
 
 #include <opencv2/core.hpp>
@@ -22,6 +23,22 @@ struct FrameSnapshotBuilderInput {
   double target_speed_kmh = 0.0;
   double target_distance_m = 0.0;
   double target_ttc_s = 0.0;
+  int throttle_mode_code = 0;
+  std::string throttle_mode_text = "disabled";
+  std::string throttle_requested_mode = "disabled";
+  std::string throttle_effective_mode = "disabled";
+  double throttle_target_speed_kmh = 0.0;
+  double throttle_current_speed_kmh = 0.0;
+  double throttle_feedforward_pedal_v = 0.75;
+  double throttle_speed_error_kmh = 0.0;
+  double throttle_integral_v = 0.0;
+  double throttle_final_pedal_v = 0.75;
+  double throttle_pedal_upper_v = 3.45;
+  bool throttle_vehicle_speed_fresh = false;
+  double throttle_vehicle_speed_age_ms = 0.0;
+  uint64_t throttle_vehicle_speed_timestamp_ns = 0;
+  bool brake_control_active = false;
+  uint64_t acc_manual_resume_request_sequence = 0;
 
   const LkaReferenceSnapshot* lka_reference_snapshot = nullptr;
   bool lka_current_image_valid = false;
@@ -34,6 +51,7 @@ struct FrameSnapshotBuilderInput {
   const std::vector<TrackingBox>* world_result = nullptr;
   const stability::VehicleControlCommand* vehicle_cmd = nullptr;
   const collision::CollisionAssistOutput* collision_output = nullptr;
+  const collision::AebAudioGateOutput* aeb_audio_gate = nullptr;
 
   bool can_valid = false;
   const CAR* can_state = nullptr;

@@ -88,7 +88,10 @@ aux_source_directory(./src/ACC/ ACC_SRC_LIST)
 aux_source_directory(./src/StabilityControl/ StabilityControl_SRC_LIST)
 aux_source_directory(./src/VehicleBehavior/ VehicleBehavior_SRC_LIST)
 aux_source_directory(./src/DRAW/ DRAW_SRC_LIST)
-aux_source_directory(./src/Collision/ Collision_SRC_LIST)
+set(Collision_SRC_LIST
+    ./src/Collision/CollisionAssistApi.cpp
+    ./src/Collision/aeb_audio_gate.cpp
+)
 aux_source_directory(./src/app/ APP_SRC_LIST)
 aux_source_directory(./src/render/ RENDER_SRC_LIST)
 aux_source_directory(./src/sound/ SOUND_SRC_LIST)

@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
+#include <cmath>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -39,7 +40,9 @@
 #include "VehicleControlApi.h"
 #include "VehicleSkeletonAPI.h"
 #include "draw_icon.h"
+#include "draw_target_info.h"
 #include "CollisionAssistApi.h"
+#include "aeb_audio_gate.h"
 #include "frame_snapshot_builder.h"
 #include "runtime_log_bootstrap.h"
 #include "time_sync.h"
@@ -47,6 +50,7 @@
 #include "runtime_control_overlay.h"
 #include "runtime_control_runtime.h"
 #include "runtime_control_state.h"
+#include "throttle_control.h"
 #include "keypad.h"
 #include "sound/sound.h"
 
@@ -79,6 +83,35 @@ float Targetdistance = 0.f;
 CAR CAN;
 
 namespace adas_app {
+
+namespace {
+
+bool IsTrafficLightOverrideClassId(int class_id) {
+  return class_id == 13 || class_id == 15 || class_id == 16;
+}
+
+bool IsSpeedSignOverrideId(int sign_id) {
+  return sign_id >= 0 && sign_id <= 8;
+}
+
+void DrawKeypadTrafficOverrides(cv::Mat& output_frame,
+                                const controller::RuntimeControlState& control_state) {
+  if (IsTrafficLightOverrideClassId(control_state.traffic_light_override_class_id)) {
+    IconManager::Draw_Icon_Light(output_frame,
+                                 control_state.traffic_light_override_class_id);
+  }
+
+  static std::uint64_t last_speed_sign_override_sequence = 0;
+  if (control_state.speed_sign_override_sequence != last_speed_sign_override_sequence &&
+      IsSpeedSignOverrideId(control_state.speed_sign_override_id)) {
+    IconManager::Draw_Icon_Sign(output_frame,
+                                control_state.speed_sign_override_id);
+    last_speed_sign_override_sequence =
+        control_state.speed_sign_override_sequence;
+  }
+}
+
+}  // namespace
 
 int RunAdasApplication(int argc, char** argv) {
   CliArgs cli_args;
@@ -201,6 +234,7 @@ int RunAdasApplication(int argc, char** argv) {
 
   const vehicle_skeleton::SkeletonKptLayout layout = ResolveSkeletonLayout(runtime_cfg);
   collision::CollisionAssist collision_assist(runtime_cfg.collision);
+  collision::AebAudioGate aeb_audio_gate;
 
   keypad::CommandSource keypad_source;
   keypad::ReaderConfig keypad_reader_cfg;
@@ -237,6 +271,10 @@ int RunAdasApplication(int argc, char** argv) {
   while (1) {
     const auto perf_frame_start = PerfClock::now();
     HandlePendingCommands(keypad_source, control_state);
+    if (control_state.acc_resume_request_pending) {
+      acc::ACC_RequestManualResume();
+      control_state.acc_resume_request_pending = false;
+    }
     const bool demo_presentation_mode = controller::DemoPresentationActive(control_state);
     const bool demo_lateral_control = controller::DemoLateralControlEnabled(control_state);
     const bool demo_longitudinal_control = controller::DemoLongitudinalControlEnabled(control_state);
@@ -345,7 +383,6 @@ int RunAdasApplication(int argc, char** argv) {
     double target_angle_cmd = cmd.steer_deg;
     target_speed = SelectActuatorSpeedTargetKmh(control_state, cmd, ego_vehicle_speed_kmh);
     double deceleration_cmd = cmd.brake_0_10;
-    const float target_brake_0_10 = cmd.brake_0_10;
 
     const LkaReferenceSnapshot lka_reference_snapshot =
         lane_keeping_get_last_reference_snapshot();
@@ -408,6 +445,36 @@ int RunAdasApplication(int argc, char** argv) {
       deceleration_cmd = 0.0;
     }
 
+    const collision::AebAudioGateOutput aeb_audio =
+        aeb_audio_gate.Update(ca, runtime_cfg.collision, dt_s);
+    if (runtime_cfg.collision.enable_aeb_warning_sound &&
+        aeb_audio.rising_edge) {
+      sound::RequestAebWarningSound();
+    }
+
+    controller::ThrottleControlMode throttle_mode =
+        controller::ThrottleControlMode::Disabled;
+    const bool stopping_or_holding =
+        cmd.acc_cmd.stop_state == acc::AccStopState::Stopping ||
+        cmd.acc_cmd.stop_state == acc::AccStopState::StoppedHold ||
+        cmd.acc_cmd.stop_state == acc::AccStopState::ResumeConfirm;
+    const bool throttle_runtime_enabled =
+        controller::ThrottleControlActive(control_state);
+    if (demo_longitudinal_control &&
+        throttle_runtime_enabled &&
+        deceleration_cmd <= 0.05 &&
+        !stopping_or_holding) {
+      if (cmd.acc_cmd.longitudinal_phase == acc::AccLongitudinalPhase::Coasting) {
+        throttle_mode =
+            cmd.acc_cmd.speed_hold_recommended
+                ? controller::ThrottleControlMode::SpeedHold
+                : controller::ThrottleControlMode::Coast;
+      } else if (target_speed > 0.2f) {
+        throttle_mode = controller::ThrottleControlMode::SpeedTracking;
+      }
+    }
+    controller::SetThrottleControlRequest(target_speed, throttle_mode);
+
     if (control_state.draw_collision_overlay &&
         ca.warning && runtime_cfg.app.draw_collision_border) {
       const cv::Rect2f border_rect(0.0f,
@@ -464,16 +531,13 @@ int RunAdasApplication(int argc, char** argv) {
 #else
         0.0f;
 #endif
-    const float target_brake_for_display =
-        demo_longitudinal_control ? target_brake_0_10 : 0.0f;
-
-    DrawTargetInfo(output_frame,
-                   ego_vehicle_speed_kmh,
-                   target_speed,
-                   current_steer_deg,
-                   static_cast<float>(target_angle_cmd),
-                   static_cast<float>(deceleration_cmd),
-                   target_brake_for_display);
+    TargetInfoControlState target_info_control_state;
+    target_info_control_state.speed_control_active =
+        controller::LongitudinalControlActive(control_state);
+    target_info_control_state.steering_control_active =
+        controller::SteeringControlActive(control_state);
+    target_info_control_state.brake_control_active =
+        controller::BrakeControlActive(control_state);
 
     if (control_state.draw_lka_overlay || draw_required_demo_visuals) {
       lane_keeping::internal::DrawLkaLaneSolutionOnImage(
@@ -539,6 +603,15 @@ int RunAdasApplication(int argc, char** argv) {
 #endif
 
     controller::DrawRuntimeStatusOverlay(output_frame, control_state, keypad_evdev_ready);
+    DrawTargetInfo(output_frame,
+                   ego_vehicle_speed_kmh,
+                   target_speed,
+                   current_steer_deg,
+                   static_cast<float>(target_angle_cmd),
+                   static_cast<float>(deceleration_cmd),
+                   target_ttc,
+                   target_info_control_state);
+    DrawKeypadTrafficOverrides(output_frame, control_state);
 
     const auto overlay_end = PerfClock::now();
     perf_metrics.overlay_ms = ElapsedMs(overlay_start, overlay_end);
@@ -548,6 +621,9 @@ int RunAdasApplication(int argc, char** argv) {
     if (control_state.draw_status_hud) {
       adas_render::DrawPerformanceOverlay(output_frame, perf_metrics);
     }
+
+    const controller::ThrottleControlTelemetry throttle_telemetry =
+        controller::GetThrottleControlTelemetry();
 
     adas_log::FrameSnapshotBuilderInput log_input;
     log_input.frame_index = frame_index;
@@ -559,6 +635,38 @@ int RunAdasApplication(int argc, char** argv) {
     log_input.target_speed_kmh = target_speed;
     log_input.target_distance_m = Targetdistance;
     log_input.target_ttc_s = target_ttc;
+    log_input.throttle_mode_code =
+        static_cast<int>(throttle_telemetry.mode);
+    log_input.throttle_mode_text =
+        controller::ThrottleControlModeName(throttle_telemetry.mode);
+    log_input.throttle_requested_mode =
+        controller::ThrottleControlModeName(throttle_telemetry.requested_mode);
+    log_input.throttle_effective_mode =
+        controller::ThrottleControlModeName(throttle_telemetry.effective_mode);
+    log_input.throttle_target_speed_kmh =
+        throttle_telemetry.target_speed_kmh;
+    log_input.throttle_current_speed_kmh =
+        throttle_telemetry.current_speed_kmh;
+    log_input.throttle_feedforward_pedal_v =
+        throttle_telemetry.feedforward_pedal_v;
+    log_input.throttle_speed_error_kmh =
+        throttle_telemetry.speed_error_kmh;
+    log_input.throttle_integral_v =
+        throttle_telemetry.integral_v;
+    log_input.throttle_final_pedal_v =
+        throttle_telemetry.final_pedal_v;
+    log_input.throttle_pedal_upper_v =
+        throttle_telemetry.pedal_upper_v;
+    log_input.throttle_vehicle_speed_fresh =
+        throttle_telemetry.vehicle_speed_fresh;
+    log_input.throttle_vehicle_speed_age_ms =
+        throttle_telemetry.vehicle_speed_age_ms;
+    log_input.throttle_vehicle_speed_timestamp_ns =
+        throttle_telemetry.vehicle_speed_timestamp_ns;
+    log_input.brake_control_active =
+        controller::BrakeControlActive(control_state);
+    log_input.acc_manual_resume_request_sequence =
+        control_state.acc_resume_request_sequence;
     log_input.lka_reference_snapshot = &lka_reference_snapshot;
     log_input.lka_current_image_valid = lka_current_px_valid;
     log_input.lka_current_px = lka_current_px;
@@ -569,6 +677,7 @@ int RunAdasApplication(int argc, char** argv) {
     log_input.world_result = &world_result;
     log_input.vehicle_cmd = &cmd;
     log_input.collision_output = &ca;
+    log_input.aeb_audio_gate = &aeb_audio;
 #ifdef CANBUS__
     log_input.can_valid = true;
 #else

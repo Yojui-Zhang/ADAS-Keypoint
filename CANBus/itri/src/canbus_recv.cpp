@@ -8,6 +8,8 @@
 #include <time.h>
 #include <errno.h>
 #include <pthread.h>
+#include <algorithm>
+#include <mutex>
 #include <iostream>
 #include <cstdio>
 #include <cmath>
@@ -21,6 +23,7 @@
 #include "../include/canbus_recv.h"
 #include "../include/terminal.h"
 #include "../include/lib.h"
+#include "longitudinal_vehicle_state.h"
 #include "time_sync.h"
 
 #define MAXSOCK 16    /* max. number of CAN interfaces given on the cmdline */
@@ -33,6 +36,25 @@
 #define DEG_TO_RAD(theta) ((theta)*0.01745329251994329576923690768489)
 #define RAD_TO_DEG(rad) ((rad)*57.29577951308232087679815481410)
 #define SQUARE(x) (double(x)*double(x))
+
+namespace {
+
+std::mutex g_throttle_tx_mutex;
+CanThrottleTxTelemetry g_throttle_tx_telemetry;
+
+void StoreThrottleTxTelemetry(const CanThrottleTxTelemetry& telemetry)
+{
+	std::lock_guard<std::mutex> lock(g_throttle_tx_mutex);
+	g_throttle_tx_telemetry = telemetry;
+}
+
+}  // namespace
+
+CanThrottleTxTelemetry canbus_get_throttle_tx_telemetry()
+{
+	std::lock_guard<std::mutex> lock(g_throttle_tx_mutex);
+	return g_throttle_tx_telemetry;
+}
 
 using namespace std;
 
@@ -542,6 +564,9 @@ void* pth_canRecv(void *data) {
 						K = P/(P+R);
 						P = (1 - K) * P;
 						speed = v2 + K*(v_hat - v2);
+						controller::PublishLongitudinalVehicleSpeed(
+							static_cast<float>(std::max(0.0, speed)),
+							rx_sync_ns);
 
 						
 						double _meterage_ = (beforeSpeed + speed)*(t_meterage.diffTime()) / (2 * 3.6)*0.95;
@@ -874,22 +899,28 @@ void canbus_ctrl_gear(int gearDst)
 /* ========================================== */
 
 /* = = = = = = = = = = = = = = = = = = = = = 油門踏板 = = = = = = = = = = = = = = = = = = = = = */
-void canbus_ctrl_pedal(double pedalDst)
+void canbus_ctrl_pedal(double pedal_voltage_v)
 {
-	if(pedalDst<0.75)
-	{
-		pedalDst = 0.75;
+	constexpr double kPedalMinV = 0.75;
+	constexpr double kPedalValidatedMaxV = 3.45;
+	constexpr double kAdcFullScaleV = 4.96;
+	constexpr int kAdcMaximum = 4095;
+	const double requested_voltage_v = pedal_voltage_v;
+
+	if (!std::isfinite(pedal_voltage_v)) {
+		pedal_voltage_v = kPedalMinV;
 	}
-	else if(pedalDst>20.3)
-	{
-		pedalDst = 20.3;
-	}
-    int pedal_v = int(pedalDst* (4095.0 / 4.96)); 
-    int data0 = (pedal_v & 0xf00) >> 8;
-    int data1 = (pedal_v & 0x0ff);
+
+	pedal_voltage_v = std::clamp(pedal_voltage_v, kPedalMinV, kPedalValidatedMaxV);
+	const int pedal_adc = std::clamp(
+		static_cast<int>(std::lround(
+			pedal_voltage_v * static_cast<double>(kAdcMaximum) / kAdcFullScaleV)),
+		0,
+		kAdcMaximum);
+
     ECU.AutoPedal.can_id = 0x251;
-    ECU.AutoPedal.data[0] = data0;
-    ECU.AutoPedal.data[1] = data1;
+    ECU.AutoPedal.data[0] = static_cast<unsigned char>((pedal_adc >> 8) & 0x0F);
+    ECU.AutoPedal.data[1] = static_cast<unsigned char>(pedal_adc & 0xFF);
     ECU.AutoPedal.data[2] = 0x00;
     ECU.AutoPedal.data[3] = 0x00;
     ECU.AutoPedal.data[4] = 0x00;
@@ -897,10 +928,25 @@ void canbus_ctrl_pedal(double pedalDst)
     ECU.AutoPedal.data[6] = 0x00;
     ECU.AutoPedal.data[7] = 0x00;
     ECU.AutoPedal.len = 8;
-    ret = write(s, &(ECU.AutoPedal), 16);
-	if (ret > 0) {
-		TimeSyncMarkCanBrakeTxNs(TimeSyncNowNs());
+
+	const int write_result = write(s, &(ECU.AutoPedal), 16);
+	ret = write_result;
+
+	std::uint64_t tx_timestamp_ns = 0;
+	if (write_result > 0) {
+		tx_timestamp_ns = TimeSyncNowNs();
+		TimeSyncMarkCanThrottleTxNs(tx_timestamp_ns);
 	}
+
+	CanThrottleTxTelemetry telemetry;
+	telemetry.timestamp_ns = tx_timestamp_ns;
+	telemetry.requested_voltage_v = requested_voltage_v;
+	telemetry.clamped_voltage_v = pedal_voltage_v;
+	telemetry.pedal_adc = pedal_adc;
+	telemetry.data0 = ECU.AutoPedal.data[0];
+	telemetry.data1 = ECU.AutoPedal.data[1];
+	telemetry.write_result = write_result;
+	StoreThrottleTxTelemetry(telemetry);
 }
 /* ========================================== */
 

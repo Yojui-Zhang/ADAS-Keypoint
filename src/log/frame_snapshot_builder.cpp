@@ -13,6 +13,22 @@ FrameSnapshot BuildFrameSnapshot(const FrameSnapshotBuilderInput& input) {
   snapshot.target_speed_kmh = input.target_speed_kmh;
   snapshot.target_distance_m = input.target_distance_m;
   snapshot.target_ttc_s = input.target_ttc_s;
+  snapshot.throttle_mode_code = input.throttle_mode_code;
+  snapshot.throttle_mode_text = input.throttle_mode_text;
+  snapshot.throttle_requested_mode = input.throttle_requested_mode;
+  snapshot.throttle_effective_mode = input.throttle_effective_mode;
+  snapshot.throttle_target_speed_kmh = input.throttle_target_speed_kmh;
+  snapshot.throttle_current_speed_kmh = input.throttle_current_speed_kmh;
+  snapshot.throttle_feedforward_pedal_v = input.throttle_feedforward_pedal_v;
+  snapshot.throttle_speed_error_kmh = input.throttle_speed_error_kmh;
+  snapshot.throttle_integral_v = input.throttle_integral_v;
+  snapshot.throttle_final_pedal_v = input.throttle_final_pedal_v;
+  snapshot.throttle_pedal_upper_v = input.throttle_pedal_upper_v;
+  snapshot.throttle_vehicle_speed_fresh = input.throttle_vehicle_speed_fresh;
+  snapshot.throttle_vehicle_speed_age_ms = input.throttle_vehicle_speed_age_ms;
+  snapshot.throttle_vehicle_speed_timestamp_ns = input.throttle_vehicle_speed_timestamp_ns;
+  snapshot.brake_control_active = input.brake_control_active;
+  snapshot.acc_manual_resume_request_sequence = input.acc_manual_resume_request_sequence;
 
   if (input.lka_reference_snapshot != nullptr) {
     const LkaReferenceSnapshot& lka = *input.lka_reference_snapshot;
@@ -40,6 +56,7 @@ FrameSnapshot BuildFrameSnapshot(const FrameSnapshotBuilderInput& input) {
   snapshot.world_result = input.world_result;
   snapshot.vehicle_cmd = input.vehicle_cmd;
   snapshot.collision_output = input.collision_output;
+  snapshot.aeb_audio_gate = input.aeb_audio_gate;
   snapshot.can_valid = input.can_valid;
   snapshot.can_state = input.can_state;
 

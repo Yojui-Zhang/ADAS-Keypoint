@@ -1,5 +1,6 @@
 #include <opencv2/opencv.hpp>
 #include <string>
+#include <unordered_map>
 
 enum class Icon_ID {
     Light_green, Light_yellow, Light_red, Lightgray, Light_background,
@@ -20,16 +21,8 @@ class IconManager{
         static void Draw_Icon(cv::Mat& background, Icon_ID id, cv::Point location);
 
         static cv::Mat Draw_Icon_Light(cv::Mat& bgr, int light_Set);
-        static cv::Mat Draw_Icon_Sign(cv::Mat& bgr, int light_Set);
+        static cv::Mat Draw_Icon_Sign(cv::Mat& bgr, int sign_Set);
 
     private:
         static std::unordered_map<Icon_ID, cv::Mat> icons_;
 };
-
-void DrawTargetInfo(cv::Mat& img,
-                    float current_speed_kmh,
-                    float target_speed_kmh,
-                    float current_steer_deg,
-                    float target_steer_deg,
-                    float current_brake_0_10,
-                    float target_brake_0_10);

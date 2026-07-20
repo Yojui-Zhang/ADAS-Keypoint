@@ -194,6 +194,7 @@ CollisionAssistOutput CollisionAssist::Step(const std::vector<TrackingBox>& worl
     Trajectory traj;
     traj.id = tb.id;
     traj.age_frames = st.age;
+    traj.detection_score = tb.score;
     traj.p0 = st.pos;
     traj.vrel = st.vel;
     traj.heading_valid = tb.target_heading_valid;
@@ -340,6 +341,8 @@ CollisionAssistOutput CollisionAssist::Step(const std::vector<TrackingBox>& worl
   }
 
   const bool publish_warn_raw = collision_warn_raw || (cfg_.enable_classify_warning && classify_warn_raw);
+  out.collision_warning_raw = collision_warn_raw;
+  out.classify_warning_raw = classify_warn_raw;
 
   bool publish_warn = publish_warn_raw;
   if (cfg_.enable_warning_kf) {

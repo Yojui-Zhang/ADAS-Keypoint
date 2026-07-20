@@ -16,5 +16,6 @@ void ACC_SetEgoSpeedKmh(float ego_speed_kmh);
 void ACC_SetConfig(const AccConfig& cfg);
 AccConfig ACC_GetConfig();
 
-} // namespace acc
+void ACC_RequestManualResume();
 
+} // namespace acc

@@ -7,6 +7,40 @@
 
 std::unordered_map<Icon_ID, cv::Mat> IconManager::icons_;
 
+namespace {
+
+bool IsSpeedSignId(int sign_set)
+{
+    return sign_set >= 0 && sign_set <= 8;
+}
+
+Icon_ID SpeedSignIconId(int sign_set)
+{
+    switch (sign_set) {
+        case 0: return Icon_ID::sign_100km;
+        case 1: return Icon_ID::sign_110km;
+        case 2: return Icon_ID::sign_30km;
+        case 3: return Icon_ID::sign_40km;
+        case 4: return Icon_ID::sign_50km;
+        case 5: return Icon_ID::sign_60km;
+        case 6: return Icon_ID::sign_70km;
+        case 7: return Icon_ID::sign_80km;
+        case 8: return Icon_ID::sign_90km;
+        default: return Icon_ID::sign_30km;
+    }
+}
+
+int ResolveDisplayedSpeedSignId(int sign_set)
+{
+    static int last_valid_sign_set = -1;
+    if (IsSpeedSignId(sign_set)) {
+        last_valid_sign_set = sign_set;
+    }
+    return last_valid_sign_set;
+}
+
+}  // namespace
+
 cv::Mat Load_Icon(const std::string& path, cv::Size target){
 
     cv::Mat img = cv::imread(path, cv::IMREAD_UNCHANGED);
@@ -104,39 +138,11 @@ cv::Mat IconManager::Draw_Icon_Light(cv::Mat& bgr, int light_Set){
 }
 
 cv::Mat IconManager::Draw_Icon_Sign(cv::Mat& bgr, int sign_Set){
-/*
-     light_set = 0      (Green Light)
-     light_set = 1      (Yellow Light)
-     light_set = 2      (Red Light)
-     light_set = other  (Gray Light)
-*/
-
-    if (sign_Set == 0){
-        IconManager::Draw_Icon(bgr, Icon_ID::sign_100km,  cv::Point(950,20));
-    }
-    else if(sign_Set == 1){
-        IconManager::Draw_Icon(bgr, Icon_ID::sign_110km,  cv::Point(950,20));
-    }
-    else if(sign_Set == 2){
-        IconManager::Draw_Icon(bgr, Icon_ID::sign_30km,  cv::Point(950,20));
-    }
-    else if(sign_Set == 3){
-        IconManager::Draw_Icon(bgr, Icon_ID::sign_40km,  cv::Point(950,20));
-    }
-    else if(sign_Set == 4){
-        IconManager::Draw_Icon(bgr, Icon_ID::sign_50km,  cv::Point(950,20));
-    }
-    else if(sign_Set == 5){
-        IconManager::Draw_Icon(bgr, Icon_ID::sign_60km,  cv::Point(950,20));
-    }
-    else if(sign_Set == 6){
-        IconManager::Draw_Icon(bgr, Icon_ID::sign_70km,  cv::Point(950,20));
-    }
-    else if(sign_Set == 7){
-        IconManager::Draw_Icon(bgr, Icon_ID::sign_80km,  cv::Point(950,20));
-    }
-    else if(sign_Set == 8){
-        IconManager::Draw_Icon(bgr, Icon_ID::sign_90km,  cv::Point(950,20));
+    const int displayed_sign_set = ResolveDisplayedSpeedSignId(sign_Set);
+    if (displayed_sign_set >= 0) {
+        IconManager::Draw_Icon(bgr,
+                               SpeedSignIconId(displayed_sign_set),
+                               cv::Point(950,20));
     }
 
     return bgr;

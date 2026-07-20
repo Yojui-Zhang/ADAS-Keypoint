@@ -1,6 +1,10 @@
 #include "runtime_control_commands.h"
 
+#include <algorithm>
+#include <cmath>
 #include <string>
+
+#include "AccApi.h"
 
 namespace controller {
 namespace {
@@ -14,6 +18,40 @@ void FlipBool(bool* value) {
     return;
   }
   *value = (*value == false);
+}
+
+constexpr int kTrafficLightOverrideNone = -1;
+constexpr int kGreenLightClassId = 13;
+constexpr int kRedLightClassId = 15;
+constexpr int kOrangeLightClassId = 16;
+
+constexpr int kSpeedSign100Id = 0;
+constexpr int kSpeedSign110Id = 1;
+constexpr int kSpeedSign30Id = 2;
+constexpr int kSpeedSign40Id = 3;
+constexpr int kSpeedSign50Id = 4;
+constexpr int kSpeedSign60Id = 5;
+constexpr int kSpeedSign70Id = 6;
+constexpr int kSpeedSign80Id = 7;
+constexpr int kSpeedSign90Id = 8;
+
+constexpr float kCruiseSpeedStepKmh = 10.0f;
+
+float AdjustAccCruiseSpeedKmh(float delta_kmh) {
+  acc::AccConfig cfg = acc::ACC_GetConfig();
+  const float current_cruise_speed_kmh =
+      std::isfinite(cfg.cruise_speed_kmh) ? cfg.cruise_speed_kmh : 0.0f;
+
+  cfg.cruise_speed_kmh =
+      std::max(0.0f, current_cruise_speed_kmh + delta_kmh);
+  acc::ACC_SetConfig(cfg);
+
+  return cfg.cruise_speed_kmh;
+}
+
+std::string CruiseSpeedText(float cruise_speed_kmh) {
+  return std::to_string(static_cast<int>(std::lround(cruise_speed_kmh))) +
+         " km/h";
 }
 
 }  // namespace
@@ -119,6 +157,84 @@ bool HandleCommand(user_command_mode_t command,
       FlipBool(&state->demo_lane_departure_warning_enable);
       set_message("Demo lane departure warning -> " +
                   ToggleText(state->demo_lane_departure_warning_enable));
+      return true;
+    case CMD_UP: {
+      const float cruise_speed_kmh =
+          AdjustAccCruiseSpeedKmh(kCruiseSpeedStepKmh);
+      set_message("ACC cruise speed -> " + CruiseSpeedText(cruise_speed_kmh));
+      return true;
+    }
+    case CMD_DOWN: {
+      const float cruise_speed_kmh =
+          AdjustAccCruiseSpeedKmh(-kCruiseSpeedStepKmh);
+      set_message("ACC cruise speed -> " + CruiseSpeedText(cruise_speed_kmh));
+      return true;
+    }
+    case CMD_ACC_RESUME:
+      state->acc_resume_request_pending = true;
+      ++state->acc_resume_request_sequence;
+      set_message("ACC manual resume requested.");
+      return true;
+    case CMD_KEYPAD_LIGHT_GREEN:
+      state->traffic_light_override_class_id = kGreenLightClassId;
+      set_message("Traffic light override -> green.");
+      return true;
+    case CMD_KEYPAD_LIGHT_ORANGE:
+      state->traffic_light_override_class_id = kOrangeLightClassId;
+      set_message("Traffic light override -> orange.");
+      return true;
+    case CMD_KEYPAD_LIGHT_RED:
+      state->traffic_light_override_class_id = kRedLightClassId;
+      set_message("Traffic light override -> red.");
+      return true;
+    case CMD_KEYPAD_LIGHT_CLEAR:
+      state->traffic_light_override_class_id = kTrafficLightOverrideNone;
+      set_message("Traffic light override -> detector.");
+      return true;
+    case CMD_KEYPAD_SIGN_110:
+      state->speed_sign_override_id = kSpeedSign110Id;
+      ++state->speed_sign_override_sequence;
+      set_message("Speed sign override -> 110 km/h.");
+      return true;
+    case CMD_KEYPAD_SIGN_30:
+      state->speed_sign_override_id = kSpeedSign30Id;
+      ++state->speed_sign_override_sequence;
+      set_message("Speed sign override -> 30 km/h.");
+      return true;
+    case CMD_KEYPAD_SIGN_40:
+      state->speed_sign_override_id = kSpeedSign40Id;
+      ++state->speed_sign_override_sequence;
+      set_message("Speed sign override -> 40 km/h.");
+      return true;
+    case CMD_KEYPAD_SIGN_50:
+      state->speed_sign_override_id = kSpeedSign50Id;
+      ++state->speed_sign_override_sequence;
+      set_message("Speed sign override -> 50 km/h.");
+      return true;
+    case CMD_KEYPAD_SIGN_60:
+      state->speed_sign_override_id = kSpeedSign60Id;
+      ++state->speed_sign_override_sequence;
+      set_message("Speed sign override -> 60 km/h.");
+      return true;
+    case CMD_KEYPAD_SIGN_70:
+      state->speed_sign_override_id = kSpeedSign70Id;
+      ++state->speed_sign_override_sequence;
+      set_message("Speed sign override -> 70 km/h.");
+      return true;
+    case CMD_KEYPAD_SIGN_80:
+      state->speed_sign_override_id = kSpeedSign80Id;
+      ++state->speed_sign_override_sequence;
+      set_message("Speed sign override -> 80 km/h.");
+      return true;
+    case CMD_KEYPAD_SIGN_90:
+      state->speed_sign_override_id = kSpeedSign90Id;
+      ++state->speed_sign_override_sequence;
+      set_message("Speed sign override -> 90 km/h.");
+      return true;
+    case CMD_KEYPAD_SIGN_100:
+      state->speed_sign_override_id = kSpeedSign100Id;
+      ++state->speed_sign_override_sequence;
+      set_message("Speed sign override -> 100 km/h.");
       return true;
     case CMD_0: {
       const bool enable = (state->draw_inference_overlay &&

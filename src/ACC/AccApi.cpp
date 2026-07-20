@@ -30,5 +30,9 @@ AccConfig ACC_GetConfig() {
   return g_cfg;
 }
 
-} // namespace acc
+void ACC_RequestManualResume() {
+  std::lock_guard<std::mutex> lk(g_mtx);
+  g_controller.RequestManualResume();
+}
 
+} // namespace acc

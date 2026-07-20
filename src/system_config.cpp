@@ -171,6 +171,36 @@ void ReadSortKeypointConfig(const cv::FileNode& sort_kpt_node, sort_kpt::Keypoin
     ReadIfPresent(kf_node, "init_vel_var", cfg.kf_params.init_vel_var);
 }
 
+void ReadStopAndGoConfig(const cv::FileNode& node, acc::StopAndGoConfig& cfg) {
+    if (node.empty()) {
+        return;
+    }
+
+    ReadBoolIfPresent(node, "enabled", cfg.enabled);
+    ReadIfPresent(node, "approach_max_speed_kmh", cfg.approach_max_speed_kmh);
+    ReadIfPresent(node, "stationary_lead_max_speed_kmh", cfg.stationary_lead_max_speed_kmh);
+    ReadIfPresent(node, "stop_trigger_margin_m", cfg.stop_trigger_margin_m);
+    ReadIfPresent(node, "stop_trigger_time_s", cfg.stop_trigger_time_s);
+    ReadIfPresent(node, "stop_min_decel_mps2", cfg.stop_min_decel_mps2);
+    ReadIfPresent(node, "stop_max_decel_mps2", cfg.stop_max_decel_mps2);
+    ReadIfPresent(node, "hold_enter_speed_kmh", cfg.hold_enter_speed_kmh);
+    ReadIfPresent(node, "hold_brake_0_10", cfg.hold_brake_0_10);
+    ReadIfPresent(node, "minimum_hold_time_s", cfg.minimum_hold_time_s);
+    ReadIfPresent(node, "target_lost_resume_delay_s", cfg.target_lost_resume_delay_s);
+    ReadIfPresent(node, "resume_lead_min_speed_kmh", cfg.resume_lead_min_speed_kmh);
+    ReadIfPresent(node, "resume_distance_delta_m", cfg.resume_distance_delta_m);
+    ReadIfPresent(node, "resume_confirm_time_s", cfg.resume_confirm_time_s);
+    ReadIfPresent(node, "resume_gap_margin_m", cfg.resume_gap_margin_m);
+    ReadIfPresent(node, "resume_max_accel_mps2", cfg.resume_max_accel_mps2);
+    ReadIfPresent(node, "resume_target_min_kmh", cfg.resume_target_min_kmh);
+    ReadIfPresent(node, "resume_target_lead_margin_kmh", cfg.resume_target_lead_margin_kmh);
+    ReadIfPresent(node, "resume_target_cap_kmh", cfg.resume_target_cap_kmh);
+    ReadIfPresent(node, "resume_exit_speed_kmh", cfg.resume_exit_speed_kmh);
+    ReadIfPresent(node, "resume_timeout_s", cfg.resume_timeout_s);
+    ReadIfPresent(node, "close_gap_abort_margin_m", cfg.close_gap_abort_margin_m);
+    ReadIfPresent(node, "resume_target_lost_timeout_s", cfg.resume_target_lost_timeout_s);
+}
+
 void ReadAccConfig(const cv::FileNode& acc_node, acc::AccConfig& cfg) {
     ReadIfPresent(acc_node, "lateral_limit_m", cfg.lateral_limit_m);
     ReadIfPresent(acc_node, "min_forward_m", cfg.min_forward_m);
@@ -202,9 +232,21 @@ void ReadAccConfig(const cv::FileNode& acc_node, acc::AccConfig& cfg) {
     ReadIfPresent(acc_node, "high_speed_brake_time_gap_s", cfg.high_speed_brake_time_gap_s);
     ReadIfPresent(acc_node, "high_speed_brake_gap_margin_m", cfg.high_speed_brake_gap_margin_m);
     ReadIfPresent(acc_node, "high_speed_brake_closing_mps", cfg.high_speed_brake_closing_mps);
+    ReadBoolIfPresent(acc_node, "speed_hold_enable", cfg.speed_hold_enable);
+    ReadIfPresent(acc_node, "speed_hold_min_speed_kmh", cfg.speed_hold_min_speed_kmh);
+    ReadIfPresent(acc_node, "speed_hold_max_closing_mps", cfg.speed_hold_max_closing_mps);
+    ReadIfPresent(acc_node, "speed_hold_min_ttc_s", cfg.speed_hold_min_ttc_s);
+    ReadIfPresent(acc_node, "speed_hold_min_gap_ratio", cfg.speed_hold_min_gap_ratio);
+    ReadBoolIfPresent(acc_node, "cut_in_blend_enable", cfg.cut_in_blend_enable);
+    ReadIfPresent(acc_node, "cut_in_blend_time_s", cfg.cut_in_blend_time_s);
+    ReadIfPresent(acc_node, "cut_in_emergency_ttc_s", cfg.cut_in_emergency_ttc_s);
+    ReadIfPresent(acc_node, "cut_in_emergency_closing_mps", cfg.cut_in_emergency_closing_mps);
+    ReadIfPresent(acc_node, "cut_in_emergency_gap_ratio", cfg.cut_in_emergency_gap_ratio);
 
     ReadIfPresent(acc_node, "default_fps", cfg.default_fps);
     ReadBoolIfPresent(acc_node, "use_external_ego_speed", cfg.use_external_ego_speed);
+
+    ReadStopAndGoConfig(acc_node["stop_and_go"], cfg.stop_and_go);
 }
 
 LkaSpeedProfile MakeLkaSpeedProfileFromBase(const ControlConfig& cfg,
@@ -428,6 +470,16 @@ void ReadCollisionConfig(const cv::FileNode& c_node, collision::CollisionAssistC
     ReadIfPresent(c_node, "ttc_brake_s", cfg.ttc_brake_s);
     ReadIfPresent(c_node, "dis_warn_m", cfg.dis_warn_m);
     ReadIfPresent(c_node, "dis_brake_m", cfg.dis_brake_m);
+    ReadBoolIfPresent(c_node, "enable_aeb_warning_sound", cfg.enable_aeb_warning_sound);
+    ReadIfPresent(c_node, "aeb_warning_ttc_s", cfg.aeb_warning_ttc_s);
+    ReadIfPresent(c_node, "aeb_audio_ttc_off_s", cfg.aeb_audio_ttc_off_s);
+    ReadIfPresent(c_node, "aeb_audio_confirm_time_s", cfg.aeb_audio_confirm_time_s);
+    ReadIfPresent(c_node, "aeb_audio_release_time_s", cfg.aeb_audio_release_time_s);
+    ReadIfPresent(c_node, "aeb_audio_min_approach_speed_mps", cfg.aeb_audio_min_approach_speed_mps);
+    ReadIfPresent(c_node, "aeb_audio_min_track_age_frames", cfg.aeb_audio_min_track_age_frames);
+    ReadIfPresent(c_node, "aeb_audio_min_track_score", cfg.aeb_audio_min_track_score);
+    ReadIfPresent(c_node, "aeb_audio_immediate_ttc_s", cfg.aeb_audio_immediate_ttc_s);
+    ReadIfPresent(c_node, "aeb_audio_immediate_forward_m", cfg.aeb_audio_immediate_forward_m);
 
     ReadIfPresent(c_node, "max_extra_brake_0_10", cfg.max_extra_brake_0_10);
     ReadIfPresent(c_node, "max_avoid_steer_deg", cfg.max_avoid_steer_deg);

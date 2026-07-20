@@ -51,6 +51,11 @@ std::atomic<uint64_t>& CanBrakeTxNs() {
   return ts_ns;
 }
 
+std::atomic<uint64_t>& CanThrottleTxNs() {
+  static std::atomic<uint64_t> ts_ns{0};
+  return ts_ns;
+}
+
 bool ParseBoolEnv(const char* value, bool default_value) {
   if (!value) return default_value;
 
@@ -159,10 +164,18 @@ void TimeSyncMarkCanBrakeTxNs(uint64_t ts_ns) {
   CanBrakeTxNs().store(ts_ns, std::memory_order_release);
 }
 
+void TimeSyncMarkCanThrottleTxNs(uint64_t ts_ns) {
+  CanThrottleTxNs().store(ts_ns, std::memory_order_release);
+}
+
 uint64_t TimeSyncGetCanSteerTxNs() {
   return CanSteerTxNs().load(std::memory_order_acquire);
 }
 
 uint64_t TimeSyncGetCanBrakeTxNs() {
   return CanBrakeTxNs().load(std::memory_order_acquire);
+}
+
+uint64_t TimeSyncGetCanThrottleTxNs() {
+  return CanThrottleTxNs().load(std::memory_order_acquire);
 }

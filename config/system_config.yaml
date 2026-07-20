@@ -42,7 +42,7 @@ app:
 
 input:
   video_path: "../video/1280x720/Paper.mp4"
-  camera_index: -1
+  camera_index: 1
   capture_width: 1280
   capture_height: 720
   window_name: "Screen"
@@ -86,33 +86,94 @@ sort_keypoint:
 acc:
   lateral_limit_m: 1.0
   min_forward_m: 0.5
-  max_forward_m: 35.0
-  lead_hysteresis_m: 1.0
+  max_forward_m: 80
+  lead_hysteresis_m: 3.0
   cruise_speed_kmh: 90.0
-  time_gap_s: 1.5
-  standstill_gap_m: 5.0
-  max_accel_mps2: 3.0
-  comfort_decel_mps2: 2.5
+  time_gap_s: 1.6
+  standstill_gap_m: 4.0
+  max_accel_mps2: 1.4
+  comfort_decel_mps2: 1.8
   max_decel_mps2: 6.0
-  jerk_limit_mps3: 4.0
+  jerk_limit_mps3: 1.5
   brake_full_decel_mps2: 2.0
   brake_multiplier: 1.0
-  throttle_accel_deadband_mps2: 0.15
-  brake_accel_deadband_mps2: 0.20
-  coast_gap_margin_m: 3.0
-  coast_time_gap_margin_s: 0.8
+  throttle_accel_deadband_mps2: 0.10
+  brake_accel_deadband_mps2: 0.30
+  coast_gap_margin_m: 0.5
+  coast_time_gap_margin_s: 0.2
   brake_gap_margin_m: 0.0
-  gap_error_decel_gain_mps2_per_m: 0.35
-  min_brake_decel_mps2: 0.35
-  ttc_soft_brake_s: 3.0
-  ttc_hard_brake_s: 1.5
+  gap_error_decel_gain_mps2_per_m: 0.15
+  min_brake_decel_mps2: 0.20
+  ttc_soft_brake_s: 2.5
+  ttc_hard_brake_s: 1.2
   high_speed_relax_enable: 1
-  high_speed_relax_min_kmh: 40.0
-  high_speed_brake_time_gap_s: 0.55
-  high_speed_brake_gap_margin_m: 2.0
-  high_speed_brake_closing_mps: 1.0
+  high_speed_relax_min_kmh: 50.0
+  high_speed_brake_time_gap_s: 0.65
+  high_speed_brake_gap_margin_m: 1.0
+  high_speed_brake_closing_mps: 2.0
+  speed_hold_enable: 1
+  speed_hold_min_speed_kmh: 50.0
+  speed_hold_max_closing_mps: 1.2
+  speed_hold_min_ttc_s: 4.0
+  speed_hold_min_gap_ratio: 0.70
+  cut_in_blend_enable: 1
+  cut_in_blend_time_s: 0.8
+  cut_in_emergency_ttc_s: 2.0
+  cut_in_emergency_closing_mps: 3.0
+  cut_in_emergency_gap_ratio: 0.65
   default_fps: 20.0
   use_external_ego_speed: 1
+  stop_and_go:
+    enabled: 1
+
+    # 低於此速度才進入停止狀態機。
+    approach_max_speed_kmh: 12.0
+
+    # 前車速度低於此值視為即將停止。
+    stationary_lead_max_speed_kmh: 2.0
+
+    # 停車觸發距離：
+    # standstill_gap + margin + ego_speed * time
+    stop_trigger_margin_m: 3.0
+    stop_trigger_time_s: 0.8
+
+    # 低速停止減速度。
+    stop_min_decel_mps2: 0.35
+    stop_max_decel_mps2: 1.20
+
+    # 自車低於此速度後進入固定煞車保持。
+    hold_enter_speed_kmh: 0.50
+
+    # 第一階段封閉場域標定值。
+    hold_brake_0_10: 0.35
+
+    # 停止後至少保持一秒，禁止立即重新起步。
+    minimum_hold_time_s: 1.0
+
+    # StoppedHold 中前車消失後，確認多久才允許無前車低速恢復。
+    target_lost_resume_delay_s: 0.8
+
+    # 前車移動確認。
+    resume_lead_min_speed_kmh: 2.0
+    resume_distance_delta_m: 1.0
+    resume_confirm_time_s: 0.60
+    resume_gap_margin_m: 0.80
+
+    # 起步限制。
+    resume_max_accel_mps2: 0.60
+    resume_target_min_kmh: 5.0
+    resume_target_lead_margin_kmh: 3.0
+    resume_target_cap_kmh: 12.0
+
+    # 超過此速度後離開起步狀態。
+    resume_exit_speed_kmh: 8.0
+    resume_timeout_s: 4.0
+
+    # 起步期間若距離再次過近，立即回到停止。
+    close_gap_abort_margin_m: 0.30
+
+    # 起步期間短暫漏檢容許時間。
+    resume_target_lost_timeout_s: 0.30
 
 lka:
   wheel_base_m: 2.62
@@ -186,7 +247,7 @@ lka:
   enable_prob_lowpass: 1
   prob_alpha: 0.85
   lane_width_m: 3.76
-  lane_center_offset_m: -0.3
+  lane_center_offset_m: -0.0
   visual_limit_m: 20.0
   lane_detect_vehicle_half_width_m: 0.90
   lane_detect_forward_range_m: 3.0
@@ -243,6 +304,16 @@ collision:
   ttc_brake_s: 1.2
   dis_warn_m: 12.0
   dis_brake_m: 6.0
+  enable_aeb_warning_sound: 1
+  aeb_warning_ttc_s: 2.0
+  aeb_audio_ttc_off_s: 2.8
+  aeb_audio_confirm_time_s: 0.20
+  aeb_audio_release_time_s: 0.30
+  aeb_audio_min_approach_speed_mps: 1.2
+  aeb_audio_min_track_age_frames: 5
+  aeb_audio_min_track_score: 0.45
+  aeb_audio_immediate_ttc_s: 0.80
+  aeb_audio_immediate_forward_m: 8.0
   max_extra_brake_0_10: 4.0
   max_avoid_steer_deg: 4.0
   enable_classify_warning: 1
@@ -259,11 +330,11 @@ collision:
   warning_kf_r: 1.0
   warning_kf_on_th: 0.65
   warning_kf_off_th: 0.35
-  track_warmup_frames: 3
+  track_warmup_frames: 5
   attention_half_width_m: 2.5
   min_approach_speed_mps: 0.8
-  threat_hold_frames: 6
-  threat_switch_hysteresis_s: 0.4
+  threat_hold_frames: 8
+  threat_switch_hysteresis_s: 0.50
   tracker_alpha: 0.6
   tracker_beta: 0.2
   tracker_dt_min_s: 0.005

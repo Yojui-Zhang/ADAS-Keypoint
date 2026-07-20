@@ -147,6 +147,7 @@ void ResearchDataLogger::WriteHeader() {
        << ",cmd_sync_ns"
        << ",can_steer_tx_sync_ns"
        << ",can_brake_tx_sync_ns"
+       << ",can_throttle_tx_sync_ns"
        << ",dt_s"
        << ",ego_speed_kmh"
        << ",perf_fps"
@@ -209,6 +210,18 @@ void ResearchDataLogger::WriteHeader() {
        << ",acc_target_bottom_center_v_px"
        << ",acc_longitudinal_phase_code"
        << ",acc_longitudinal_phase_text"
+       << ",acc_stop_state_code"
+       << ",acc_stop_state"
+       << ",acc_stop_state_time_s"
+       << ",acc_hold_active"
+       << ",acc_resume_active"
+       << ",acc_manual_resume_request_sequence"
+       << ",acc_resume_without_lead_active"
+       << ",acc_held_lead_id"
+       << ",acc_held_lead_distance_m"
+       << ",acc_resume_confirm_time_s"
+       << ",acc_stop_output_accel_mps2"
+       << ",acc_hold_brake_0_10"
        << ",acc_control_ego_speed_kmh"
        << ",acc_control_cruise_speed_kmh"
        << ",acc_control_speed_cmd_kmh"
@@ -216,8 +229,20 @@ void ResearchDataLogger::WriteHeader() {
        << ",acc_control_accel_cmd_mps2"
        << ",acc_control_free_accel_nom_mps2"
        << ",acc_control_free_accel_limited_mps2"
+       << ",acc_drive_mode"
+       << ",acc_speed_hold_recommended"
+       << ",acc_desired_gap_m"
+       << ",acc_coast_gap_m"
+       << ",acc_high_speed_brake_gap_m"
+       << ",acc_closing_speed_mps"
+       << ",acc_gap_ratio"
+       << ",acc_cut_in_transition_active"
+       << ",acc_cut_in_blend"
+       << ",brake_control_active"
        << ",acc_object_state_summary"
        << ",collision_warning"
+       << ",collision_warning_raw"
+       << ",classify_warning_raw"
        << ",collision_threat_id"
        << ",collision_threat_ttc_s"
        << ",collision_threat_dist_now_m"
@@ -225,6 +250,17 @@ void ResearchDataLogger::WriteHeader() {
        << ",collision_threat_approach_speed_mps"
        << ",collision_threat_pos_x_m"
        << ",collision_threat_pos_y_m"
+       << ",aeb_audio_candidate"
+       << ",aeb_audio_confirm_time_s"
+       << ",aeb_audio_release_time_s"
+       << ",aeb_audio_active"
+       << ",aeb_audio_rising_edge"
+       << ",aeb_audio_threat_id"
+       << ",aeb_audio_ttc_s"
+       << ",aeb_audio_forward_m"
+       << ",aeb_audio_approach_speed_mps"
+       << ",aeb_audio_track_age"
+       << ",aeb_audio_track_score"
        << ",world_object_count"
        << ",world_car_count"
        << ",world_person_count"
@@ -273,8 +309,10 @@ void ResearchDataLogger::WriteHeader() {
        << ",latency_frame_to_cmd_ms"
        << ",latency_cmd_to_can_steer_tx_ms"
        << ",latency_cmd_to_can_brake_tx_ms"
+       << ",latency_cmd_to_can_throttle_tx_ms"
        << ",latency_frame_to_can_steer_tx_ms"
        << ",latency_frame_to_can_brake_tx_ms"
+       << ",latency_frame_to_can_throttle_tx_ms"
        << ",can_last_rx_age_at_cmd_ms"
        << ",can_powertrain_age_at_cmd_ms"
        << ",can_speed_age_at_cmd_ms"
@@ -284,6 +322,28 @@ void ResearchDataLogger::WriteHeader() {
        << ",can_turn_signal_age_at_cmd_ms"
        << ",can_gear_text"
        << ",can_turn_signal_text"
+       << ",throttle_mode_code"
+       << ",throttle_mode_text"
+       << ",throttle_requested_mode"
+       << ",throttle_effective_mode"
+       << ",throttle_target_speed_kmh"
+       << ",throttle_current_speed_kmh"
+       << ",throttle_feedforward_pedal_v"
+       << ",throttle_speed_error_kmh"
+       << ",throttle_integral_v"
+       << ",throttle_final_pedal_v"
+       << ",throttle_pedal_upper_v"
+       << ",throttle_vehicle_speed_fresh"
+       << ",throttle_vehicle_speed_age_ms"
+       << ",throttle_vehicle_speed_timestamp_ns"
+       << ",throttle_tx_requested_voltage_v"
+       << ",throttle_tx_clamped_voltage_v"
+       << ",throttle_tx_adc"
+       << ",throttle_tx_data0"
+       << ",throttle_tx_data1"
+       << ",throttle_tx_write_result"
+       << ",throttle_control_mode"
+       << ",final_pedal_voltage"
        << '\n';
 }
 
@@ -366,6 +426,7 @@ void ResearchDataLogger::LogFrame(const ResearchLogFrame& frame) {
        << ',' << frame.cmd_sync_ns
        << ',' << frame.can_steer_tx_sync_ns
        << ',' << frame.can_brake_tx_sync_ns
+       << ',' << frame.can_throttle_tx_sync_ns
        << ',' << FiniteOrNaN(dt_s)
        << ',' << FiniteOrNaN(frame.ego_speed_kmh)
        << ',' << FiniteOrNaN(frame.perf_fps)
@@ -428,6 +489,18 @@ void ResearchDataLogger::LogFrame(const ResearchLogFrame& frame) {
        << ',' << FiniteOrNaN(frame.acc_target_bottom_center_v_px)
        << ',' << frame.acc_longitudinal_phase_code
        << ',' << frame.acc_longitudinal_phase_text
+       << ',' << frame.acc_stop_state_code
+       << ',' << frame.acc_stop_state
+       << ',' << FiniteOrNaN(frame.acc_stop_state_time_s)
+       << ',' << (frame.acc_hold_active ? 1 : 0)
+       << ',' << (frame.acc_resume_active ? 1 : 0)
+       << ',' << frame.acc_manual_resume_request_sequence
+       << ',' << (frame.acc_resume_without_lead_active ? 1 : 0)
+       << ',' << frame.acc_held_lead_id
+       << ',' << FiniteOrNaN(frame.acc_held_lead_distance_m)
+       << ',' << FiniteOrNaN(frame.acc_resume_confirm_time_s)
+       << ',' << FiniteOrNaN(frame.acc_stop_output_accel_mps2)
+       << ',' << FiniteOrNaN(frame.acc_hold_brake_0_10)
        << ',' << FiniteOrNaN(frame.acc_control_ego_speed_kmh)
        << ',' << FiniteOrNaN(frame.acc_control_cruise_speed_kmh)
        << ',' << FiniteOrNaN(frame.acc_control_speed_cmd_kmh)
@@ -435,8 +508,20 @@ void ResearchDataLogger::LogFrame(const ResearchLogFrame& frame) {
        << ',' << FiniteOrNaN(frame.acc_control_accel_cmd_mps2)
        << ',' << FiniteOrNaN(frame.acc_control_free_accel_nom_mps2)
        << ',' << FiniteOrNaN(frame.acc_control_free_accel_limited_mps2)
+       << ',' << frame.acc_drive_mode
+       << ',' << (frame.acc_speed_hold_recommended ? 1 : 0)
+       << ',' << FiniteOrNaN(frame.acc_desired_gap_m)
+       << ',' << FiniteOrNaN(frame.acc_coast_gap_m)
+       << ',' << FiniteOrNaN(frame.acc_high_speed_brake_gap_m)
+       << ',' << FiniteOrNaN(frame.acc_closing_speed_mps)
+       << ',' << FiniteOrNaN(frame.acc_gap_ratio)
+       << ',' << (frame.acc_cut_in_transition_active ? 1 : 0)
+       << ',' << FiniteOrNaN(frame.acc_cut_in_blend)
+       << ',' << (frame.brake_control_active ? 1 : 0)
        << ',' << frame.acc_object_state_summary
        << ',' << (frame.collision_warning ? 1 : 0)
+       << ',' << (frame.collision_warning_raw ? 1 : 0)
+       << ',' << (frame.classify_warning_raw ? 1 : 0)
        << ',' << frame.collision_threat_id
        << ',' << FiniteOrNaN(frame.collision_threat_ttc_s)
        << ',' << FiniteOrNaN(frame.collision_threat_dist_now_m)
@@ -444,6 +529,17 @@ void ResearchDataLogger::LogFrame(const ResearchLogFrame& frame) {
        << ',' << FiniteOrNaN(frame.collision_threat_approach_speed_mps)
        << ',' << FiniteOrNaN(frame.collision_threat_pos_x_m)
        << ',' << FiniteOrNaN(frame.collision_threat_pos_y_m)
+       << ',' << (frame.aeb_audio_candidate ? 1 : 0)
+       << ',' << FiniteOrNaN(frame.aeb_audio_confirm_time_s)
+       << ',' << FiniteOrNaN(frame.aeb_audio_release_time_s)
+       << ',' << (frame.aeb_audio_active ? 1 : 0)
+       << ',' << (frame.aeb_audio_rising_edge ? 1 : 0)
+       << ',' << frame.aeb_audio_threat_id
+       << ',' << FiniteOrNaN(frame.aeb_audio_ttc_s)
+       << ',' << FiniteOrNaN(frame.aeb_audio_forward_m)
+       << ',' << FiniteOrNaN(frame.aeb_audio_approach_speed_mps)
+       << ',' << frame.aeb_audio_track_age
+       << ',' << FiniteOrNaN(frame.aeb_audio_track_score)
        << ',' << frame.world_object_count
        << ',' << frame.world_car_count
        << ',' << frame.world_person_count
@@ -492,8 +588,10 @@ void ResearchDataLogger::LogFrame(const ResearchLogFrame& frame) {
        << ',' << FiniteOrNaN(frame.latency_frame_to_cmd_ms)
        << ',' << FiniteOrNaN(frame.latency_cmd_to_can_steer_tx_ms)
        << ',' << FiniteOrNaN(frame.latency_cmd_to_can_brake_tx_ms)
+       << ',' << FiniteOrNaN(frame.latency_cmd_to_can_throttle_tx_ms)
        << ',' << FiniteOrNaN(frame.latency_frame_to_can_steer_tx_ms)
        << ',' << FiniteOrNaN(frame.latency_frame_to_can_brake_tx_ms)
+       << ',' << FiniteOrNaN(frame.latency_frame_to_can_throttle_tx_ms)
        << ',' << FiniteOrNaN(frame.can_last_rx_age_at_cmd_ms)
        << ',' << FiniteOrNaN(frame.can_powertrain_age_at_cmd_ms)
        << ',' << FiniteOrNaN(frame.can_speed_age_at_cmd_ms)
@@ -503,6 +601,28 @@ void ResearchDataLogger::LogFrame(const ResearchLogFrame& frame) {
        << ',' << FiniteOrNaN(frame.can_turn_signal_age_at_cmd_ms)
        << ',' << frame.can_gear_text
        << ',' << frame.can_turn_signal_text
+       << ',' << frame.throttle_mode_code
+       << ',' << frame.throttle_mode_text
+       << ',' << frame.throttle_requested_mode
+       << ',' << frame.throttle_effective_mode
+       << ',' << FiniteOrNaN(frame.throttle_target_speed_kmh)
+       << ',' << FiniteOrNaN(frame.throttle_current_speed_kmh)
+       << ',' << FiniteOrNaN(frame.throttle_feedforward_pedal_v)
+       << ',' << FiniteOrNaN(frame.throttle_speed_error_kmh)
+       << ',' << FiniteOrNaN(frame.throttle_integral_v)
+       << ',' << FiniteOrNaN(frame.throttle_final_pedal_v)
+       << ',' << FiniteOrNaN(frame.throttle_pedal_upper_v)
+       << ',' << (frame.throttle_vehicle_speed_fresh ? 1 : 0)
+       << ',' << FiniteOrNaN(frame.throttle_vehicle_speed_age_ms)
+       << ',' << frame.throttle_vehicle_speed_timestamp_ns
+       << ',' << FiniteOrNaN(frame.throttle_tx_requested_voltage_v)
+       << ',' << FiniteOrNaN(frame.throttle_tx_clamped_voltage_v)
+       << ',' << frame.throttle_tx_adc
+       << ',' << frame.throttle_tx_data0
+       << ',' << frame.throttle_tx_data1
+       << ',' << frame.throttle_tx_write_result
+       << ',' << frame.throttle_control_mode
+       << ',' << FiniteOrNaN(frame.final_pedal_voltage)
        << '\n';
 
   flush_counter_ += 1;

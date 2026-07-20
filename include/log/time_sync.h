@@ -10,6 +10,7 @@ const std::string& TimeSyncClockSource();
 
 void TimeSyncMarkCanSteerTxNs(uint64_t ts_ns);
 void TimeSyncMarkCanBrakeTxNs(uint64_t ts_ns);
+void TimeSyncMarkCanThrottleTxNs(uint64_t ts_ns);
 uint64_t TimeSyncGetCanSteerTxNs();
 uint64_t TimeSyncGetCanBrakeTxNs();
-
+uint64_t TimeSyncGetCanThrottleTxNs();

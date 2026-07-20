@@ -3,6 +3,8 @@
 #include <cstdint>
 #include <vector>
 
+#include "StopAndGoController.h"
+
 namespace acc {
 
 enum class AccTrackedObjectState : std::uint8_t {
@@ -17,6 +19,7 @@ enum class AccLongitudinalPhase : std::uint8_t {
   Accelerating = 1,
   Idle = 2,
   Braking = 3,
+  Coasting = 4,
 };
 
 inline const char* AccTrackedObjectStateName(AccTrackedObjectState state) {
@@ -32,13 +35,15 @@ inline int AccTrackedObjectStateCode(AccTrackedObjectState state) {
   return static_cast<int>(state);
 }
 
-inline const char* AccLongitudinalPhaseName(AccLongitudinalPhase phase) {
+inline const char* AccLongitudinalPhaseName(const AccLongitudinalPhase phase) noexcept {
   switch (phase) {
     case AccLongitudinalPhase::MaxHold: return "max_hold";
     case AccLongitudinalPhase::Accelerating: return "accelerating";
+    case AccLongitudinalPhase::Coasting: return "coasting";
     case AccLongitudinalPhase::Braking: return "braking";
-    default: return "idle";
+    case AccLongitudinalPhase::Idle: return "idle";
   }
+  return "unknown";
 }
 
 inline int AccLongitudinalPhaseCode(AccLongitudinalPhase phase) {
@@ -171,6 +176,18 @@ struct AccConfig {
   float high_speed_brake_gap_margin_m = 2.0f;
   float high_speed_brake_closing_mps = 1.0f;
 
+  bool speed_hold_enable = true;
+  float speed_hold_min_speed_kmh = 50.0f;
+  float speed_hold_max_closing_mps = 1.2f;
+  float speed_hold_min_ttc_s = 4.0f;
+  float speed_hold_min_gap_ratio = 0.70f;
+
+  bool cut_in_blend_enable = true;
+  float cut_in_blend_time_s = 0.8f;
+  float cut_in_emergency_ttc_s = 2.0f;
+  float cut_in_emergency_closing_mps = 3.0f;
+  float cut_in_emergency_gap_ratio = 0.65f;
+
 
   // ==========================================
   // 5. 系統與更新 (System)
@@ -184,6 +201,8 @@ struct AccConfig {
   // True: 使用 ACC_SetEgoSpeedKmh 傳入的 CAN 車速 (推薦，控制較穩)。
   // False: 控制器內部自行積分加速度來估算車速 (會有累積誤差，僅供測試用)。
   bool  use_external_ego_speed = false;
+
+  StopAndGoConfig stop_and_go{};
 };
 
 struct AccCommand {
@@ -211,6 +230,25 @@ struct AccCommand {
   float free_accel_limited_mps2 = 0.0f;
   float lead_lateral_m = 0.0f;
   AccLongitudinalPhase longitudinal_phase = AccLongitudinalPhase::Idle;
+  bool speed_hold_recommended = false;
+  float desired_gap_m = 0.0f;
+  float coast_gap_m = 0.0f;
+  float high_speed_brake_gap_m = 0.0f;
+  float closing_speed_mps = 0.0f;
+  float gap_ratio = 0.0f;
+  bool cut_in_transition_active = false;
+  float cut_in_blend = 1.0f;
+
+  AccStopState stop_state = AccStopState::Moving;
+  float stop_state_time_s = 0.0f;
+  bool stop_hold_active = false;
+  bool resume_active = false;
+  bool resume_without_lead_active = false;
+  int held_lead_id = -1;
+  float held_lead_distance_m = 0.0f;
+  float resume_confirm_time_s = 0.0f;
+  float stop_output_accel_mps2 = 0.0f;
+  float hold_brake_0_10 = 0.0f;
 
   std::vector<int> candidate_ids;     // 本幀通過 ACC 候選篩選的目標 ID
 };

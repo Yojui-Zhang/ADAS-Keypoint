@@ -154,6 +154,16 @@ enum TURN_SIGNAL
 	OFF, LEFT, RIGHT, INVALID
 };
 
+struct CanThrottleTxTelemetry {
+	std::uint64_t timestamp_ns = 0;
+	double requested_voltage_v = 0.75;
+	double clamped_voltage_v = 0.75;
+	int pedal_adc = 0;
+	std::uint8_t data0 = 0;
+	std::uint8_t data1 = 0;
+	int write_result = 0;
+};
+
 extern std::vector<int> radarX;
 extern std::vector<int> radarY;
 extern std::vector<int> radarP;
@@ -163,7 +173,8 @@ extern std::vector<double> radarV;
 extern void canbus_recv(CAR &car);
 extern void canbus_ctrl_steer(int SW);
 extern void canbus_set_steering_tx_enabled(int enabled);
-extern void canbus_ctrl_pedal(double pedalDst);
+extern void canbus_ctrl_pedal(double pedal_voltage_v);
+extern CanThrottleTxTelemetry canbus_get_throttle_tx_telemetry();
 extern void canbus_ctrl_gear(int gearDst);
 extern void canbus_ctrl_dec(int SW);
 extern void canbus_stop_dec();

@@ -74,6 +74,22 @@ typedef enum //Type of command that user control mode.
     CMD_L,
     CMD_P,
     CMD_SEMICOLON,
+    CMD_ACC_RESUME,
+
+    CMD_KEYPAD_LIGHT_GREEN,
+    CMD_KEYPAD_LIGHT_ORANGE,
+    CMD_KEYPAD_LIGHT_RED,
+    CMD_KEYPAD_LIGHT_CLEAR,
+
+    CMD_KEYPAD_SIGN_110,
+    CMD_KEYPAD_SIGN_30,
+    CMD_KEYPAD_SIGN_40,
+    CMD_KEYPAD_SIGN_50,
+    CMD_KEYPAD_SIGN_60,
+    CMD_KEYPAD_SIGN_70,
+    CMD_KEYPAD_SIGN_80,
+    CMD_KEYPAD_SIGN_90,
+    CMD_KEYPAD_SIGN_100,
 } user_command_mode_t;
 
 #endif

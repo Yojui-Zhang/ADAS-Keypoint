@@ -262,7 +262,7 @@ int FramePresenter::ShowOpenCv(cv::Mat& frame, const DrawCommandBuffer* overlay_
   }
   cv::resize(frame, frame, cv::Size(output_width_, output_height_));
   cv::imshow(window_name_, frame);
-  return cv::waitKey(wait_key_ms_);
+  return cv::waitKeyEx(wait_key_ms_);
 }
 
 int FramePresenter::ShowOpenGl(cv::Mat& frame, const DrawCommandBuffer* overlay_commands) {
@@ -275,7 +275,7 @@ int FramePresenter::ShowOpenGl(cv::Mat& frame, const DrawCommandBuffer* overlay_
     DrawOpenGlCommands(*overlay_commands, source_width, source_height, output_width_, output_height_);
   }
   swap_egl();
-  return cv::waitKey(wait_key_ms_);
+  return cv::waitKeyEx(wait_key_ms_);
 #else
   if (!warned_fallback_) {
     std::cerr << "FramePresenter: render_backend=opengl requested, "

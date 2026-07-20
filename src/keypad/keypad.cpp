@@ -13,6 +13,11 @@ namespace keypad {
 
 namespace {
 
+constexpr int kCvKeyUpWin = 2490368;
+constexpr int kCvKeyDownWin = 2621440;
+constexpr int kCvKeyUpX11 = 65362;
+constexpr int kCvKeyDownX11 = 65364;
+
 user_command_mode_t NormalizeCommand(user_command_mode_t cmd) {
   if (cmd == CMD_DEFAULT) {
     return CMD_NONE;
@@ -181,6 +186,17 @@ user_command_mode_t MapCvKeyToCommand(int key) {
     return CMD_NONE;
   }
 
+  switch (key) {
+    case kCvKeyUpWin:
+    case kCvKeyUpX11:
+      return CMD_UP;
+    case kCvKeyDownWin:
+    case kCvKeyDownX11:
+      return CMD_DOWN;
+    default:
+      break;
+  }
+
   const user_command_mode_t digit = MapAsciiDigit(key);
   if (digit == CMD_DEFAULT) {
   } else {
@@ -207,26 +223,25 @@ user_command_mode_t MapCvKeyToCommand(int key) {
 
 user_command_mode_t MapLinuxKeyCodeToCommand(int key_code) {
   switch (key_code) {
-    case KEY_0:
-    case KEY_KP0: return CMD_0;
-    case KEY_1:
-    case KEY_KP1: return CMD_1;
-    case KEY_2:
-    case KEY_KP2: return CMD_2;
-    case KEY_3:
-    case KEY_KP3: return CMD_3;
-    case KEY_4:
-    case KEY_KP4: return CMD_4;
-    case KEY_5:
-    case KEY_KP5: return CMD_5;
-    case KEY_6:
-    case KEY_KP6: return CMD_6;
-    case KEY_7:
-    case KEY_KP7: return CMD_7;
-    case KEY_8:
-    case KEY_KP8: return CMD_8;
-    case KEY_9:
-    case KEY_KP9: return CMD_9;
+    case KEY_0: return CMD_0;
+    case KEY_KP0: return CMD_KEYPAD_SIGN_100;
+    case KEY_1: return CMD_1;
+    case KEY_KP1: return CMD_KEYPAD_SIGN_110;
+    case KEY_2: return CMD_2;
+    case KEY_3: return CMD_3;
+    case KEY_KP3: return CMD_KEYPAD_SIGN_30;
+    case KEY_4: return CMD_4;
+    case KEY_KP4: return CMD_KEYPAD_SIGN_40;
+    case KEY_5: return CMD_5;
+    case KEY_KP5: return CMD_KEYPAD_SIGN_50;
+    case KEY_6: return CMD_6;
+    case KEY_KP6: return CMD_KEYPAD_SIGN_60;
+    case KEY_7: return CMD_7;
+    case KEY_KP7: return CMD_KEYPAD_SIGN_70;
+    case KEY_8: return CMD_8;
+    case KEY_KP8: return CMD_KEYPAD_SIGN_80;
+    case KEY_9: return CMD_9;
+    case KEY_KP9: return CMD_KEYPAD_SIGN_90;
     case KEY_Q: return CMD_Q;
     case KEY_W: return CMD_W;
     case KEY_E: return CMD_E;
@@ -254,16 +269,26 @@ user_command_mode_t MapLinuxKeyCodeToCommand(int key_code) {
     case KEY_N: return CMD_N;
     case KEY_M: return CMD_M;
     case KEY_BACKSPACE: return CMD_RETURN;
-    case KEY_ENTER:
-    case KEY_KPENTER: return CMD_ENTER;
-    case KEY_MINUS:
-    case KEY_KPMINUS: return CMD_MINUS;
-    case KEY_EQUAL:
-    case KEY_KPPLUS: return CMD_PLUS;
+    case KEY_ENTER: return CMD_ENTER;
+    case KEY_KPENTER: return CMD_KEYPAD_LIGHT_RED;
+    case KEY_MINUS: return CMD_MINUS;
+    case KEY_KPMINUS: return CMD_KEYPAD_LIGHT_GREEN;
+    case KEY_EQUAL: return CMD_PLUS;
+    case KEY_KPPLUS: return CMD_KEYPAD_LIGHT_ORANGE;
     case KEY_SLASH:
     case KEY_KPSLASH: return CMD_SLASH;
     case KEY_COMMA: return CMD_COMMA;
     case KEY_SEMICOLON: return CMD_SEMICOLON;
+    case KEY_UP: return CMD_UP;
+    case KEY_DOWN: return CMD_DOWN;
+#ifdef KEY_KPDOT
+    case KEY_KPDOT: return CMD_KEYPAD_LIGHT_CLEAR;
+#endif
+#ifdef KEY_KPCOMMA
+    case KEY_KPCOMMA: return CMD_KEYPAD_LIGHT_CLEAR;
+#endif
+    case KEY_LEFTCTRL:
+    case KEY_RIGHTCTRL: return CMD_ACC_RESUME;
     default: return CMD_DEFAULT;
   }
 }

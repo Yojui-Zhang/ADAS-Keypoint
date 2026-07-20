@@ -162,42 +162,54 @@ VehicleControlCommand StabilitySupervisor::Update(double ego_speed_mps,
       acc_cmd.longitudinal_phase == acc::AccLongitudinalPhase::Idle &&
       brake <= 1e-3 &&
       acc_cmd.speed_kmh <= 0.2f;
+  const bool acc_coast_request =
+      acc_cmd.longitudinal_phase == acc::AccLongitudinalPhase::Coasting &&
+      brake <= 1e-3;
+  const bool acc_zero_accel_request = acc_idle_request || acc_coast_request;
 
-  double v_acc_target = acc_idle_request
+  const double v_acc_target = acc_zero_accel_request
       ? v
       : KmH2mps(std::max(0.0f, acc_cmd.speed_kmh));
 
   double a_brake_need = 0.0;
   if (brake > 1e-3) {
-    const double mult = std::max(1e-3f, acc_cfg.brake_multiplier);
-    const double full = std::max(1e-3f, acc_cfg.brake_full_decel_mps2);
-    a_brake_need = (brake / mult) * full;
+    const double multiplier = std::max(1e-3f, acc_cfg.brake_multiplier);
+    const double full_decel_mps2 = std::max(1e-3f, acc_cfg.brake_full_decel_mps2);
+    a_brake_need = (brake / multiplier) * full_decel_mps2;
   }
 
   double a_long_need = 0.0;
   if (a_brake_need > 1e-3) a_long_need = -a_brake_need;
-  else if (acc_idle_request) a_long_need = 0.0;
+  else if (acc_zero_accel_request) a_long_need = 0.0;
   else                     a_long_need = (v_acc_target - v) / dt_s;
 
   // 8) supervisor target speed (ACC vs curve), smoothing, rate limit (discrete-time)
   const double v_target_raw = std::min(v_acc_target, v_curve_limit);
+  const bool curve_is_bottleneck = (v_curve_limit + 1e-3 < v_acc_target);
   double v_target = v_target_raw;
 
-  const double sp_a = clampd(cfg_.speed_lowpass_alpha, 0.0, 0.999);
-  if (last_speed_cmd_mps_ <= 1e-6) last_speed_cmd_mps_ = v_target;
-  v_target = sp_a * last_speed_cmd_mps_ + (1.0 - sp_a) * v_target;
+  if (acc_coast_request && !curve_is_bottleneck) {
+    v_target = v;
+    last_speed_cmd_mps_ = v;
+  } else {
+    const double speed_alpha = clampd(cfg_.speed_lowpass_alpha, 0.0, 0.999);
+    if (last_speed_cmd_mps_ <= 1e-6) last_speed_cmd_mps_ = v_target;
+    v_target = speed_alpha * last_speed_cmd_mps_ + (1.0 - speed_alpha) * v_target;
 
-  const double dv_up   = cfg_.max_speed_rise_mps2 * dt_s;
-  const double dv_down = cfg_.max_speed_drop_mps2 * dt_s;
-  v_target = clampd(v_target, last_speed_cmd_mps_ - dv_down, last_speed_cmd_mps_ + dv_up);
+    const double dv_up = cfg_.max_speed_rise_mps2 * dt_s;
+    const double dv_down = cfg_.max_speed_drop_mps2 * dt_s;
+    v_target = clampd(v_target, last_speed_cmd_mps_ - dv_down, last_speed_cmd_mps_ + dv_up);
+  }
 
   // If ACC is not asking for brake and the curve-speed limit is not the active
   // bottleneck, do not let target smoothing lag behind the current ego speed and
   // create a false decel request.
   const bool acc_requests_brake = (a_brake_need > 1e-3);
-  const bool curve_is_bottleneck = (v_curve_limit + 1e-3 < v_acc_target);
   const bool acc_wants_hold_or_accel = (v_acc_target + 1e-3 >= v);
-  if (!acc_requests_brake && !curve_is_bottleneck && acc_wants_hold_or_accel) {
+  if (!acc_coast_request &&
+      !acc_requests_brake &&
+      !curve_is_bottleneck &&
+      acc_wants_hold_or_accel) {
     v_target = std::max(v_target, v);
   }
 
@@ -263,6 +275,9 @@ VehicleControlCommand StabilitySupervisor::Update(double ego_speed_mps,
   if (acc_released_brake && a_long_cmd < 0.0) {
     a_long_cmd = 0.0;
   }
+  if (acc_coast_request && !curve_is_bottleneck && !acc_requests_brake) {
+    a_long_cmd = 0.0;
+  }
 
   last_a_long_cmd_mps2_ = a_long_cmd;
 
@@ -285,17 +300,19 @@ VehicleControlCommand StabilitySupervisor::Update(double ego_speed_mps,
   double speed_out_kmh = mps2KmH(v_cmd);
 
   if (a_long_cmd < -0.05) {
-    const double decel_need = -a_long_cmd;
-    const double mult = std::max(1e-3f, acc_cfg.brake_multiplier);
-    const double full = std::max(1e-3f, acc_cfg.brake_full_decel_mps2);
-    brake_out = (decel_need / full) * mult;
+    const double decel_need_mps2 = -a_long_cmd;
+    const double multiplier = std::max(1e-3f, acc_cfg.brake_multiplier);
+    const double full_decel_mps2 = std::max(1e-3f, acc_cfg.brake_full_decel_mps2);
+    brake_out = (decel_need_mps2 / full_decel_mps2) * multiplier;
     brake_out = clampd(brake_out, 0.0, 10.0);
 
     // keep your convention: braking -> speed=0
     speed_out_kmh = 0.0;
   } else if (acc_idle_request && !curve_is_bottleneck) {
-    // ACC idle means coast: do not ask the throttle PID to hold current speed.
+    // Idle remains a disabled/invalid command and maps to zero speed.
     speed_out_kmh = 0.0;
+  } else if (acc_coast_request && !curve_is_bottleneck) {
+    speed_out_kmh = mps2KmH(v);
   }
 
   out.steer_deg   = static_cast<float>(steer_out_deg);

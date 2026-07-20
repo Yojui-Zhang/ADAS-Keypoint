@@ -19,6 +19,7 @@ namespace collision {
 struct Trajectory {
   int id = -1;
   int age_frames = 0;                 // 速度估測成熟度 (warmup)
+  float detection_score = 0.0f;
   cv::Point2f p0{};
   cv::Point2f vrel{};
   bool heading_valid = false;
@@ -42,6 +43,17 @@ struct CollisionAssistConfig {
   float ttc_brake_s = 1.2f;    // TTC 介入煞車門檻（s）
   float dis_warn_m  = 12.0f;   // 距離警示門檻（m）
   float dis_brake_m = 6.0f;    // 距離煞車門檻（m）
+
+  bool enable_aeb_warning_sound = true;
+  float aeb_warning_ttc_s = 1.2f;
+  float aeb_audio_ttc_off_s = 2.8f;
+  float aeb_audio_confirm_time_s = 0.20f;
+  float aeb_audio_release_time_s = 0.30f;
+  float aeb_audio_min_approach_speed_mps = 1.2f;
+  int aeb_audio_min_track_age_frames = 5;
+  float aeb_audio_min_track_score = 0.45f;
+  float aeb_audio_immediate_ttc_s = 0.80f;
+  float aeb_audio_immediate_forward_m = 8.0f;
 
   float max_extra_brake_0_10 = 4.0f;  // 最大追加煞車量（0~10）
   float max_avoid_steer_deg  = 4.0f;  // 最大追加避讓轉角（deg）
@@ -102,6 +114,8 @@ struct CollisionAssistConfig {
 
 struct CollisionAssistOutput {
   bool warning = false;
+  bool collision_warning_raw = false;
+  bool classify_warning_raw = false;
   int threat_id = -1;
 
   float threat_ttc_s = std::numeric_limits<float>::infinity();

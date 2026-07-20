@@ -38,6 +38,7 @@ inline cv::Scalar AccLongitudinalPhaseColor(AccLongitudinalPhase phase) {
   switch (phase) {
     case AccLongitudinalPhase::MaxHold: return GREEN;
     case AccLongitudinalPhase::Accelerating: return CYAN;
+    case AccLongitudinalPhase::Coasting: return ORANGE;
     case AccLongitudinalPhase::Idle: return YELLOW;
     case AccLongitudinalPhase::Braking: return RED;
   }
@@ -48,10 +49,11 @@ inline const char* AccLongitudinalPhaseOverlayLabel(AccLongitudinalPhase phase) 
   switch (phase) {
     case AccLongitudinalPhase::MaxHold: return "MAX HOLD";
     case AccLongitudinalPhase::Accelerating: return "ACCEL";
+    case AccLongitudinalPhase::Coasting: return "COAST";
     case AccLongitudinalPhase::Idle: return "IDLE";
     case AccLongitudinalPhase::Braking: return "BRAKE";
   }
-  return "IDLE";
+  return "UNKNOWN";
 }
 
 inline void DrawAccOutlinedText(cv::Mat& frame,
@@ -122,17 +124,14 @@ inline void ACC_DrawLongitudinalPhaseHud(cv::Mat& frame,
     const char* label;
   };
 
-  const std::array<PhaseRow, 4> rows = {{{AccLongitudinalPhase::MaxHold, "1. MAX HOLD"},
+  const std::array<PhaseRow, 5> rows = {{{AccLongitudinalPhase::MaxHold, "1. MAX HOLD"},
                                          {AccLongitudinalPhase::Accelerating, "2. ACCEL"},
-                                         {AccLongitudinalPhase::Idle, "3. IDLE"},
-                                         {AccLongitudinalPhase::Braking, "4. BRAKE"}}};
+                                         {AccLongitudinalPhase::Coasting, "3. COAST"},
+                                         {AccLongitudinalPhase::Idle, "4. IDLE"},
+                                         {AccLongitudinalPhase::Braking, "5. BRAKE"}}};
 
-  const int panel_width = 250;
-  const int panel_height = 132;
-  // const int x = std::max(8, frame.cols - panel_width - 20);
   const int x = 8;
   const int y = 120;
-  // const cv::Rect panel(x, y, panel_width, panel_height);
 
   // cv::rectangle(frame, panel, cv::Scalar(36, 36, 36), cv::FILLED, cv::LINE_AA);
   // cv::rectangle(frame, panel, WHITE, 1, cv::LINE_AA);

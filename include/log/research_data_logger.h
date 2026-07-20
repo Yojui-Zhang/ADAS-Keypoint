@@ -30,11 +30,14 @@ struct ResearchLogFrame {
   uint64_t cmd_sync_ns = 0;
   uint64_t can_steer_tx_sync_ns = 0;
   uint64_t can_brake_tx_sync_ns = 0;
+  uint64_t can_throttle_tx_sync_ns = 0;
   double latency_frame_to_cmd_ms = 0.0;
   double latency_cmd_to_can_steer_tx_ms = 0.0;
   double latency_cmd_to_can_brake_tx_ms = 0.0;
+  double latency_cmd_to_can_throttle_tx_ms = 0.0;
   double latency_frame_to_can_steer_tx_ms = 0.0;
   double latency_frame_to_can_brake_tx_ms = 0.0;
+  double latency_frame_to_can_throttle_tx_ms = 0.0;
 
   double dt_s = 0.0;
   double ego_speed_kmh = 0.0;
@@ -55,6 +58,26 @@ struct ResearchLogFrame {
   double cmd_speed_kmh = 0.0;
   double cmd_steer_deg = 0.0;
   double cmd_brake_0_10 = 0.0;
+  int throttle_mode_code = 0;
+  std::string throttle_mode_text = "disabled";
+  std::string throttle_requested_mode = "disabled";
+  std::string throttle_effective_mode = "disabled";
+  double throttle_target_speed_kmh = 0.0;
+  double throttle_current_speed_kmh = 0.0;
+  double throttle_feedforward_pedal_v = 0.75;
+  double throttle_speed_error_kmh = 0.0;
+  double throttle_integral_v = 0.0;
+  double throttle_final_pedal_v = 0.75;
+  double throttle_pedal_upper_v = 3.45;
+  bool throttle_vehicle_speed_fresh = false;
+  double throttle_vehicle_speed_age_ms = 0.0;
+  uint64_t throttle_vehicle_speed_timestamp_ns = 0;
+  double throttle_tx_requested_voltage_v = 0.75;
+  double throttle_tx_clamped_voltage_v = 0.75;
+  int throttle_tx_adc = 0;
+  int throttle_tx_data0 = 0;
+  int throttle_tx_data1 = 0;
+  int throttle_tx_write_result = 0;
   double lka_steer_deg_raw = 0.0;
   bool lka_reference_valid = false;
   double lka_p_curve = 0.0;
@@ -112,6 +135,18 @@ struct ResearchLogFrame {
 
   int acc_longitudinal_phase_code = 0;
   std::string acc_longitudinal_phase_text = "idle";
+  int acc_stop_state_code = 0;
+  std::string acc_stop_state = "moving";
+  double acc_stop_state_time_s = 0.0;
+  bool acc_hold_active = false;
+  bool acc_resume_active = false;
+  uint64_t acc_manual_resume_request_sequence = 0;
+  bool acc_resume_without_lead_active = false;
+  int acc_held_lead_id = -1;
+  double acc_held_lead_distance_m = 0.0;
+  double acc_resume_confirm_time_s = 0.0;
+  double acc_stop_output_accel_mps2 = 0.0;
+  double acc_hold_brake_0_10 = 0.0;
   double acc_control_ego_speed_kmh = 0.0;
   double acc_control_cruise_speed_kmh = 0.0;
   double acc_control_speed_cmd_kmh = 0.0;
@@ -119,9 +154,21 @@ struct ResearchLogFrame {
   double acc_control_accel_cmd_mps2 = 0.0;
   double acc_control_free_accel_nom_mps2 = 0.0;
   double acc_control_free_accel_limited_mps2 = 0.0;
+  std::string acc_drive_mode = "idle";
+  bool acc_speed_hold_recommended = false;
+  double acc_desired_gap_m = 0.0;
+  double acc_coast_gap_m = 0.0;
+  double acc_high_speed_brake_gap_m = 0.0;
+  double acc_closing_speed_mps = 0.0;
+  double acc_gap_ratio = 0.0;
+  bool acc_cut_in_transition_active = false;
+  double acc_cut_in_blend = 1.0;
+  bool brake_control_active = false;
   std::string acc_object_state_summary;
 
   bool collision_warning = false;
+  bool collision_warning_raw = false;
+  bool classify_warning_raw = false;
   int collision_threat_id = -1;
   double collision_threat_ttc_s = 0.0;
   double collision_threat_dist_now_m = 0.0;
@@ -129,6 +176,17 @@ struct ResearchLogFrame {
   double collision_threat_approach_speed_mps = 0.0;
   double collision_threat_pos_x_m = 0.0;
   double collision_threat_pos_y_m = 0.0;
+  bool aeb_audio_candidate = false;
+  double aeb_audio_confirm_time_s = 0.0;
+  double aeb_audio_release_time_s = 0.0;
+  bool aeb_audio_active = false;
+  bool aeb_audio_rising_edge = false;
+  int aeb_audio_threat_id = -1;
+  double aeb_audio_ttc_s = 0.0;
+  double aeb_audio_forward_m = 0.0;
+  double aeb_audio_approach_speed_mps = 0.0;
+  int aeb_audio_track_age = 0;
+  double aeb_audio_track_score = 0.0;
 
   int world_object_count = 0;
   int world_lane_count = 0;
@@ -170,6 +228,8 @@ struct ResearchLogFrame {
   int can_turn_signal = 0;
   std::string can_gear_text = "unknown";
   std::string can_turn_signal_text = "unknown";
+  std::string throttle_control_mode = "disabled";
+  double final_pedal_voltage = 0.75;
 };
 
 class ResearchDataLogger {
