@@ -24,6 +24,12 @@ struct VehicleControlCommand {
   float lka_steer_deg_raw = 0.0f;
   VehicleControlPerfStats perf{};
 
+  float stability_curve_speed_limit_kmh = 0.0f;
+  bool stability_curve_is_bottleneck = false;
+  float stability_a_long_need_mps2 = 0.0f;
+  float stability_a_long_cmd_mps2 = 0.0f;
+  std::string final_brake_source = "none";
+
   std::string debug;
 };
 

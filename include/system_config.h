@@ -13,6 +13,7 @@
 #include "lane_keeping.h"
 #include "StabilityConfig.h"
 #include "CollisionAssistApi.h"
+#include "longitudinal_actuation_config.h"
 
 struct AppRuntimeConfig {
     std::string run_mode = "video";
@@ -114,6 +115,7 @@ struct AdasSystemConfig {
     SORTTRACKING::SortTrackingConfig sort;
     sort_kpt::KeypointFilterConfig sort_keypoint;
     acc::AccConfig acc;
+    controller::ThrottleRuntimeConfig throttle;
     ControlConfig lka;
     stability::StabilityConfig stability;
     collision::CollisionAssistConfig collision;

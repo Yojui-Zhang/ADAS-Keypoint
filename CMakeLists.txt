@@ -77,6 +77,7 @@ set(SRC_LIST
     ./src/main.cpp
     ./src/config.cc
     ./src/system_config.cpp
+    ./src/system_config_validation.cpp
     ./src/imageShow.cpp
 )
 

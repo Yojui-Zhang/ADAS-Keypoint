@@ -6,6 +6,7 @@
 #include "GeometryFunction.h"
 #include "VehicleControlApi.h"
 #include "lane_keeping.h"
+#include "throttle_control.h"
 
 namespace adas_app {
 
@@ -47,6 +48,7 @@ void ApplySubsystemConfig(const AdasSystemConfig& runtime_cfg) {
   lane_keeping_set_control_config(runtime_cfg.lka);
   lane_keeping_reset_state();
   acc::ACC_SetConfig(runtime_cfg.acc);
+  controller::ConfigureThrottleRuntime(runtime_cfg.throttle);
   stability::VehicleControl_SetStabilityConfig(runtime_cfg.stability);
 }
 

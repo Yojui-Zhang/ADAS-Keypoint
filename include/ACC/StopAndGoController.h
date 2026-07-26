@@ -49,6 +49,7 @@ struct StopAndGoConfig {
   float hold_brake_0_10 = 0.35f;
   float minimum_hold_time_s = 1.0f;
   float target_lost_resume_delay_s = 0.8f;
+  float stopping_target_lost_abort_s = 0.35f;
 
   float resume_lead_min_speed_kmh = 2.0f;
   float resume_distance_delta_m = 1.0f;
@@ -135,6 +136,7 @@ class StopAndGoController {
 
   int held_lead_id_ = -1;
   float held_lead_distance_m_ = 0.0f;
+  float stopping_last_valid_distance_m_ = 0.0f;
 
   bool manual_resume_requested_ = false;
   bool resume_without_lead_active_ = false;

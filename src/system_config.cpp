@@ -3,10 +3,15 @@
 #include <algorithm>
 #include <cctype>
 #include <cstddef>
+#include <cstdint>
+#include <stdexcept>
 #include <sstream>
 #include <string>
+#include <utility>
 
 #include <opencv2/core.hpp>
+
+#include "system_config_validation.h"
 
 namespace {
 
@@ -187,6 +192,7 @@ void ReadStopAndGoConfig(const cv::FileNode& node, acc::StopAndGoConfig& cfg) {
     ReadIfPresent(node, "hold_brake_0_10", cfg.hold_brake_0_10);
     ReadIfPresent(node, "minimum_hold_time_s", cfg.minimum_hold_time_s);
     ReadIfPresent(node, "target_lost_resume_delay_s", cfg.target_lost_resume_delay_s);
+    ReadIfPresent(node, "stopping_target_lost_abort_s", cfg.stopping_target_lost_abort_s);
     ReadIfPresent(node, "resume_lead_min_speed_kmh", cfg.resume_lead_min_speed_kmh);
     ReadIfPresent(node, "resume_distance_delta_m", cfg.resume_distance_delta_m);
     ReadIfPresent(node, "resume_confirm_time_s", cfg.resume_confirm_time_s);
@@ -199,6 +205,24 @@ void ReadStopAndGoConfig(const cv::FileNode& node, acc::StopAndGoConfig& cfg) {
     ReadIfPresent(node, "resume_timeout_s", cfg.resume_timeout_s);
     ReadIfPresent(node, "close_gap_abort_margin_m", cfg.close_gap_abort_margin_m);
     ReadIfPresent(node, "resume_target_lost_timeout_s", cfg.resume_target_lost_timeout_s);
+}
+
+void ReadLongRangeClosingGuardConfig(const cv::FileNode& node,
+                                     acc::LongRangeClosingGuardConfig& cfg) {
+    if (node.empty()) {
+        return;
+    }
+
+    ReadBoolIfPresent(node, "enabled", cfg.enabled);
+    ReadIfPresent(node, "minimum_guard_distance_m", cfg.minimum_guard_distance_m);
+    ReadIfPresent(node, "minimum_track_score", cfg.minimum_track_score);
+    ReadIfPresent(node, "maximum_rel_speed_std_mps", cfg.maximum_rel_speed_std_mps);
+    ReadIfPresent(node, "confirm_time_s", cfg.confirm_time_s);
+    ReadIfPresent(node, "strong_closing_speed_mps", cfg.strong_closing_speed_mps);
+    ReadIfPresent(node, "strong_minimum_track_score", cfg.strong_minimum_track_score);
+    ReadIfPresent(node, "strong_maximum_rel_speed_std_mps", cfg.strong_maximum_rel_speed_std_mps);
+    ReadIfPresent(node, "strong_confirm_time_s", cfg.strong_confirm_time_s);
+    ReadIfPresent(node, "unconfirmed_closing_cap_mps", cfg.unconfirmed_closing_cap_mps);
 }
 
 void ReadAccConfig(const cv::FileNode& acc_node, acc::AccConfig& cfg) {
@@ -232,6 +256,8 @@ void ReadAccConfig(const cv::FileNode& acc_node, acc::AccConfig& cfg) {
     ReadIfPresent(acc_node, "high_speed_brake_time_gap_s", cfg.high_speed_brake_time_gap_s);
     ReadIfPresent(acc_node, "high_speed_brake_gap_margin_m", cfg.high_speed_brake_gap_margin_m);
     ReadIfPresent(acc_node, "high_speed_brake_closing_mps", cfg.high_speed_brake_closing_mps);
+    ReadIfPresent(acc_node, "high_speed_coast_time_gap_s", cfg.high_speed_coast_time_gap_s);
+    ReadIfPresent(acc_node, "high_speed_coast_gap_margin_m", cfg.high_speed_coast_gap_margin_m);
     ReadBoolIfPresent(acc_node, "speed_hold_enable", cfg.speed_hold_enable);
     ReadIfPresent(acc_node, "speed_hold_min_speed_kmh", cfg.speed_hold_min_speed_kmh);
     ReadIfPresent(acc_node, "speed_hold_max_closing_mps", cfg.speed_hold_max_closing_mps);
@@ -242,11 +268,117 @@ void ReadAccConfig(const cv::FileNode& acc_node, acc::AccConfig& cfg) {
     ReadIfPresent(acc_node, "cut_in_emergency_ttc_s", cfg.cut_in_emergency_ttc_s);
     ReadIfPresent(acc_node, "cut_in_emergency_closing_mps", cfg.cut_in_emergency_closing_mps);
     ReadIfPresent(acc_node, "cut_in_emergency_gap_ratio", cfg.cut_in_emergency_gap_ratio);
+    ReadBoolIfPresent(acc_node, "opening_recovery_enable", cfg.opening_recovery_enable);
+    ReadIfPresent(acc_node, "opening_recovery_min_speed_kmh", cfg.opening_recovery_min_speed_kmh);
+    ReadIfPresent(acc_node, "opening_recovery_enter_rel_speed_mps", cfg.opening_recovery_enter_rel_speed_mps);
+    ReadIfPresent(acc_node, "opening_recovery_exit_rel_speed_mps", cfg.opening_recovery_exit_rel_speed_mps);
+    ReadIfPresent(acc_node, "opening_recovery_enter_gap_ratio", cfg.opening_recovery_enter_gap_ratio);
+    ReadIfPresent(acc_node, "opening_recovery_exit_gap_ratio", cfg.opening_recovery_exit_gap_ratio);
+    ReadIfPresent(acc_node, "opening_recovery_confirm_time_s", cfg.opening_recovery_confirm_time_s);
+    ReadIfPresent(acc_node, "opening_recovery_max_accel_mps2", cfg.opening_recovery_max_accel_mps2);
+    ReadIfPresent(acc_node, "opening_recovery_lead_margin_kmh", cfg.opening_recovery_lead_margin_kmh);
 
     ReadIfPresent(acc_node, "default_fps", cfg.default_fps);
     ReadBoolIfPresent(acc_node, "use_external_ego_speed", cfg.use_external_ego_speed);
 
+    ReadLongRangeClosingGuardConfig(acc_node["long_range_closing_guard"], cfg.long_range_closing_guard);
     ReadStopAndGoConfig(acc_node["stop_and_go"], cfg.stop_and_go);
+}
+
+void ReadSpeedPedalProfiles(
+    const cv::FileNode& profiles_node,
+    std::vector<controller::SpeedPedalProfile>& profiles) {
+    if (profiles_node.empty()) {
+        return;
+    }
+
+    if (!profiles_node.isSeq()) {
+        throw std::runtime_error("throttle.speed_pid.profiles must be a sequence");
+    }
+
+    std::vector<controller::SpeedPedalProfile> parsed_profiles;
+
+    for (const auto& profile_node : profiles_node) {
+        controller::SpeedPedalProfile profile;
+
+        ReadIfPresent(profile_node, "speed_kmh", profile.speed_kmh);
+        ReadIfPresent(profile_node, "feedforward_pedal_v", profile.feedforward_pedal_v);
+        ReadIfPresent(profile_node, "kp_v_per_kmh", profile.kp_v_per_kmh);
+        ReadIfPresent(profile_node, "ki_v_per_kmh_s", profile.ki_v_per_kmh_s);
+        ReadIfPresent(profile_node, "pedal_upper_v", profile.pedal_upper_v);
+        ReadIfPresent(profile_node, "max_visible_error_kmh", profile.max_visible_error_kmh);
+
+        parsed_profiles.push_back(profile);
+    }
+
+    profiles = std::move(parsed_profiles);
+}
+
+void ReadThrottleConfig(const cv::FileNode& node,
+                        controller::ThrottleRuntimeConfig& cfg) {
+    if (node.empty()) {
+        return;
+    }
+
+    ReadIfPresent(node, "calibration_id", cfg.calibration_id);
+    ReadIfPresent(node, "control_period_ms", cfg.control_period_ms);
+    int vehicle_speed_timeout_ms =
+        static_cast<int>(cfg.vehicle_speed_timeout_ms);
+    ReadIfPresent(node, "vehicle_speed_timeout_ms", vehicle_speed_timeout_ms);
+    if (vehicle_speed_timeout_ms < 0) {
+        throw std::runtime_error(
+            "throttle.vehicle_speed_timeout_ms must be nonnegative");
+    }
+    cfg.vehicle_speed_timeout_ms =
+        static_cast<std::uint64_t>(vehicle_speed_timeout_ms);
+
+    int acceleration_timeout_ms =
+        static_cast<int>(cfg.acceleration_timeout_ms);
+    ReadIfPresent(node, "acceleration_timeout_ms", acceleration_timeout_ms);
+    if (acceleration_timeout_ms < 0) {
+        throw std::runtime_error(
+            "throttle.acceleration_timeout_ms must be nonnegative");
+    }
+    cfg.acceleration_timeout_ms =
+        static_cast<std::uint64_t>(acceleration_timeout_ms);
+
+    ReadIfPresent(node, "brake_interlock_threshold_0_10", cfg.brake_interlock_threshold_0_10);
+
+    const cv::FileNode pid_node = node["speed_pid"];
+    if (!pid_node.empty()) {
+        ReadIfPresent(pid_node, "pedal_min_v", cfg.speed_pid.pedal_min_v);
+        ReadIfPresent(pid_node, "pedal_hard_max_v", cfg.speed_pid.pedal_hard_max_v);
+        ReadIfPresent(pid_node, "speed_error_deadband_kmh", cfg.speed_pid.speed_error_deadband_kmh);
+        ReadIfPresent(pid_node, "integral_min_v", cfg.speed_pid.integral_min_v);
+        ReadIfPresent(pid_node, "integral_max_v", cfg.speed_pid.integral_max_v);
+        ReadIfPresent(pid_node, "pedal_rise_rate_v_per_s", cfg.speed_pid.pedal_rise_rate_v_per_s);
+        ReadIfPresent(pid_node, "pedal_fall_rate_v_per_s", cfg.speed_pid.pedal_fall_rate_v_per_s);
+        ReadIfPresent(pid_node, "coast_fall_rate_v_per_s", cfg.speed_pid.coast_fall_rate_v_per_s);
+        ReadIfPresent(pid_node, "coast_integral_decay_per_s", cfg.speed_pid.coast_integral_decay_per_s);
+        ReadIfPresent(pid_node, "actual_speed_profile_weight", cfg.speed_pid.actual_speed_profile_weight);
+        ReadIfPresent(pid_node, "reference_speed_profile_weight", cfg.speed_pid.reference_speed_profile_weight);
+        ReadIfPresent(pid_node, "min_dt_s", cfg.speed_pid.min_dt_s);
+        ReadIfPresent(pid_node, "max_dt_s", cfg.speed_pid.max_dt_s);
+        ReadSpeedPedalProfiles(pid_node["profiles"], cfg.speed_pid.profiles);
+    }
+
+    const cv::FileNode transition_node = node["mode_transition"];
+    if (!transition_node.empty()) {
+        ReadIfPresent(transition_node, "coast_entry_delay_s", cfg.mode_transition.coast_entry_delay_s);
+        ReadIfPresent(transition_node, "coast_integral_retention", cfg.mode_transition.coast_integral_retention);
+        ReadIfPresent(transition_node, "speed_hold_integral_retention", cfg.mode_transition.speed_hold_integral_retention);
+    }
+
+    const cv::FileNode safety_node = node["safety"];
+    if (!safety_node.empty()) {
+        ReadIfPresent(safety_node, "acceleration_filter_tau_s", cfg.safety.acceleration_filter_tau_s);
+        ReadIfPresent(safety_node, "low_speed_accel_limit_mps2", cfg.safety.low_speed_accel_limit_mps2);
+        ReadIfPresent(safety_node, "high_speed_accel_limit_mps2", cfg.safety.high_speed_accel_limit_mps2);
+        ReadIfPresent(safety_node, "high_speed_transition_kmh", cfg.safety.high_speed_transition_kmh);
+        ReadIfPresent(safety_node, "maximum_positive_jerk_mps3", cfg.safety.maximum_positive_jerk_mps3);
+        ReadIfPresent(safety_node, "hard_acceleration_margin_mps2", cfg.safety.hard_acceleration_margin_mps2);
+        ReadIfPresent(safety_node, "hard_release_rate_v_per_s", cfg.safety.hard_release_rate_v_per_s);
+    }
 }
 
 LkaSpeedProfile MakeLkaSpeedProfileFromBase(const ControlConfig& cfg,
@@ -474,12 +606,18 @@ void ReadCollisionConfig(const cv::FileNode& c_node, collision::CollisionAssistC
     ReadIfPresent(c_node, "aeb_warning_ttc_s", cfg.aeb_warning_ttc_s);
     ReadIfPresent(c_node, "aeb_audio_ttc_off_s", cfg.aeb_audio_ttc_off_s);
     ReadIfPresent(c_node, "aeb_audio_confirm_time_s", cfg.aeb_audio_confirm_time_s);
+    ReadIfPresent(c_node, "aeb_audio_low_speed_confirm_time_s", cfg.aeb_audio_low_speed_confirm_time_s);
     ReadIfPresent(c_node, "aeb_audio_release_time_s", cfg.aeb_audio_release_time_s);
     ReadIfPresent(c_node, "aeb_audio_min_approach_speed_mps", cfg.aeb_audio_min_approach_speed_mps);
+    ReadIfPresent(c_node, "aeb_audio_min_longitudinal_closing_mps", cfg.aeb_audio_min_longitudinal_closing_mps);
+    ReadIfPresent(c_node, "aeb_audio_current_path_half_width_m", cfg.aeb_audio_current_path_half_width_m);
     ReadIfPresent(c_node, "aeb_audio_min_track_age_frames", cfg.aeb_audio_min_track_age_frames);
     ReadIfPresent(c_node, "aeb_audio_min_track_score", cfg.aeb_audio_min_track_score);
     ReadIfPresent(c_node, "aeb_audio_immediate_ttc_s", cfg.aeb_audio_immediate_ttc_s);
     ReadIfPresent(c_node, "aeb_audio_immediate_forward_m", cfg.aeb_audio_immediate_forward_m);
+    ReadIfPresent(c_node, "aeb_audio_low_speed_immediate_ttc_s", cfg.aeb_audio_low_speed_immediate_ttc_s);
+    ReadIfPresent(c_node, "aeb_audio_low_speed_immediate_forward_m", cfg.aeb_audio_low_speed_immediate_forward_m);
+    ReadIfPresent(c_node, "aeb_audio_same_threat_rearm_safe_s", cfg.aeb_audio_same_threat_rearm_safe_s);
 
     ReadIfPresent(c_node, "max_extra_brake_0_10", cfg.max_extra_brake_0_10);
     ReadIfPresent(c_node, "max_avoid_steer_deg", cfg.max_avoid_steer_deg);
@@ -580,18 +718,34 @@ bool LoadSystemConfig(const std::string& path, AdasSystemConfig& out_config, std
         return false;
     }
 
-    ReadAppConfig(fs["app"], out_config.app);
-    ReadInputConfig(fs["input"], out_config.input);
-    ReadGeometryConfig(fs["geometry"], out_config.geometry);
-    ReadModelConfig(fs["model"], out_config.model);
-    ReadSortConfig(fs["sort"], out_config.sort);
-    ReadSortKeypointConfig(fs["sort_keypoint"], out_config.sort_keypoint);
-    ReadAccConfig(fs["acc"], out_config.acc);
-    ReadLkaConfig(fs["lka"], out_config.lka);
-    ReadStabilityConfig(fs["stability"], out_config.stability);
-    ReadCollisionConfig(fs["collision"], out_config.collision);
-    ReadBehaviorConfig(fs["behavior"], out_config.behavior);
-    ReadAblationConfig(fs["ablation"], out_config.ablation);
+    try {
+        ReadAppConfig(fs["app"], out_config.app);
+        ReadInputConfig(fs["input"], out_config.input);
+        ReadGeometryConfig(fs["geometry"], out_config.geometry);
+        ReadModelConfig(fs["model"], out_config.model);
+        ReadSortConfig(fs["sort"], out_config.sort);
+        ReadSortKeypointConfig(fs["sort_keypoint"], out_config.sort_keypoint);
+        ReadAccConfig(fs["acc"], out_config.acc);
+        ReadThrottleConfig(fs["throttle"], out_config.throttle);
+        ReadLkaConfig(fs["lka"], out_config.lka);
+        ReadStabilityConfig(fs["stability"], out_config.stability);
+        ReadCollisionConfig(fs["collision"], out_config.collision);
+        ReadBehaviorConfig(fs["behavior"], out_config.behavior);
+        ReadAblationConfig(fs["ablation"], out_config.ablation);
+    } catch (const std::exception& error) {
+        if (out_error != nullptr) {
+            *out_error = std::string("Failed to parse system config: ") + error.what();
+        }
+        return false;
+    }
+
+    std::string validation_error;
+    if (!ValidateSystemConfig(out_config, &validation_error)) {
+        if (out_error != nullptr) {
+            *out_error = "Invalid system config: " + validation_error;
+        }
+        return false;
+    }
 
     return true;
 }

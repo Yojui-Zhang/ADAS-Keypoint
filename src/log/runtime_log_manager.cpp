@@ -110,6 +110,10 @@ double TimeDeltaMsOrNaN(uint64_t newer_ns, uint64_t older_ns) {
 }
 
 const char* AccDriveModeName(const acc::AccCommand& acc_cmd) {
+  if (acc_cmd.opening_recovery_active) {
+    return "opening_recovery";
+  }
+
   if (acc_cmd.speed_hold_recommended) {
     return "speed_hold";
   }
@@ -481,22 +485,57 @@ void RuntimeLogManager::LogFrame(const FrameSnapshot& snapshot) {
 
   log_frame.cmd_speed_kmh = snapshot.target_speed_kmh;
   log_frame.cmd_steer_deg = snapshot.vehicle_cmd->steer_deg;
-  log_frame.cmd_brake_0_10 = snapshot.vehicle_cmd->brake_0_10;
+  log_frame.cmd_brake_0_10 = snapshot.final_brake_0_10;
+  log_frame.stability_curve_speed_limit_kmh =
+      snapshot.vehicle_cmd->stability_curve_speed_limit_kmh;
+  log_frame.stability_curve_is_bottleneck =
+      snapshot.vehicle_cmd->stability_curve_is_bottleneck;
+  log_frame.stability_a_long_need_mps2 =
+      snapshot.vehicle_cmd->stability_a_long_need_mps2;
+  log_frame.stability_a_long_cmd_mps2 =
+      snapshot.vehicle_cmd->stability_a_long_cmd_mps2;
+  log_frame.final_brake_source = snapshot.final_brake_source;
   log_frame.throttle_mode_code = snapshot.throttle_mode_code;
   log_frame.throttle_mode_text = snapshot.throttle_mode_text;
   log_frame.throttle_requested_mode = snapshot.throttle_requested_mode;
   log_frame.throttle_effective_mode = snapshot.throttle_effective_mode;
   log_frame.throttle_target_speed_kmh = snapshot.throttle_target_speed_kmh;
   log_frame.throttle_current_speed_kmh = snapshot.throttle_current_speed_kmh;
+  log_frame.throttle_visible_target_speed_kmh =
+      snapshot.throttle_visible_target_speed_kmh;
+  log_frame.throttle_operating_speed_kmh =
+      snapshot.throttle_operating_speed_kmh;
   log_frame.throttle_feedforward_pedal_v = snapshot.throttle_feedforward_pedal_v;
   log_frame.throttle_speed_error_kmh = snapshot.throttle_speed_error_kmh;
   log_frame.throttle_integral_v = snapshot.throttle_integral_v;
+  log_frame.throttle_desired_pedal_v = snapshot.throttle_desired_pedal_v;
   log_frame.throttle_final_pedal_v = snapshot.throttle_final_pedal_v;
+  log_frame.throttle_applied_pedal_v = snapshot.throttle_applied_pedal_v;
   log_frame.throttle_pedal_upper_v = snapshot.throttle_pedal_upper_v;
+  log_frame.throttle_requested_brake_0_10 =
+      snapshot.throttle_requested_brake_0_10;
+  log_frame.throttle_brake_interlock_active =
+      snapshot.throttle_brake_interlock_active;
+  log_frame.throttle_measured_dt_s = snapshot.throttle_measured_dt_s;
   log_frame.throttle_vehicle_speed_fresh = snapshot.throttle_vehicle_speed_fresh;
   log_frame.throttle_vehicle_speed_age_ms = snapshot.throttle_vehicle_speed_age_ms;
   log_frame.throttle_vehicle_speed_timestamp_ns =
       snapshot.throttle_vehicle_speed_timestamp_ns;
+  log_frame.throttle_vehicle_acceleration_fresh =
+      snapshot.throttle_vehicle_acceleration_fresh;
+  log_frame.throttle_raw_acceleration_mps2 =
+      snapshot.throttle_raw_acceleration_mps2;
+  log_frame.throttle_filtered_acceleration_mps2 =
+      snapshot.throttle_filtered_acceleration_mps2;
+  log_frame.throttle_measured_jerk_mps3 =
+      snapshot.throttle_measured_jerk_mps3;
+  log_frame.throttle_allowed_acceleration_mps2 =
+      snapshot.throttle_allowed_acceleration_mps2;
+  log_frame.throttle_acceleration_guard_active =
+      snapshot.throttle_acceleration_guard_active;
+  log_frame.throttle_jerk_guard_active =
+      snapshot.throttle_jerk_guard_active;
+  log_frame.throttle_calibration_id = snapshot.throttle_calibration_id;
   log_frame.throttle_control_mode = snapshot.throttle_mode_text;
   log_frame.final_pedal_voltage = snapshot.throttle_final_pedal_v;
   const CanThrottleTxTelemetry throttle_tx =
@@ -554,6 +593,18 @@ void RuntimeLogManager::LogFrame(const FrameSnapshot& snapshot) {
   log_frame.acc_target_distance_m = snapshot.target_distance_m;
   log_frame.acc_target_lateral_m = acc_cmd.lead_lateral_m;
   log_frame.acc_target_relative_speed_mps = acc_cmd.relative_speed_mps;
+  log_frame.acc_target_raw_relative_speed_mps =
+      acc_cmd.raw_relative_speed_mps;
+  log_frame.acc_target_control_relative_speed_mps =
+      acc_cmd.control_relative_speed_mps;
+  log_frame.acc_long_range_closing_guard_active =
+      acc_cmd.long_range_closing_guard_active;
+  log_frame.acc_closing_evidence_confirmed =
+      acc_cmd.closing_evidence_confirmed;
+  log_frame.acc_closing_measurement_credible =
+      acc_cmd.closing_measurement_credible;
+  log_frame.acc_closing_evidence_confirm_time_s =
+      acc_cmd.closing_evidence_confirm_time_s;
   log_frame.acc_target_score = acc_cmd.TargetScore;
   log_frame.acc_target_dist_std_m = acc_cmd.TargetDistStd;
   log_frame.acc_target_rel_speed_std_mps = acc_cmd.RelSpeedStd;
@@ -598,6 +649,11 @@ void RuntimeLogManager::LogFrame(const FrameSnapshot& snapshot) {
   log_frame.acc_gap_ratio = acc_cmd.gap_ratio;
   log_frame.acc_cut_in_transition_active = acc_cmd.cut_in_transition_active;
   log_frame.acc_cut_in_blend = acc_cmd.cut_in_blend;
+  log_frame.acc_opening_recovery_active = acc_cmd.opening_recovery_active;
+  log_frame.acc_opening_recovery_target_speed_kmh =
+      acc_cmd.opening_recovery_target_speed_kmh;
+  log_frame.acc_opening_recovery_confirm_time_s =
+      acc_cmd.opening_recovery_confirm_time_s;
   log_frame.brake_control_active = snapshot.brake_control_active;
   log_frame.acc_object_state_summary = acc_summary.object_state_summary;
 
@@ -625,6 +681,10 @@ void RuntimeLogManager::LogFrame(const FrameSnapshot& snapshot) {
         snapshot.aeb_audio_gate->active;
     log_frame.aeb_audio_rising_edge =
         snapshot.aeb_audio_gate->rising_edge;
+    log_frame.aeb_audio_play_accepted =
+        snapshot.aeb_audio_gate->play_accepted;
+    log_frame.aeb_audio_trigger_reason =
+        snapshot.aeb_audio_gate->trigger_reason;
     log_frame.aeb_audio_threat_id =
         snapshot.aeb_audio_gate->threat_id;
     log_frame.aeb_audio_ttc_s =
@@ -633,6 +693,12 @@ void RuntimeLogManager::LogFrame(const FrameSnapshot& snapshot) {
         snapshot.aeb_audio_gate->forward_m;
     log_frame.aeb_audio_approach_speed_mps =
         snapshot.aeb_audio_gate->approach_speed_mps;
+    log_frame.aeb_audio_longitudinal_closing_mps =
+        snapshot.aeb_audio_gate->longitudinal_closing_mps;
+    log_frame.aeb_audio_current_path_distance_m =
+        snapshot.aeb_audio_gate->current_path_distance_m;
+    log_frame.aeb_audio_same_threat_armed =
+        snapshot.aeb_audio_gate->same_threat_armed;
     log_frame.aeb_audio_track_age =
         snapshot.aeb_audio_gate->track_age_frames;
     log_frame.aeb_audio_track_score =

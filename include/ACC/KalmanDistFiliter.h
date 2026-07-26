@@ -96,6 +96,9 @@ public:
       time_since_update_s_ = 0.0f;
       last_accepted_meas_dist_ = z_meas_dist;
       has_last_accepted_meas_ = true;
+      rel_speed_valid_time_s_ += dt;
+      rel_speed_valid_ =
+          rel_speed_valid_time_s_ >= kRelSpeedWarmupSeconds;
     } else {
       rejection_count_++;
       time_since_update_s_ += dt;
@@ -114,6 +117,7 @@ public:
 
   float Distance() const { return initialized_ ? kf_.statePost.at<float>(0) : 0.0f; }
   float RelSpeed() const { return initialized_ ? kf_.statePost.at<float>(1) : 0.0f; }
+  bool RelSpeedValid() const { return initialized_ && rel_speed_valid_; }
 
   // ✅ covariance export
   float DistanceVar() const {
@@ -135,7 +139,7 @@ private:
   static constexpr int   kMaxConsecutiveRejections = 3;
   static constexpr float kMaxNoUpdateSeconds       = 0.3f;
 
-  static constexpr float kMaxAbsRelSpeedMps = 60.0f;
+  static constexpr float kRelSpeedWarmupSeconds = 0.20f;
 
   cv::KalmanFilter kf_;
 
@@ -147,6 +151,8 @@ private:
 
   bool  has_last_accepted_meas_ = false;
   float last_accepted_meas_dist_ = 0.0f;
+  bool  rel_speed_valid_ = false;
+  float rel_speed_valid_time_s_ = 0.0f;
 
   // tuning
   float meas_std_m_     = 0.6f;
@@ -184,6 +190,8 @@ private:
 
     has_last_accepted_meas_ = true;
     last_accepted_meas_dist_ = z_meas_dist;
+    rel_speed_valid_ = false;
+    rel_speed_valid_time_s_ = 0.0f;
   }
 
   void UpdateProcessNoise(float dt) {
@@ -214,13 +222,8 @@ private:
   }
 
   void ReinitializeFromMeasurement(float z_meas_dist, float dt, int frame) {
-    float v0 = 0.0f;
-    const float elapsed = std::max(dt, time_since_update_s_ + dt);
-
-    if (has_last_accepted_meas_) {
-      v0 = (z_meas_dist - last_accepted_meas_dist_) / elapsed;
-      v0 = Clamp(v0, -kMaxAbsRelSpeedMps, kMaxAbsRelSpeedMps);
-    }
+    (void)dt;
+    const float v0 = 0.0f;
 
     kf_.statePost.at<float>(0) = z_meas_dist;
     kf_.statePost.at<float>(1) = v0;
@@ -234,6 +237,8 @@ private:
 
     has_last_accepted_meas_ = true;
     last_accepted_meas_dist_ = z_meas_dist;
+    rel_speed_valid_ = false;
+    rel_speed_valid_time_s_ = 0.0f;
 
     last_frame_ = frame;
   }

@@ -48,12 +48,18 @@ struct CollisionAssistConfig {
   float aeb_warning_ttc_s = 1.2f;
   float aeb_audio_ttc_off_s = 2.8f;
   float aeb_audio_confirm_time_s = 0.20f;
+  float aeb_audio_low_speed_confirm_time_s = 0.45f;
   float aeb_audio_release_time_s = 0.30f;
   float aeb_audio_min_approach_speed_mps = 1.2f;
+  float aeb_audio_min_longitudinal_closing_mps = 0.8f;
+  float aeb_audio_current_path_half_width_m = 1.0f;
   int aeb_audio_min_track_age_frames = 5;
   float aeb_audio_min_track_score = 0.45f;
   float aeb_audio_immediate_ttc_s = 0.80f;
   float aeb_audio_immediate_forward_m = 8.0f;
+  float aeb_audio_low_speed_immediate_ttc_s = 0.60f;
+  float aeb_audio_low_speed_immediate_forward_m = 3.0f;
+  float aeb_audio_same_threat_rearm_safe_s = 1.5f;
 
   float max_extra_brake_0_10 = 4.0f;  // 最大追加煞車量（0~10）
   float max_avoid_steer_deg  = 4.0f;  // 最大追加避讓轉角（deg）

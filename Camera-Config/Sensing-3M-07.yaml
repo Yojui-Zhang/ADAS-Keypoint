@@ -1,0 +1,44 @@
+%YAML:1.0
+---
+image_width: 1280
+image_height: 720
+rms: 0.44558016986515098
+global_rmse: 0.44558001050040491
+
+K: !!opencv-matrix
+   rows: 3
+   cols: 3
+   dt: d
+   data: [ 1266.03869019816, 0, 662.0105490294332, 0, 1272.621060182265, 326.1496260472111, 0, 0, 1 ]
+
+D: !!opencv-matrix
+   rows: 1
+   cols: 5
+   dt: d
+   data: [ -0.5345838424590805, 0.4684766585931572, 0.008087969388262501, -0.002624830149302885, -0.613578538163101 ]
+
+
+# Extrinsics (world -> camera): p_c = R_cw * p_w + t_cw
+# Raw world axes used by this project are:
+#   X = lateral_cm (positive = right)
+#   Y = forward_cm (positive = forward)
+#   Z = 0 on the ground plane
+# Runtime conversion in GeometryFunction is:
+#   x_forward_m = raw_Y * 0.01
+#   y_left_m    = -raw_X * 0.01
+# Source intrinsics: ./tools/Geometry/calib_out/camera_intrinsics.yaml
+# Source ground CSV: Camera-Config/單應性1280x720-20260721.csv
+# Source resolution filter: 1280x720
+# CSV lateral sign inverted: 0
+# Ground CSV reprojection RMSE (full set): 7.043903 px
+R_cw: !!opencv-matrix
+   rows: 3
+   cols: 3
+   dt: d
+   data: [ 0.9989673726998159, -0.04400641599837941, 0.01129706299019555, 0.01250205765432936, 0.02720396349483104, -0.9995517209852522, 0.04367936395638899, 0.9986607931230451, 0.02772604268942521 ]
+
+t_cw: !!opencv-matrix
+   rows: 3
+   cols: 1
+   dt: d
+   data: [ -6.813149033588691, 130.8981511593016, 153.9898517226965 ]

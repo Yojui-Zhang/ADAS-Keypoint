@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <vector>
 
+#include "AccClosingEvidenceGate.h"
 #include "StopAndGoController.h"
 
 namespace acc {
@@ -175,6 +176,10 @@ struct AccConfig {
   float high_speed_brake_time_gap_s = 0.55f;
   float high_speed_brake_gap_margin_m = 2.0f;
   float high_speed_brake_closing_mps = 1.0f;
+  float high_speed_coast_time_gap_s = 1.00f;
+  float high_speed_coast_gap_margin_m = 0.50f;
+
+  LongRangeClosingGuardConfig long_range_closing_guard{};
 
   bool speed_hold_enable = true;
   float speed_hold_min_speed_kmh = 50.0f;
@@ -187,6 +192,16 @@ struct AccConfig {
   float cut_in_emergency_ttc_s = 2.0f;
   float cut_in_emergency_closing_mps = 3.0f;
   float cut_in_emergency_gap_ratio = 0.65f;
+
+  bool opening_recovery_enable = true;
+  float opening_recovery_min_speed_kmh = 50.0f;
+  float opening_recovery_enter_rel_speed_mps = 1.0f;
+  float opening_recovery_exit_rel_speed_mps = 0.30f;
+  float opening_recovery_enter_gap_ratio = 0.72f;
+  float opening_recovery_exit_gap_ratio = 0.62f;
+  float opening_recovery_confirm_time_s = 0.40f;
+  float opening_recovery_max_accel_mps2 = 0.60f;
+  float opening_recovery_lead_margin_kmh = 2.0f;
 
 
   // ==========================================
@@ -210,7 +225,9 @@ struct AccCommand {
   float brake_0_10  = 0.0f;  // 0~10，且 brake=1 就很大 (視實車介面定義而定)
   int   target_id   = -1;    // 除錯用：當前鎖定目標 ID
   float target_forward_m = 0.0f; // 濾波後的目標距離
-  float relative_speed_mps = 0.0f; // lead - ego (負值代表接近中)
+  float relative_speed_mps = 0.0f; // 控制用 lead - ego (負值代表接近中)
+  float raw_relative_speed_mps = 0.0f;
+  float control_relative_speed_mps = 0.0f;
 
   float TargetSpeedKmh = 0.0f;  // 估測的前車車速 (km/h)
   float Targetdistance = 0.0f;  // 估測的目標距離 (m) (同 target_forward_m)
@@ -238,6 +255,13 @@ struct AccCommand {
   float gap_ratio = 0.0f;
   bool cut_in_transition_active = false;
   float cut_in_blend = 1.0f;
+  bool opening_recovery_active = false;
+  float opening_recovery_target_speed_kmh = 0.0f;
+  float opening_recovery_confirm_time_s = 0.0f;
+  bool long_range_closing_guard_active = false;
+  bool closing_evidence_confirmed = false;
+  bool closing_measurement_credible = false;
+  float closing_evidence_confirm_time_s = 0.0f;
 
   AccStopState stop_state = AccStopState::Moving;
   float stop_state_time_s = 0.0f;

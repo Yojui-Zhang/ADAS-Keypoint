@@ -34,6 +34,7 @@ void StopAndGoController::Reset() noexcept {
 
   held_lead_id_ = -1;
   held_lead_distance_m_ = 0.0f;
+  stopping_last_valid_distance_m_ = 0.0f;
   manual_resume_requested_ = false;
   resume_without_lead_active_ = false;
 }
@@ -87,6 +88,7 @@ StopAndGoOutput StopAndGoController::Update(const StopAndGoInput& input) {
     case AccStopState::Moving:
       if (low_speed_approach && slow_or_stopped_lead &&
           input.distance_m <= stop_trigger_distance_m) {
+        stopping_last_valid_distance_m_ = input.distance_m;
         TransitionTo(AccStopState::Stopping);
       }
       break;
@@ -94,8 +96,21 @@ StopAndGoOutput StopAndGoController::Update(const StopAndGoInput& input) {
     case AccStopState::Stopping:
       if (valid_lead) {
         target_lost_time_s_ = 0.0f;
+        stopping_last_valid_distance_m_ = input.distance_m;
       } else {
         target_lost_time_s_ += dt_s;
+
+        if (target_lost_time_s_ >=
+            std::max(0.0f, config_.stopping_target_lost_abort_s)) {
+          if (ego_speed_kmh <= std::max(0.0f, config_.hold_enter_speed_kmh)) {
+            held_lead_id_ = -1;
+            held_lead_distance_m_ = standstill_gap_m;
+            TransitionTo(AccStopState::StoppedHold);
+          } else {
+            TransitionTo(AccStopState::Moving);
+          }
+          break;
+        }
       }
 
       if (ego_speed_kmh <= std::max(0.0f, config_.hold_enter_speed_kmh)) {
@@ -211,9 +226,10 @@ StopAndGoOutput StopAndGoController::Update(const StopAndGoInput& input) {
       break;
 
     case AccStopState::Stopping: {
+      const float stopping_distance_m =
+          valid_lead ? input.distance_m : stopping_last_valid_distance_m_;
       const float remaining_distance_m =
-          valid_lead ? std::max(0.20f, input.distance_m - standstill_gap_m)
-                     : 0.20f;
+          std::max(0.20f, stopping_distance_m - standstill_gap_m);
       const float ego_speed_mps = std::max(0.0f, input.ego_speed_mps);
       const float required_decel_mps2 =
           ego_speed_mps * ego_speed_mps / (2.0f * remaining_distance_m);

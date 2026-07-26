@@ -59,6 +59,46 @@ static Acc2 ProjectToFeasibleSet(const Acc2& u,
 static inline double KmH2mps(double kmh) { return kmh / 3.6; }
 static inline double mps2KmH(double mps) { return mps * 3.6; }
 
+static const char* SelectBrakeSource(const double brake_out,
+                                     const acc::AccCommand& acc_cmd,
+                                     const acc::AccConfig& acc_cfg,
+                                     const bool curve_is_bottleneck,
+                                     const double a_long_cmd)
+{
+  if (brake_out <= 0.05) {
+    return "none";
+  }
+
+  if (acc_cmd.stop_state == acc::AccStopState::StoppedHold ||
+      acc_cmd.stop_state == acc::AccStopState::ResumeConfirm) {
+    return "stopped_hold";
+  }
+
+  if (acc_cmd.stop_state == acc::AccStopState::Stopping) {
+    return "stop_and_go";
+  }
+
+  if (acc_cmd.brake_0_10 > 0.05f ||
+      acc_cmd.longitudinal_phase == acc::AccLongitudinalPhase::Braking) {
+    if (std::isfinite(acc_cmd.TargetTTC) &&
+        acc_cmd.TargetTTC <= std::max(0.0f, acc_cfg.ttc_soft_brake_s)) {
+      return "acc_ttc";
+    }
+
+    return "acc_follow";
+  }
+
+  if (curve_is_bottleneck) {
+    return "stability_curve";
+  }
+
+  if (a_long_cmd < -0.05) {
+    return "stability_friction";
+  }
+
+  return "none";
+}
+
 } // anonymous namespace
 
 namespace stability {
@@ -318,6 +358,18 @@ VehicleControlCommand StabilitySupervisor::Update(double ego_speed_mps,
   out.steer_deg   = static_cast<float>(steer_out_deg);
   out.speed_kmh   = static_cast<float>(std::max(0.0, speed_out_kmh));
   out.brake_0_10  = static_cast<float>(brake_out);
+  out.stability_curve_speed_limit_kmh =
+      static_cast<float>(v_curve_limit < 1e8
+                             ? mps2KmH(v_curve_limit)
+                             : std::numeric_limits<double>::infinity());
+  out.stability_curve_is_bottleneck = curve_is_bottleneck;
+  out.stability_a_long_need_mps2 = static_cast<float>(a_long_need);
+  out.stability_a_long_cmd_mps2 = static_cast<float>(a_long_cmd);
+  out.final_brake_source = SelectBrakeSource(brake_out,
+                                             acc_cmd,
+                                             acc_cfg,
+                                             curve_is_bottleneck,
+                                             a_long_cmd);
 
   // debug
   {

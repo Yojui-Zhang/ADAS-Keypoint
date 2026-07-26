@@ -14,11 +14,15 @@ namespace acc {
 
 class AccController {
 public:
-  explicit AccController(AccConfig cfg = {}) : cfg_(cfg), stop_and_go_(cfg.stop_and_go) {}
+  explicit AccController(AccConfig cfg = {})
+      : cfg_(cfg),
+        stop_and_go_(cfg.stop_and_go),
+        closing_evidence_gate_(cfg.long_range_closing_guard) {}
 
   void SetConfig(const AccConfig& cfg) {
     cfg_ = cfg;
     stop_and_go_.SetConfig(cfg_.stop_and_go);
+    closing_evidence_gate_.SetConfig(cfg_.long_range_closing_guard);
   }
   const AccConfig& GetConfig() const { return cfg_; }
 
@@ -79,6 +83,7 @@ public:
 
     float dist_var = 0.0f;
     float vrel_var = 0.0f;
+    bool rel_speed_valid = false;
 
     if (has_lead) {
       auto& f = lead_filters_[lead_id];
@@ -90,8 +95,41 @@ public:
 
         dist_var = f.DistanceVar();
         vrel_var = f.RelSpeedVar();
+        rel_speed_valid = f.RelSpeedValid();
       }
     }
+
+    const float raw_relative_speed_mps = rel_speed_mps;
+    const float relative_speed_std_mps =
+        std::sqrt(std::max(0.0f, vrel_var));
+
+    ClosingEvidenceInput closing_input;
+    closing_input.has_lead = has_lead;
+    closing_input.lead_id = lead_id;
+    closing_input.distance_m = has_lead ? filt_dist_m : 0.0f;
+    closing_input.raw_relative_speed_mps = raw_relative_speed_mps;
+    closing_input.relative_speed_std_mps = relative_speed_std_mps;
+    closing_input.track_score = lead_score;
+    closing_input.relative_speed_valid = rel_speed_valid;
+    closing_input.dt_s = dt;
+
+    const ClosingEvidenceOutput closing_evidence =
+        closing_evidence_gate_.Update(closing_input);
+    const float control_relative_speed_mps =
+        closing_evidence.control_relative_speed_mps;
+
+    out.raw_relative_speed_mps =
+        has_lead ? raw_relative_speed_mps : 0.0f;
+    out.control_relative_speed_mps =
+        has_lead ? control_relative_speed_mps : 0.0f;
+    out.long_range_closing_guard_active =
+        closing_evidence.guard_active;
+    out.closing_evidence_confirmed =
+        closing_evidence.closing_confirmed;
+    out.closing_measurement_credible =
+        closing_evidence.measurement_credible;
+    out.closing_evidence_confirm_time_s =
+        closing_evidence.confirm_time_s;
 
     // 4) longitudinal control (same as yours)
     float v_ego = std::max(0.0f, ego_speed_est_mps_);
@@ -112,10 +150,11 @@ public:
     float high_speed_brake_gap_m = 0.0f;
     float follow_ttc_s = std::numeric_limits<float>::infinity();
     float gap_ratio = 0.0f;
+    float lead_distance_m = 0.0f;
     bool safe_speed_hold = false;
 
     if (has_lead) {
-      closing_speed_mps = std::max(0.0f, -rel_speed_mps);
+      closing_speed_mps = std::max(0.0f, -control_relative_speed_mps);
       const float s0 = cfg_.standstill_gap_m;
       const float T  = cfg_.time_gap_s;
       const float a  = std::max(0.1f, cfg_.max_accel_mps2);
@@ -123,6 +162,7 @@ public:
 
       const float s_star = s0 + v_ego * T + (v_ego * closing_speed_mps) / (2.0f * std::sqrt(a * b));
       const float s = std::max(0.1f, filt_dist_m);
+      lead_distance_m = s;
       desired_gap_m = s0 + v_ego * T;
       gap_ratio = s / std::max(0.1f, desired_gap_m);
       const bool high_speed_relax =
@@ -147,10 +187,16 @@ public:
         accel_cmd = std::min(accel_cmd, -required_decel);
       }
 
-      coast_gap_m =
+      const float normal_coast_gap_m =
           desired_gap_m +
           std::max(0.0f, cfg_.coast_gap_margin_m) +
           v_ego * std::max(0.0f, cfg_.coast_time_gap_margin_s);
+      const float high_speed_coast_gap_m =
+          s0 +
+          v_ego * std::max(0.0f, cfg_.high_speed_coast_time_gap_s) +
+          std::max(0.0f, cfg_.high_speed_coast_gap_margin_m);
+      coast_gap_m = high_speed_relax ? high_speed_coast_gap_m
+                                     : normal_coast_gap_m;
       const bool suppress_gap_brake =
           high_speed_relax && !closing_fast && s > high_speed_brake_gap_m;
 
@@ -167,7 +213,12 @@ public:
       }
 
       const float brake_gap = desired_gap_m + std::max(0.0f, cfg_.brake_gap_margin_m);
-      if (!suppress_gap_brake && s <= brake_gap) {
+      const float critical_gap_m =
+          s0 + std::max(1.0f, v_ego * 0.25f);
+      const bool gap_brake_allowed =
+          closing_speed_mps > 0.20f ||
+          s <= critical_gap_m;
+      if (!suppress_gap_brake && s <= brake_gap && gap_brake_allowed) {
         const float gap_deficit_m = std::max(0.0f, brake_gap - s);
         float gap_decel = gap_deficit_m *
             std::max(0.0f, cfg_.gap_error_decel_gain_mps2_per_m);
@@ -178,7 +229,16 @@ public:
         accel_cmd = std::min(accel_cmd, -gap_decel);
       }
 
-      if (!suppress_gap_brake && closing_speed_mps > 0.5f) {
+      const float rel_speed_std_mps = std::sqrt(std::max(0.0f, vrel_var));
+      const float maximum_plausible_closing_mps = v_ego + 2.0f;
+      const bool rel_speed_plausible =
+          rel_speed_valid &&
+          closing_speed_mps <= maximum_plausible_closing_mps &&
+          rel_speed_std_mps <= 3.0f;
+
+      if (!suppress_gap_brake &&
+          rel_speed_plausible &&
+          closing_speed_mps > 0.5f) {
         const float ttc_s = s / closing_speed_mps;
         follow_ttc_s = ttc_s;
         const float soft_ttc = std::max(0.1f, cfg_.ttc_soft_brake_s);
@@ -244,6 +304,70 @@ public:
       out.cut_in_blend = blend;
     }
 
+    const bool cut_in_blend_complete =
+        !cfg_.cut_in_blend_enable ||
+        cut_in_elapsed_s_ >= std::max(0.0f, cfg_.cut_in_blend_time_s);
+    const bool opening_recovery_candidate =
+        cfg_.opening_recovery_enable &&
+        MpsToKmh(v_ego) >=
+            std::max(0.0f, cfg_.opening_recovery_min_speed_kmh) &&
+        has_lead &&
+        control_relative_speed_mps >=
+            std::max(0.0f, cfg_.opening_recovery_enter_rel_speed_mps) &&
+        gap_ratio >=
+            std::max(0.0f, cfg_.opening_recovery_enter_gap_ratio) &&
+        lead_distance_m > high_speed_brake_gap_m &&
+        !lead_brake_guard &&
+        !lead_hard_brake_guard &&
+        !emergency_cut_in &&
+        cut_in_blend_complete;
+
+    const bool opening_recovery_abort =
+        !has_lead ||
+        control_relative_speed_mps <=
+            std::max(0.0f, cfg_.opening_recovery_exit_rel_speed_mps) ||
+        gap_ratio <= std::max(0.0f, cfg_.opening_recovery_exit_gap_ratio) ||
+        lead_brake_guard ||
+        lead_hard_brake_guard ||
+        emergency_cut_in;
+
+    if (opening_recovery_abort) {
+      opening_recovery_active_ = false;
+      opening_recovery_confirm_s_ = 0.0f;
+    } else if (opening_recovery_candidate) {
+      opening_recovery_confirm_s_ += dt;
+      if (opening_recovery_confirm_s_ >=
+          std::max(0.0f, cfg_.opening_recovery_confirm_time_s)) {
+        opening_recovery_active_ = true;
+      }
+    } else if (!opening_recovery_active_) {
+      opening_recovery_confirm_s_ = 0.0f;
+    }
+
+    if (opening_recovery_active_) {
+      const float lead_speed_kmh =
+          MpsToKmh(std::max(0.0f, v_ego + control_relative_speed_mps));
+      const float ego_speed_kmh = MpsToKmh(v_ego);
+      const float recovery_target_speed_kmh =
+          std::min(cfg_.cruise_speed_kmh,
+                   std::max(ego_speed_kmh + 2.0f,
+                            lead_speed_kmh -
+                                std::max(0.0f, cfg_.opening_recovery_lead_margin_kmh)));
+      const float recovery_target_mps = KmhToMps(recovery_target_speed_kmh);
+      const float recovery_accel_mps2 =
+          Clamp((recovery_target_mps - v_ego) / 1.5f,
+                0.0f,
+                std::max(0.0f, cfg_.opening_recovery_max_accel_mps2));
+
+      lead_coast_guard = false;
+      accel_cmd = std::max(accel_cmd, recovery_accel_mps2);
+      out.opening_recovery_active = true;
+      out.opening_recovery_target_speed_kmh = recovery_target_speed_kmh;
+      out.opening_recovery_confirm_time_s = opening_recovery_confirm_s_;
+    } else {
+      out.opening_recovery_confirm_time_s = opening_recovery_confirm_s_;
+    }
+
     out.desired_gap_m = desired_gap_m;
     out.coast_gap_m = coast_gap_m;
     out.high_speed_brake_gap_m = high_speed_brake_gap_m;
@@ -251,7 +375,7 @@ public:
     out.gap_ratio = gap_ratio;
 
     const float lead_speed_mps =
-        has_lead ? std::max(0.0f, v_ego + rel_speed_mps) : 0.0f;
+        has_lead ? std::max(0.0f, v_ego + control_relative_speed_mps) : 0.0f;
 
     StopAndGoInput stop_input{};
     stop_input.has_lead = has_lead;
@@ -329,7 +453,7 @@ public:
     const float throttle_deadband = std::max(0.0f, cfg_.throttle_accel_deadband_mps2);
     const float brake_deadband = std::max(0.0f, cfg_.brake_accel_deadband_mps2);
     const float estimated_lead_speed_kmh =
-        has_lead ? MpsToKmh(std::max(0.0f, v_ego + rel_speed_mps)) : 0.0f;
+        has_lead ? MpsToKmh(std::max(0.0f, v_ego + control_relative_speed_mps)) : 0.0f;
     float target_speed_kmh = 0.0f;
     float brake_level = 0.0f;
 
@@ -398,14 +522,15 @@ public:
     out.brake_0_10 = brake_level;
     out.target_id = lead_id;
     out.target_forward_m = has_lead ? filt_dist_m : 0.0f;
-    out.relative_speed_mps = has_lead ? rel_speed_mps : 0.0f;
+    out.relative_speed_mps = has_lead ? control_relative_speed_mps : 0.0f;
 
     // 7.2 lead info + TTC (mean)
     if (has_lead) {
       out.TargetSpeedKmh = estimated_lead_speed_kmh;
       out.Targetdistance = filt_dist_m;
 
-      const float closing_speed_mps = std::max(0.0f, -rel_speed_mps);
+      const float closing_speed_mps =
+          std::max(0.0f, -control_relative_speed_mps);
       if (closing_speed_mps > 0.5f) out.TargetTTC = filt_dist_m / closing_speed_mps;
       else                      out.TargetTTC = std::numeric_limits<float>::infinity();
     } else {
@@ -422,7 +547,7 @@ public:
     // TTC std propagation: ttc = d / v, where v = closing_speed = -rel_speed
     out.TargetTTCStd = 0.0f;
     if (has_lead) {
-      const float v = std::max(0.0f, -rel_speed_mps);
+      const float v = std::max(0.0f, -control_relative_speed_mps);
       const float d = std::max(0.0f, filt_dist_m);
 
       if (v > 0.5f && d > 0.0f) {
@@ -449,6 +574,7 @@ private:
   AccConfig cfg_;
   LeadSelector selector_;
   StopAndGoController stop_and_go_;
+  LongRangeClosingEvidenceGate closing_evidence_gate_;
 
   std::unordered_map<int, AccKalmanAdapter> lead_filters_;
 
@@ -458,6 +584,8 @@ private:
   float last_accel_cmd_mps2_ = 0.0f;
   float cut_in_elapsed_s_ = 0.0f;
   float cut_in_start_accel_mps2_ = 0.0f;
+  float opening_recovery_confirm_s_ = 0.0f;
+  bool opening_recovery_active_ = false;
 };
 
 } // namespace acc

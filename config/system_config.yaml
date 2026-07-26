@@ -88,9 +88,9 @@ acc:
   min_forward_m: 0.5
   max_forward_m: 80
   lead_hysteresis_m: 3.0
-  cruise_speed_kmh: 90.0
-  time_gap_s: 1.6
-  standstill_gap_m: 4.0
+  cruise_speed_kmh: 20.0
+  time_gap_s: 1.4
+  standstill_gap_m: 4.0     # 7.0
   max_accel_mps2: 1.4
   comfort_decel_mps2: 1.8
   max_decel_mps2: 6.0
@@ -111,6 +111,19 @@ acc:
   high_speed_brake_time_gap_s: 0.65
   high_speed_brake_gap_margin_m: 1.0
   high_speed_brake_closing_mps: 2.0
+  high_speed_coast_time_gap_s: 1.00
+  high_speed_coast_gap_margin_m: 0.50
+  long_range_closing_guard:
+    enabled: 1
+    minimum_guard_distance_m: 15.0        # 30 
+    minimum_track_score: 0.45
+    maximum_rel_speed_std_mps: 1.50
+    confirm_time_s: 0.25
+    strong_closing_speed_mps: 6.0
+    strong_minimum_track_score: 0.60
+    strong_maximum_rel_speed_std_mps: 1.00
+    strong_confirm_time_s: 0.10
+    unconfirmed_closing_cap_mps: 0.50
   speed_hold_enable: 1
   speed_hold_min_speed_kmh: 50.0
   speed_hold_max_closing_mps: 1.2
@@ -121,6 +134,15 @@ acc:
   cut_in_emergency_ttc_s: 2.0
   cut_in_emergency_closing_mps: 3.0
   cut_in_emergency_gap_ratio: 0.65
+  opening_recovery_enable: 1
+  opening_recovery_min_speed_kmh: 50.0
+  opening_recovery_enter_rel_speed_mps: 1.0
+  opening_recovery_exit_rel_speed_mps: 0.30
+  opening_recovery_enter_gap_ratio: 0.72
+  opening_recovery_exit_gap_ratio: 0.62
+  opening_recovery_confirm_time_s: 0.40
+  opening_recovery_max_accel_mps2: 0.60
+  opening_recovery_lead_margin_kmh: 2.0
   default_fps: 20.0
   use_external_ego_speed: 1
   stop_and_go:
@@ -153,6 +175,9 @@ acc:
     # StoppedHold 中前車消失後，確認多久才允許無前車低速恢復。
     target_lost_resume_delay_s: 0.8
 
+    # Stopping 中前車消失後，確認多久才取消停止流程。
+    stopping_target_lost_abort_s: 0.35
+
     # 前車移動確認。
     resume_lead_min_speed_kmh: 2.0
     resume_distance_delta_m: 1.0
@@ -175,6 +200,66 @@ acc:
     # 起步期間短暫漏檢容許時間。
     resume_target_lost_timeout_s: 0.30
 
+throttle:
+  calibration_id: "real_car_acc_2026_07_v1"
+
+  control_period_ms: 20
+  vehicle_speed_timeout_ms: 100
+  acceleration_timeout_ms: 150
+
+  brake_interlock_threshold_0_10: 0.05
+
+  speed_pid:
+    pedal_min_v: 0.75
+    pedal_hard_max_v: 3.45
+
+    speed_error_deadband_kmh: 0.30
+
+    integral_min_v: -0.40
+    integral_max_v: 0.35
+
+    pedal_rise_rate_v_per_s: 1.60
+    pedal_fall_rate_v_per_s: 3.00
+
+    coast_fall_rate_v_per_s: 3.00
+    coast_integral_decay_per_s: 2.50
+
+    actual_speed_profile_weight: 0.75
+    reference_speed_profile_weight: 0.25
+
+    min_dt_s: 0.005
+    max_dt_s: 0.100
+
+    profiles:
+      - { speed_kmh: 0.0,   feedforward_pedal_v: 0.75, kp_v_per_kmh: 0.050, ki_v_per_kmh_s: 0.025, pedal_upper_v: 1.20, max_visible_error_kmh: 4.0 }
+      - { speed_kmh: 10.0,  feedforward_pedal_v: 1.05, kp_v_per_kmh: 0.050, ki_v_per_kmh_s: 0.025, pedal_upper_v: 1.50, max_visible_error_kmh: 5.0 }
+      - { speed_kmh: 20.0,  feedforward_pedal_v: 1.45, kp_v_per_kmh: 0.048, ki_v_per_kmh_s: 0.024, pedal_upper_v: 1.90, max_visible_error_kmh: 6.0 }
+      - { speed_kmh: 30.0,  feedforward_pedal_v: 1.70, kp_v_per_kmh: 0.046, ki_v_per_kmh_s: 0.023, pedal_upper_v: 2.15, max_visible_error_kmh: 7.0 }
+      - { speed_kmh: 40.0,  feedforward_pedal_v: 1.85, kp_v_per_kmh: 0.044, ki_v_per_kmh_s: 0.022, pedal_upper_v: 2.35, max_visible_error_kmh: 8.0 }
+      - { speed_kmh: 50.0,  feedforward_pedal_v: 2.00, kp_v_per_kmh: 0.042, ki_v_per_kmh_s: 0.021, pedal_upper_v: 2.60, max_visible_error_kmh: 9.0 }
+      - { speed_kmh: 60.0,  feedforward_pedal_v: 2.25, kp_v_per_kmh: 0.040, ki_v_per_kmh_s: 0.020, pedal_upper_v: 2.85, max_visible_error_kmh: 10.0 }
+      - { speed_kmh: 70.0,  feedforward_pedal_v: 2.55, kp_v_per_kmh: 0.038, ki_v_per_kmh_s: 0.018, pedal_upper_v: 3.10, max_visible_error_kmh: 10.0 }
+      - { speed_kmh: 80.0,  feedforward_pedal_v: 2.80, kp_v_per_kmh: 0.036, ki_v_per_kmh_s: 0.016, pedal_upper_v: 3.30, max_visible_error_kmh: 10.0 }
+      - { speed_kmh: 90.0,  feedforward_pedal_v: 3.05, kp_v_per_kmh: 0.032, ki_v_per_kmh_s: 0.012, pedal_upper_v: 3.45, max_visible_error_kmh: 10.0 }
+      - { speed_kmh: 100.0, feedforward_pedal_v: 3.30, kp_v_per_kmh: 0.030, ki_v_per_kmh_s: 0.010, pedal_upper_v: 3.45, max_visible_error_kmh: 10.0 }
+
+  mode_transition:
+    coast_entry_delay_s: 0.10
+    coast_integral_retention: 0.25
+    speed_hold_integral_retention: 0.15
+
+  safety:
+    acceleration_filter_tau_s: 0.15
+
+    low_speed_accel_limit_mps2: 1.30
+    high_speed_accel_limit_mps2: 1.05
+    high_speed_transition_kmh: 90.0
+
+    maximum_positive_jerk_mps3: 1.80
+
+    hard_acceleration_margin_mps2: 0.35
+    hard_release_rate_v_per_s: 4.00
+
 lka:
   wheel_base_m: 2.62
   velocity_mps: 5.0
@@ -182,6 +267,8 @@ lka:
   lateral_controller: "mpc"   # stanley 或 mpc；只切換 LKA raw steer，後續 Stability 防護共用同一路徑
   k_straight: 1.0
   k_curve: 3.5
+
+  # Conservative fallback when no speed profile matches.
   mpc_horizon: 20
   mpc_q_cte: 5.0
   mpc_q_heading: 1.5
@@ -198,7 +285,7 @@ lka:
   enable_feedforward: 1
   ff_gain: 1.0
   x_curvature_m: 1.0
-  max_ff_deg: 25.0
+  max_ff_deg: 25
   max_steer_deg: 59.0
   max_steer_rate_deg_s: 300.0
   # Runtime frame dt_s is used by LKA/MPC when available; this value is a fallback.
@@ -216,19 +303,31 @@ lka:
     # - {enabled: 1, min_speed_kmh: 70.0, max_speed_kmh: 80.0,  softening: 0.76, k_straight: 1.72, k_curve: 4.05, mpc_horizon: 24, mpc_q_cte: 1.8, mpc_q_heading: 2.2, mpc_q_steer: 9.8, mpc_r_steer_rate: 18.0, x_curvature_m: 2.2, ff_gain: 0.45, max_ff_deg: 8.0, max_steer_deg: 12.0, max_steer_rate_deg_s: 65.0, x_heading_straight_m:  4.0, x_ref_straight_m: 5.2, x_ref_curve_m: 4.0,x_heading_curve_m: 5.0}
     # - {enabled: 1, min_speed_kmh: 80.0, max_speed_kmh: 90.0,  softening: 0.72, k_straight: 2.08, k_curve: 4.05, mpc_horizon: 24, mpc_q_cte: 1.6, mpc_q_heading: 2.4, mpc_q_steer: 10.6, mpc_r_steer_rate: 21.0, x_curvature_m: 2.4, ff_gain: 0.46, max_ff_deg: 8.0, max_steer_deg: 10.5, max_steer_rate_deg_s: 55.0, x_heading_straight_m: 4.5, x_ref_straight_m: 6.0, x_ref_curve_m: 4.5,x_heading_curve_m: 5.8}
     # - {enabled: 1, min_speed_kmh: 90.0, max_speed_kmh: 100.0, softening: 0.70, k_straight: 2.44, k_curve: 4.05, mpc_horizon: 24, mpc_q_cte: 1.4, mpc_q_heading: 2.6, mpc_q_steer: 11.4, mpc_r_steer_rate: 24.0, x_curvature_m: 2.6, ff_gain: 0.46, max_ff_deg: 8.0, max_steer_deg: 8.5, max_steer_rate_deg_s: 50.0, x_heading_straight_m:  5.0, x_ref_straight_m: 6.5, x_ref_curve_m: 5.0,x_heading_curve_m: 6.2}
-
+# --------------------- 2026/04   weight 5.0
     - {enabled: 1, min_speed_kmh: 0.0,  max_speed_kmh: 10.0,  softening: 1.40, k_straight: 0.55, k_curve: 4.05, mpc_horizon: 18, mpc_q_cte: 2.8, mpc_q_heading: 0.90, mpc_q_steer: 3.6, mpc_r_steer_rate: 8.5,  x_curvature_m: 1.0, ff_gain: 0.30, max_ff_deg: 5.0, max_steer_deg: 120.0, max_steer_rate_deg_s: 145.0, x_heading_straight_m: 0.3, x_ref_straight_m: 1.5, x_ref_curve_m: 0.3,x_heading_curve_m: 1.3}
     - {enabled: 1, min_speed_kmh: 10.0, max_speed_kmh: 20.0,  softening: 1.25, k_straight: 0.60, k_curve: 4.05, mpc_horizon: 20, mpc_q_cte: 2.8, mpc_q_heading: 1.00, mpc_q_steer: 3.8, mpc_r_steer_rate: 8.8,  x_curvature_m: 1.1, ff_gain: 0.32, max_ff_deg: 5.5, max_steer_deg: 100.0, max_steer_rate_deg_s: 140.0, x_heading_straight_m: 0.3, x_ref_straight_m: 1.5, x_ref_curve_m: 0.3,x_heading_curve_m: 1.3}
     - {enabled: 1, min_speed_kmh: 20.0, max_speed_kmh: 30.0,  softening: 1.10, k_straight: 0.68, k_curve: 4.05, mpc_horizon: 21, mpc_q_cte: 2.7, mpc_q_heading: 1.10, mpc_q_steer: 4.0, mpc_r_steer_rate: 9.2,  x_curvature_m: 1.2, ff_gain: 0.35, max_ff_deg: 6.0, max_steer_deg: 80.0, max_steer_rate_deg_s: 135.0}
     - {enabled: 1, min_speed_kmh: 30.0, max_speed_kmh: 40.0,  softening: 1.00, k_straight: 0.76, k_curve: 4.05, mpc_horizon: 23, mpc_q_cte: 2.7, mpc_q_heading: 1.25, mpc_q_steer: 4.5, mpc_r_steer_rate: 9.6,  x_curvature_m: 1.4, ff_gain: 0.38, max_ff_deg: 6.5, max_steer_deg: 60.0, max_steer_rate_deg_s: 125.0}
     - {enabled: 1, min_speed_kmh: 40.0, max_speed_kmh: 50.0,  softening: 0.92, k_straight: 0.94, k_curve: 4.05, mpc_horizon: 24, mpc_q_cte: 2.6, mpc_q_heading: 1.40, mpc_q_steer: 5.2, mpc_r_steer_rate: 11.4, x_curvature_m: 1.6, ff_gain: 0.40, max_ff_deg: 7.0, max_steer_deg: 40.0, max_steer_rate_deg_s: 110.0}
 
-    - {enabled: 1, min_speed_kmh: 50.0, max_speed_kmh: 60.0,  softening: 0.86, k_straight: 1.24, k_curve: 4.05, mpc_horizon: 24, mpc_q_cte: 2.2, mpc_q_heading: 1.6, mpc_q_steer: 6.4, mpc_r_steer_rate: 14.0, x_curvature_m: 1.8, ff_gain: 0.42, max_ff_deg: 7.5, max_steer_deg: 30.0, max_steer_rate_deg_s: 90.0}
-    - {enabled: 1, min_speed_kmh: 60.0, max_speed_kmh: 70.0,  softening: 0.80, k_straight: 1.54, k_curve: 4.05, mpc_horizon: 24, mpc_q_cte: 2.0, mpc_q_heading: 1.9, mpc_q_steer: 8.2, mpc_r_steer_rate: 16.0, x_curvature_m: 2.0, ff_gain: 0.44, max_ff_deg: 8.0, max_steer_deg: 18.0, max_steer_rate_deg_s: 75.0}
-    - {enabled: 1, min_speed_kmh: 70.0, max_speed_kmh: 80.0,  softening: 0.76, k_straight: 1.72, k_curve: 4.05, mpc_horizon: 24, mpc_q_cte: 1.8, mpc_q_heading: 2.2, mpc_q_steer: 9.8, mpc_r_steer_rate: 18.0, x_curvature_m: 2.2, ff_gain: 0.45, max_ff_deg: 8.0, max_steer_deg: 12.0, max_steer_rate_deg_s: 65.0}
+    - {enabled: 1, min_speed_kmh: 50.0, max_speed_kmh: 60.0,  softening: 0.86, k_straight: 1.24, k_curve: 4.05, mpc_horizon: 24, mpc_q_cte: 2.2, mpc_q_heading: 1.6, mpc_q_steer: 6.4, mpc_r_steer_rate: 14.0, x_curvature_m: 1.8,  ff_gain: 0.42, max_ff_deg: 7.5, max_steer_deg: 30.0, max_steer_rate_deg_s: 90.0}
+    - {enabled: 1, min_speed_kmh: 60.0, max_speed_kmh: 70.0,  softening: 0.80, k_straight: 1.54, k_curve: 4.05, mpc_horizon: 24, mpc_q_cte: 2.0, mpc_q_heading: 1.9, mpc_q_steer: 8.2, mpc_r_steer_rate: 16.0, x_curvature_m: 2.0,  ff_gain: 0.44, max_ff_deg: 8.0, max_steer_deg: 18.0, max_steer_rate_deg_s: 75.0}
+    - {enabled: 1, min_speed_kmh: 70.0, max_speed_kmh: 80.0,  softening: 0.76, k_straight: 1.72, k_curve: 4.05, mpc_horizon: 24, mpc_q_cte: 1.8, mpc_q_heading: 2.2, mpc_q_steer: 9.8, mpc_r_steer_rate: 18.0, x_curvature_m: 2.2,  ff_gain: 0.45, max_ff_deg: 8.0, max_steer_deg: 12.0, max_steer_rate_deg_s: 65.0}
     - {enabled: 1, min_speed_kmh: 80.0, max_speed_kmh: 90.0,  softening: 0.72, k_straight: 2.08, k_curve: 4.05, mpc_horizon: 24, mpc_q_cte: 1.6, mpc_q_heading: 2.4, mpc_q_steer: 10.6, mpc_r_steer_rate: 21.0, x_curvature_m: 2.4, ff_gain: 0.46, max_ff_deg: 8.0, max_steer_deg: 10.5, max_steer_rate_deg_s: 55.0}
     - {enabled: 1, min_speed_kmh: 90.0, max_speed_kmh: 100.0, softening: 0.70, k_straight: 2.44, k_curve: 4.05, mpc_horizon: 24, mpc_q_cte: 1.4, mpc_q_heading: 2.6, mpc_q_steer: 11.4, mpc_r_steer_rate: 24.0, x_curvature_m: 2.6, ff_gain: 0.46, max_ff_deg: 8.0, max_steer_deg: 8.5, max_steer_rate_deg_s: 50.0}
-
+# --------------------- 2026/07   weight 7.0
+    # - {enabled: 1, min_speed_kmh: 0.0,  max_speed_kmh: 10.0,  softening: 1.40, k_straight: 0.55, k_curve: 4.05, mpc_horizon: 18, mpc_q_cte: 3.2, mpc_q_heading: 1.0, mpc_q_steer: 4.8,  mpc_r_steer_rate: 12.0, x_curvature_m: 1.0, ff_gain: 0.30, max_ff_deg: 5.0, max_steer_deg: 120.0, max_steer_rate_deg_s: 145.0, x_ref_straight_m: 0.8, x_heading_straight_m: 1.8, x_ref_curve_m: 0.6, x_heading_curve_m: 1.3}
+    # - {enabled: 1, min_speed_kmh: 10.0, max_speed_kmh: 20.0,  softening: 1.25, k_straight: 0.60, k_curve: 4.05, mpc_horizon: 20, mpc_q_cte: 3.0, mpc_q_heading: 1.2, mpc_q_steer: 5.2,  mpc_r_steer_rate: 12.0, x_curvature_m: 1.1, ff_gain: 0.32, max_ff_deg: 5.5, max_steer_deg: 100.0, max_steer_rate_deg_s: 110.0, x_ref_straight_m: 1.0, x_heading_straight_m: 2.2, x_ref_curve_m: 0.8, x_heading_curve_m: 1.6}
+    # - {enabled: 1, min_speed_kmh: 20.0, max_speed_kmh: 30.0,  softening: 1.10, k_straight: 0.68, k_curve: 4.05, mpc_horizon: 21, mpc_q_cte: 2.7, mpc_q_heading: 1.3, mpc_q_steer: 6.5,  mpc_r_steer_rate: 13.0, x_curvature_m: 1.2, ff_gain: 0.35, max_ff_deg: 6.0, max_steer_deg: 80.0, max_steer_rate_deg_s: 95.0}
+    # - {enabled: 1, min_speed_kmh: 30.0, max_speed_kmh: 40.0,  softening: 1.00, k_straight: 0.76, k_curve: 4.05, mpc_horizon: 23, mpc_q_cte: 2.5, mpc_q_heading: 1.4, mpc_q_steer: 8.5,  mpc_r_steer_rate: 14.0, x_curvature_m: 1.4, ff_gain: 0.38, max_ff_deg: 6.5, max_steer_deg: 60.0, max_steer_rate_deg_s: 75.0}
+    # - {enabled: 1, min_speed_kmh: 40.0, max_speed_kmh: 50.0,  softening: 0.92, k_straight: 0.94, k_curve: 4.05, mpc_horizon: 24, mpc_q_cte: 2.3, mpc_q_heading: 1.5, mpc_q_steer: 10.8,  mpc_r_steer_rate: 16.5, x_curvature_m: 1.6, ff_gain: 0.40, max_ff_deg: 7.0, max_steer_deg: 40.0, max_steer_rate_deg_s: 60.0}
+    
+    # - {enabled: 1, min_speed_kmh: 50.0, max_speed_kmh: 60.0,  softening: 0.86, k_straight: 1.24, k_curve: 4.05, mpc_horizon: 24, mpc_q_cte: 1.9,  mpc_q_heading: 1.6,  mpc_q_steer: 11.5, mpc_r_steer_rate: 18.0, x_curvature_m: 1.8, ff_gain: 0.42, max_ff_deg: 7.5, max_steer_deg: 30.0, max_steer_rate_deg_s: 50.0}
+    # - {enabled: 1, min_speed_kmh: 60.0, max_speed_kmh: 70.0,  softening: 0.80, k_straight: 1.54, k_curve: 4.05, mpc_horizon: 24, mpc_q_cte: 1.6,  mpc_q_heading: 1.9,  mpc_q_steer: 13.5, mpc_r_steer_rate: 20.0, x_curvature_m: 2.0, ff_gain: 0.44, max_ff_deg: 8.0, max_steer_deg: 18.0, max_steer_rate_deg_s: 45.0}
+    # - {enabled: 1, min_speed_kmh: 70.0, max_speed_kmh: 80.0,  softening: 0.76, k_straight: 1.72, k_curve: 4.05, mpc_horizon: 24, mpc_q_cte: 1.40, mpc_q_heading: 1.70, mpc_q_steer: 17.0, mpc_r_steer_rate: 30.0, x_curvature_m: 2.2, ff_gain: 0.45, max_ff_deg: 8.0, max_steer_deg: 12.0, max_steer_rate_deg_s: 34.0, x_ref_straight_m: 4.0, x_heading_straight_m: 7.0, x_ref_curve_m: 3.5, x_heading_curve_m: 6.0 }
+    # - {enabled: 1, min_speed_kmh: 80.0, max_speed_kmh: 90.0,  softening: 0.72, k_straight: 2.08, k_curve: 4.05, mpc_horizon: 24, mpc_q_cte: 1.35, mpc_q_heading: 1.45, mpc_q_steer: 22.0, mpc_r_steer_rate: 42.0, x_curvature_m: 2.4, ff_gain: 0.46, max_ff_deg: 8.0, max_steer_deg: 10.0, max_steer_rate_deg_s: 30.0, x_ref_straight_m: 4.5, x_heading_straight_m: 7.5, x_ref_curve_m: 4.0, x_heading_curve_m: 6.5 }
+    # - {enabled: 1, min_speed_kmh: 90.0, max_speed_kmh: 100.0, softening: 0.70, k_straight: 2.44, k_curve: 4.05, mpc_horizon: 24, mpc_q_cte: 1.30, mpc_q_heading: 1.25, mpc_q_steer: 24.0, mpc_r_steer_rate: 46.0, x_curvature_m: 2.6, ff_gain: 0.46, max_ff_deg: 8.0, max_steer_deg:  8.5, max_steer_rate_deg_s: 25.0, x_ref_straight_m: 5.0, x_heading_straight_m: 8.0, x_ref_curve_m: 4.5, x_heading_curve_m: 7.0 }
+    
 
   use_confidence: 1
   conf_threshold: 0.5
@@ -242,7 +341,7 @@ lka:
   metric_threshold: 0.08
   metric_sensitivity: 25.0
   use_hysteresis: 0
-  metric_enter_curve: 0.10
+  metric_enter_curve: 0.1
   metric_exit_curve: 0.06
   enable_prob_lowpass: 1
   prob_alpha: 0.85
@@ -266,7 +365,7 @@ stability:
   mu_lowpass_alpha: 0.90
   lat_safety: 0.85
   total_safety: 0.90
-  lat_accel_comfort_mps2: 60
+  lat_accel_comfort_mps2: 2.5
   long_accel_comfort_mps2: 1.8
   long_decel_comfort_mps2: 2.8
   emergency_decel_cap_mps2: 6.0
@@ -305,15 +404,21 @@ collision:
   dis_warn_m: 12.0
   dis_brake_m: 6.0
   enable_aeb_warning_sound: 1
-  aeb_warning_ttc_s: 2.0
+  aeb_warning_ttc_s: 1.8
   aeb_audio_ttc_off_s: 2.8
-  aeb_audio_confirm_time_s: 0.20
+  aeb_audio_confirm_time_s: 0.35
+  aeb_audio_low_speed_confirm_time_s: 0.60
   aeb_audio_release_time_s: 0.30
-  aeb_audio_min_approach_speed_mps: 1.2
-  aeb_audio_min_track_age_frames: 5
-  aeb_audio_min_track_score: 0.45
+  aeb_audio_min_approach_speed_mps: 1.5
+  aeb_audio_min_longitudinal_closing_mps: 1.0
+  aeb_audio_current_path_half_width_m: 1.2
+  aeb_audio_min_track_age_frames: 10
+  aeb_audio_min_track_score: 0.65
   aeb_audio_immediate_ttc_s: 0.80
   aeb_audio_immediate_forward_m: 8.0
+  aeb_audio_low_speed_immediate_ttc_s: 0.60
+  aeb_audio_low_speed_immediate_forward_m: 3.0
+  aeb_audio_same_threat_rearm_safe_s: 4.0
   max_extra_brake_0_10: 4.0
   max_avoid_steer_deg: 4.0
   enable_classify_warning: 1
@@ -331,7 +436,7 @@ collision:
   warning_kf_on_th: 0.65
   warning_kf_off_th: 0.35
   track_warmup_frames: 5
-  attention_half_width_m: 2.5
+  attention_half_width_m: 1.6
   min_approach_speed_mps: 0.8
   threat_hold_frames: 8
   threat_switch_hysteresis_s: 0.50

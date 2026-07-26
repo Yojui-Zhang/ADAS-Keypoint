@@ -424,15 +424,23 @@ int RunAdasApplication(int argc, char** argv) {
     perf_metrics.behavior_ms = ElapsedMs(behavior_start, behavior_end);
 
     const auto collision_start = PerfClock::now();
+    const double deceleration_before_collision = deceleration_cmd;
+    std::string final_brake_source = cmd.final_brake_source;
+    const bool collision_actuation_enabled =
+        runtime_cfg.app.enable_collision_actuation && demo_supervisor;
     auto ca = collision_assist.Step(
         world_result,
         ego_speed_mps,
         target_angle_cmd,
         dt_s,
-        runtime_cfg.app.enable_collision_actuation && demo_supervisor,
+        collision_actuation_enabled,
         &target_speed,
         &target_angle_cmd,
         &deceleration_cmd);
+    if (collision_actuation_enabled &&
+        deceleration_cmd > deceleration_before_collision + 1e-3) {
+      final_brake_source = "collision_assist";
+    }
     const auto collision_end = PerfClock::now();
     perf_metrics.collision_ms = ElapsedMs(collision_start, collision_end);
     const uint64_t cmd_sync_ns = TimeSyncNowNs();
@@ -443,13 +451,20 @@ int RunAdasApplication(int argc, char** argv) {
     if (demo_longitudinal_control == false) {
       target_speed = 0.0f;
       deceleration_cmd = 0.0;
+      final_brake_source = "none";
+    } else if (deceleration_cmd <= 0.05) {
+      final_brake_source = "none";
     }
 
-    const collision::AebAudioGateOutput aeb_audio =
-        aeb_audio_gate.Update(ca, runtime_cfg.collision, dt_s);
+    collision::AebAudioGateOutput aeb_audio =
+        aeb_audio_gate.Update(ca,
+                              runtime_cfg.collision,
+                              dt_s,
+                              ego_vehicle_speed_kmh);
     if (runtime_cfg.collision.enable_aeb_warning_sound &&
         aeb_audio.rising_edge) {
-      sound::RequestAebWarningSound();
+      aeb_audio.play_accepted =
+          sound::RequestAebWarningSound();
     }
 
     controller::ThrottleControlMode throttle_mode =
@@ -473,7 +488,15 @@ int RunAdasApplication(int argc, char** argv) {
         throttle_mode = controller::ThrottleControlMode::SpeedTracking;
       }
     }
-    controller::SetThrottleControlRequest(target_speed, throttle_mode);
+    const float final_brake_0_10 =
+        static_cast<float>(std::clamp(deceleration_cmd, 0.0, 10.0));
+    if (final_brake_0_10 <= 0.05f) {
+      deceleration = 0.0;
+    }
+
+    controller::SetThrottleControlRequest(target_speed,
+                                          throttle_mode,
+                                          final_brake_0_10);
 
     if (control_state.draw_collision_overlay &&
         ca.warning && runtime_cfg.app.draw_collision_border) {
@@ -522,7 +545,9 @@ int RunAdasApplication(int argc, char** argv) {
 
     target_angle_cmd = -target_angle_cmd;
     targetAngle = target_angle_cmd;
-    deceleration = deceleration_cmd;
+    if (final_brake_0_10 > 0.05f) {
+      deceleration = final_brake_0_10;
+    }
     // target_speed = cmd.speed_kmh;
 
     const float current_steer_deg =
@@ -633,6 +658,8 @@ int RunAdasApplication(int argc, char** argv) {
     log_input.dt_s = dt_s;
     log_input.ego_speed_kmh = ego_vehicle_speed_kmh;
     log_input.target_speed_kmh = target_speed;
+    log_input.final_brake_0_10 = deceleration_cmd;
+    log_input.final_brake_source = final_brake_source;
     log_input.target_distance_m = Targetdistance;
     log_input.target_ttc_s = target_ttc;
     log_input.throttle_mode_code =
@@ -647,22 +674,52 @@ int RunAdasApplication(int argc, char** argv) {
         throttle_telemetry.target_speed_kmh;
     log_input.throttle_current_speed_kmh =
         throttle_telemetry.current_speed_kmh;
+    log_input.throttle_visible_target_speed_kmh =
+        throttle_telemetry.visible_target_speed_kmh;
+    log_input.throttle_operating_speed_kmh =
+        throttle_telemetry.operating_speed_kmh;
     log_input.throttle_feedforward_pedal_v =
         throttle_telemetry.feedforward_pedal_v;
     log_input.throttle_speed_error_kmh =
         throttle_telemetry.speed_error_kmh;
     log_input.throttle_integral_v =
         throttle_telemetry.integral_v;
+    log_input.throttle_desired_pedal_v =
+        throttle_telemetry.desired_pedal_v;
     log_input.throttle_final_pedal_v =
         throttle_telemetry.final_pedal_v;
+    log_input.throttle_applied_pedal_v =
+        throttle_telemetry.applied_pedal_v;
     log_input.throttle_pedal_upper_v =
         throttle_telemetry.pedal_upper_v;
+    log_input.throttle_requested_brake_0_10 =
+        throttle_telemetry.requested_brake_0_10;
+    log_input.throttle_brake_interlock_active =
+        throttle_telemetry.brake_interlock_active;
+    log_input.throttle_measured_dt_s =
+        throttle_telemetry.measured_dt_s;
     log_input.throttle_vehicle_speed_fresh =
         throttle_telemetry.vehicle_speed_fresh;
     log_input.throttle_vehicle_speed_age_ms =
         throttle_telemetry.vehicle_speed_age_ms;
     log_input.throttle_vehicle_speed_timestamp_ns =
         throttle_telemetry.vehicle_speed_timestamp_ns;
+    log_input.throttle_vehicle_acceleration_fresh =
+        throttle_telemetry.vehicle_acceleration_fresh;
+    log_input.throttle_raw_acceleration_mps2 =
+        throttle_telemetry.raw_acceleration_mps2;
+    log_input.throttle_filtered_acceleration_mps2 =
+        throttle_telemetry.filtered_acceleration_mps2;
+    log_input.throttle_measured_jerk_mps3 =
+        throttle_telemetry.measured_jerk_mps3;
+    log_input.throttle_allowed_acceleration_mps2 =
+        throttle_telemetry.allowed_acceleration_mps2;
+    log_input.throttle_acceleration_guard_active =
+        throttle_telemetry.acceleration_guard_active;
+    log_input.throttle_jerk_guard_active =
+        throttle_telemetry.jerk_guard_active;
+    log_input.throttle_calibration_id =
+        throttle_telemetry.calibration_id;
     log_input.brake_control_active =
         controller::BrakeControlActive(control_state);
     log_input.acc_manual_resume_request_sequence =
